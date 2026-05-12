@@ -1,0 +1,402 @@
+/* Callout块样式优化——修改基础和折叠样式 */
+/* version 0.0.5 */
+/* 0.0.5 修复列表块/非列表块中的callout块的标题输入区域长度不一致问题 */
+/* 0.0.4 修复列表块中的callout宽度异常问题；优化callout块的icon+标题的整体位置，增大callout正文子块边界与callout边界的距离 */
+/* 0.0.3 约束callout在flex容器里的拉伸，避免它的展开/折叠高度受到在水平布局超级块中同级块高度的影响 */
+/* 0.0.2 优化callout折叠/展开状态下的标题与icon位置，防止抖动；增加折叠/展开动作的上拉/下拉动画 */
+
+:root[data-theme-mode="dark"] {
+    --callout-bg-mix: transparent 85%;
+    --callout-text-mix: white 10%;
+}
+
+:root[data-theme-mode="light"] {
+    --callout-bg-mix: white 92%;
+    --callout-text-mix: black 10%;
+}
+
+.callout[data-type="NodeCallout"] {
+    --callout-fold-duration: 140ms;
+    --callout-fold-easing: cubic-bezier(.25, .8, .25, 1);
+    padding-top: 10px;
+    padding-right: 0px;
+    padding-bottom: 4px;
+    padding-left: 12px;
+    display: flex;
+    flex-direction: column;
+    /* 遵循思源官方布局，不强制宽度，让容器和父级样式决定宽度 */
+    box-sizing: border-box;
+    border: none !important;
+    /* 去除外边框 */
+    box-shadow: none !important;
+    /* 同时去除可能的阴影（部分主题有） */
+    outline: none !important;
+    /* 防止焦点时出现轮廓线 */
+
+    .callout-title {
+        font-weight: bold;
+        width: 100%;
+        line-height: 1.2;
+    }
+
+    .callout-title[contenteditable="true"]:focus,
+    .callout-title.is-title-editing {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        word-break: break-all;
+        outline: none;
+        background: color-mix(in srgb, currentColor, transparent 95%);
+        /* 轻微高亮提示编辑 */
+        border-radius: 4px;
+    }
+
+    .callout-icon {
+        display: none;
+    }
+
+    /* 替换侧线为 icon */
+    &::before {
+        display: inline-block;
+        overflow: visible !important;
+        vertical-align: middle;
+        width: 20px;
+        height: 20px;
+        background-color: currentColor;
+        margin-right: 8px;
+        mask-repeat: no-repeat;
+        top: 10px;
+        left: 18px;
+        cursor: pointer;
+        z-index: 1;
+    }
+
+    .callout-info {
+        display: flex;
+        align-items: center;
+        padding-left: 28px;
+        min-height: 28px;
+        transform: translateY(-3px);
+
+        .callout-title {
+            font-size: 100%;
+            padding-right: 28px;
+            /* 多行标题压缩 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            line-height: 28px;
+        }
+    }
+
+    /* 正文区域动画：避免折叠/展开时头部位置跳动 */
+    &>*:not(:first-child) {
+        overflow: hidden;
+        max-height: 1200px;
+        transition:
+            max-height var(--callout-fold-duration) var(--callout-fold-easing),
+            margin-top 0s linear 0s,
+            margin-bottom 0s linear 0s;
+        will-change: max-height;
+    }
+
+    /* 折叠样式 */
+    &[fold="1"] {
+        /* 折叠态保持与展开态相同的布局特性，避免视觉跳动 */
+        /* 保留必要的覆盖项，避免重复声明基础样式（如 display、padding 已在基类中定义） */
+        height: auto !important;
+        overflow: visible !important;
+        /* 与展开态保持视觉一致 */
+        opacity: 1 !important;
+        background-image: none !important;
+
+        /* 折叠态下，覆盖子块间距规则，确保标题上下间距对称 */
+        &>.callout-info~* {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+
+        &>.callout-info+* {
+            margin-top: 0 !important;
+        }
+    }
+
+    /* 水平布局超级块中的Callout块限制在交叉轴上向起始位置对齐，防止被拉伸或居中 */
+    .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] &,
+    .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] &[fold="1"] {
+        align-self: flex-start !important;
+    }
+
+    /* 水平布局超级块中的列表项/子块单元中的Callout块强制填满父容器的宽度，并不要超过父容器的边界 */
+    .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] .li &,
+    .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] .li &[fold="1"] {
+        align-self: stretch !important;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    &[fold="1"]>*:not(:first-child) {
+        transition:
+            max-height var(--callout-fold-duration) var(--callout-fold-easing),
+            margin-top 0s linear var(--callout-fold-duration),
+            margin-bottom 0s linear var(--callout-fold-duration);
+        max-height: 0 !important;
+        pointer-events: none;
+    }
+
+    &>.callout-info::after {
+        content: '';
+        position: absolute;
+        right: 0.5em;
+        top: 14px;
+        width: 1.25em;
+        height: 1.25em;
+        mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=");
+        mask-repeat: no-repeat;
+        mask-size: contain;
+        transform: translateY(-50%) rotate(90deg);
+        transition: transform var(--callout-fold-duration) var(--callout-fold-easing);
+        background-color: currentColor;
+        cursor: pointer;
+    }
+
+    &[fold="1"]>.callout-info::after {
+        transform: translateY(-50%) rotate(0deg);
+    }
+
+    /* --- 颜色处理部分 --- */
+
+    /* 通用样式：使用 color-mix 混合背景色，避免嵌套变深 */
+    &[data-subtype] {
+        background-color: color-mix(in srgb,
+                var(--b3-callout-note),
+                var(--callout-bg-mix)) !important;
+
+        /* 标题颜色 */
+        &,
+        >.callout-info>.callout-title {
+            color: color-mix(in srgb,
+                    var(--b3-callout-note),
+                    var(--callout-text-mix)) !important;
+        }
+
+        /* 正文颜色 */
+        >.callout-info~*,
+        >.callout-info * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        /* ICON: 已修改为笔 (Pencil) */
+        &::before {
+            mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXBlbmNpbCI+PHBhdGggZD0iTTE3IDNhMi44NSAyLjgzIDAgMSAxIDQgNEw3LjUgMjAuNSAyIDIybDEuNS01LjVaIi8+PHBhdGggZD0ibTE1IDUgNCA0Ii8+PC9zdmc+");
+            mask-size: cover;
+        }
+
+        /* 折叠箭头颜色 */
+        &>.callout-info::after {
+            background-color: color-mix(in srgb,
+                    var(--b3-callout-note),
+                    var(--callout-text-mix)) !important;
+        }
+    }
+
+    /* --- 原有类型 --- */
+    &[data-subtype="TIP"] {
+        background-color: color-mix(in srgb, var(--b3-callout-tip), var(--callout-bg-mix)) !important;
+
+        &,
+        >.callout-info>.callout-title {
+            color: color-mix(in srgb, var(--b3-callout-tip), var(--callout-text-mix)) !important;
+        }
+
+        >.callout-info~*,
+        >.callout-info * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        &::before {
+            mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSIyOCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIxLjcxNDI4NTcxNDI4NTcxNDIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgY2xhc3M9Imx1Y2lkZSBsdWNpZGUtbGlnaHRidWxiIj48cGF0aCBkPSJNMTUgMTRjLjItMSAuNy0xLjcgMS41LTIuNSAxLS45IDEuNS0yLjIgMS41LTMuNUE2IDYgMCAwIDAgNiA4YzAgMSAuMiAyLjIgMS41IDMuNS43LjcgMS4zIDEuNSAxLjUgMi41Ii8+PHBhdGggZD0iTTkgMThoNiIvPjxwYXRoIGQ9Ik0xMCAyMmg0Ii8+PC9zdmc+");
+            mask-size: cover;
+        }
+
+        &>.callout-info::after {
+            background-color: color-mix(in srgb, var(--b3-callout-tip), var(--callout-text-mix)) !important;
+        }
+    }
+
+    &[data-subtype="IMPORTANT"] {
+        background-color: color-mix(in srgb, var(--b3-callout-important), var(--callout-bg-mix)) !important;
+
+        &,
+        >.callout-info>.callout-title {
+            color: color-mix(in srgb, var(--b3-callout-important), var(--callout-text-mix)) !important;
+        }
+
+        >.callout-info~*,
+        >.callout-info * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        &::before {
+            mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLW1lc3NhZ2Utc3F1YXJlLXdhcm5pbmctaWNvbiBsdWNpZGUtbWVzc2FnZS1zcXVhcmUtd2FybmluZyI+PHBhdGggZD0iTTIxIDE1YTIgMiAwIDAgMS0yIDJIN2wtNCA0VjVhMiAyIDAgMCAxIDItMmgxNGEyIDIgMCAwIDEgMiAyeiIvPjxwYXRoIGQ9Ik0xMiA3djIiLz48cGF0aCBkPSJNMTIgMTNoLjAxIi8+PC9zdmc+");
+            mask-size: cover;
+        }
+
+        &>.callout-info::after {
+            background-color: color-mix(in srgb, var(--b3-callout-important), var(--callout-text-mix)) !important;
+        }
+    }
+
+    &[data-subtype="WARNING"] {
+        background-color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-bg-mix)) !important;
+
+        &,
+        >.callout-info>.callout-title {
+            color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-text-mix)) !important;
+        }
+
+        >.callout-info~*,
+        >.callout-info * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        &::before {
+            mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXRyaWFuZ2xlLWFsZXJ0LWljb24gbHVjaWRlLXRyaWFuZ2xlLWFsZXJ0Ij48cGF0aCBkPSJtMjEuNzMgMTgtOC0xNGEyIDIgMCAwIDAtMy40OCAwbC04IDE0QTIgMiAwIDAgMCA0IDIxaDE2YTIgMiAwIDAgMCAxLjczLTMiLz48cGF0aCBkPSJNMTIgOXY0Ii8+PHBhdGggZD0iTTEyIDE3aC4wMSIvPjwvc3ZnPg==");
+            mask-size: cover;
+        }
+
+        &>.callout-info::after {
+            background-color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-text-mix)) !important;
+        }
+    }
+
+    &[data-subtype="CAUTION"] {
+        background-color: color-mix(in srgb, var(--b3-callout-caution), var(--callout-bg-mix)) !important;
+
+        &,
+        >.callout-info>.callout-title {
+            color: color-mix(in srgb, var(--b3-callout-caution), var(--callout-text-mix)) !important;
+        }
+
+        >.callout-info~*,
+        >.callout-info * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        &::before {
+            mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSIyOCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIxLjcxNDI4NTcxNDI4NTcxNDIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgY2xhc3M9Imx1Y2lkZSBsdWNpZGUtb2N0YWdvbi1hbGVydCI+PHBhdGggZD0iTTEyIDE2aC4wMSIvPjxwYXRoIGQ9Ik0xMiA4djQiLz48cGF0aCBkPSJNMTUuMzEyIDJhMiAyIDAgMCAxIDEuNDE0LjU4Nmw0LjY4OCA0LjY4OEEyIDIgMCAwIDEgMjIgOC42ODh2Ni42MjRhMiAyIDAgMCAxLS41ODYgMS40MTRsLTQuNjg4IDQuNjg4YTIgMiAwIDAgMS0xLjQxNC41ODZIOC42ODhhMiAyIDAgMCAxLTEuNDE0LS41ODZsLTQuNjg4LTQuNjg4QTIgMiAwIDAgMSAyIDE1LjMxMlY4LjY4OGEyIDIgMCAwIDEgLjU4Ni0xLjQxNGw0LjY4OC00LjY4OEEyIDIgMCAwIDEgOC42ODggMnoiLz48L3N2Zz4=");
+            mask-size: cover;
+        }
+
+        &>.callout-info::after {
+            background-color: color-mix(in srgb, var(--b3-callout-caution), var(--callout-text-mix)) !important;
+        }
+    }
+
+    /* --- 新增类型: QUOTE (灰色) --- */
+    &[data-subtype="QUOTE" i] {
+        /* i 表示 "insensitive"（不区分大小写） */
+        --local-color: #7f8c8d;
+        /* 自定义灰色 */
+
+        background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
+
+        &,
+        >.callout-info>.callout-title {
+            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
+        }
+
+        >.callout-info~*,
+        >.callout-info * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        &::before {
+            /* Quote Icon */
+            mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXF1b3RlLWljb24gbHVjaWRlLXF1b3RlIj48cGF0aCBkPSJNMTYgM2EyIDIgMCAwIDAtMiAydjZhMiAyIDAgMCAwIDIgMiAxIDEgMCAwIDEgMSAxdjFhMiAyIDAgMCAxLTIgMiAxIDEgMCAwIDAtMSAxdjJhMSAxIDAgMCAwIDEgMSA2IDYgMCAwIDAgNi02VjVhMiAyIDAgMCAwLTItMnoiLz48cGF0aCBkPSJNNSAzYTIgMiAwIDAgMC0yIDJ2NmEyIDIgMCAwIDAgMiAyIDEgMSAwIDAgMSAxIDF2MWEyIDIgMCAwIDEtMiAyIDEgMSAwIDAgMC0xIDF2MmExIDEgMCAwIDAgMSAxIDYgNiAwIDAgMCA2LTZWNWEyIDIgMCAwIDAtMi0yeiIvPjwvc3ZnPg==");
+            mask-size: cover;
+        }
+
+        &>.callout-info::after {
+            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
+        }
+    }
+
+    /* --- 新增类型: QUESTION (同WARNING样式) --- */
+    &[data-subtype="QUESTION" i] {
+        background-color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-bg-mix)) !important;
+
+        &,
+        >.callout-info>.callout-title {
+            color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-text-mix)) !important;
+        }
+
+        >.callout-info~*,
+        >.callout-info * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        &::before {
+            /* Question Circle Icon */
+            mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNpcmNsZS1oZWxwIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxwYXRoIGQ9Ik05LjA5IDlhMyAzIDAgMCAxIDUuODMgMWMwIDItMyAzLTMgMyIvPjxwYXRoIGQ9Ik0xMiAxN2guMDEiLz48L3N2Zz4=");
+            mask-size: cover;
+        }
+
+        &>.callout-info::after {
+            background-color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-text-mix)) !important;
+        }
+    }
+
+    /* --- 新增类型: INFO (蓝色) --- */
+    &[data-subtype="INFO" i] {
+        --local-color: #086ddd;
+        /* 自定义蓝色 */
+
+        background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
+
+        &,
+        >.callout-info>.callout-title {
+            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
+        }
+
+        >.callout-info~*,
+        >.callout-info * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        &::before {
+            /* Info Icon */
+            mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWluZm8iPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PHBhdGggZD0iTTEyIDE2di00Ii8+PHBhdGggZD0iTTEyIDhoLjAxIi8+PC9zdmc+");
+            mask-size: cover;
+        }
+
+        &>.callout-info::after {
+            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
+        }
+    }
+
+    /* --- 嵌套子块的统一边界间距判定（适用于 callout 内所有正文子块） --- */
+    --callout-nested-gap: 6px;
+
+    /* 对标题行之后的所有正文子块统一处理左右与下边界间距 */
+    &>.callout-info~* {
+        margin-left: var(--callout-nested-gap);
+        margin-right: var(--callout-nested-gap);
+        margin-bottom: calc(var(--callout-nested-gap) * 1.5);
+        box-sizing: border-box;
+        min-width: 0;
+        max-width: calc(100% - (var(--callout-nested-gap) * 1.5));
+    }
+
+    /* 标题与第一个正文子块之间的间距 */
+    &>.callout-info+* {
+        margin-top: calc(var(--callout-nested-gap) * 0.5);
+    }
+
+    /* 最后一个正文子块的底部间距收敛，避免底边过厚 */
+    &>.callout-info~*:last-child {
+        margin-bottom: var(--callout-nested-gap);
+    }
+
+}

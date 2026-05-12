@@ -1,0 +1,13 @@
+## v0.1.0 2026-05-13
+
+- 🇨🇳 将[代码片段](https://github.com/QMike0/Siyuan-ObsidianType-Callout)转换成本插件
+- 🇨🇳 优化callout标题文字修改的保存机制
+- 🇨🇳 优化callout标题处回车所插入块的撤回机制
+- 🇨🇳 优化补全菜单&类型菜单的操作，支持方向键切换菜单项
+- 🇨🇳 在代码片段的基础上进行代码逻辑优化与潜在问题排除
+- 🇺🇸 Convert the [code snippet](https://github.com/QMike0/Siyuan-ObsidianType-Callout) into this plugin
+- 🇺🇸 Optimize the saving mechanism for modifying callout title text
+- 🇺🇸 Optimize the undo mechanism for blocks inserted when pressing Enter in the callout title
+- 🇺🇸 Improve the operation of the completion menu & type menu, adding support for navigating menu items with arrow keys
+- 🇺🇸 Refine the code logic and eliminate potential issues based on the code snippet
+
