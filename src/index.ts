@@ -96,6 +96,74 @@ function ensureCalloutTitleEditable(titleEl: HTMLElement | null) {
     titleEl.spellcheck = false;
 }
 
+function getSiyuanLute(protyle?: any | null) {
+    return protyle?.lute || (window as any)?.Lute || null;
+}
+
+function getFirstBlockInnerHTMLFromMd(lute: any, markdown: string) {
+    if (!lute || typeof lute.Md2BlockDOM !== "function") return "";
+    const template = document.createElement("template");
+    template.innerHTML = lute.Md2BlockDOM(markdown);
+    return template.content.firstElementChild?.firstElementChild?.innerHTML || "";
+}
+
+function normalizeCalloutTitleText(text: string) {
+    return (text || "")
+        .replace(/\u00A0/g, " ")
+        .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function normalizeCalloutTitlePlainTextFromMarkdown(markdown: string, protyle?: any | null) {
+    const lute = getSiyuanLute(protyle);
+    let text = markdown;
+
+    if (lute && typeof lute.Md2BlockDOM === "function") {
+        try {
+            const normalizedInlineHTML = getFirstBlockInnerHTMLFromMd(lute, normalizeCalloutTitleText(markdown));
+            if (normalizedInlineHTML) {
+                const template = document.createElement("template");
+                template.innerHTML = normalizedInlineHTML;
+                text = template.content.textContent || "";
+            }
+        } catch {
+            // Fall back to plain-text normalization below.
+        }
+    }
+
+    return normalizeCalloutTitleText(text);
+}
+
+function normalizeCalloutTitlePlainText(titleEl: HTMLElement | null, protyle?: any | null) {
+    if (!titleEl) return "";
+    const lute = getSiyuanLute(protyle);
+    let markdown = "";
+
+    if (lute && typeof lute.BlockDOM2StdMd === "function") {
+        try {
+            markdown = lute.BlockDOM2StdMd(titleEl.innerHTML);
+        } catch {
+            markdown = titleEl.textContent || "";
+        }
+    } else {
+        markdown = titleEl.textContent || "";
+    }
+
+    return normalizeCalloutTitlePlainTextFromMarkdown(markdown, protyle);
+}
+
+function cleanCalloutTitleEditable(titleEl: HTMLElement | null, protyle?: any | null) {
+    if (!titleEl) return false;
+    const normalized = normalizeCalloutTitlePlainText(titleEl, protyle);
+    const currentText = titleEl.textContent || "";
+    const hasRichContent = Array.from(titleEl.childNodes).some((node) => node.nodeType !== Node.TEXT_NODE);
+    if (normalized === currentText && !hasRichContent) return false;
+    titleEl.textContent = normalized;
+    placeCaretAtEnd(titleEl);
+    return true;
+}
+
 function closestTitleFromTarget(target: EventTarget | null) {
     if (!target) return null;
     const element = target instanceof Node && target.nodeType === Node.TEXT_NODE ? target.parentElement : target as Element;
@@ -249,6 +317,8 @@ export default class CalloutEnhancePlugin extends Plugin {
     private titleEnterInFlight = new Set<string>();
     private titleEditSnapshots = new WeakMap<HTMLElement, string>();
     private calloutHtmlSnapshots = new WeakMap<HTMLElement, string>();
+    private titleEditDebounceTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
+    private titleEditComposing = new Set<HTMLElement>();
 
     private calloutTypeMenuElement: HTMLDivElement | null = null;
     private calloutTypeMenuActiveBlock: HTMLElement | null = null;
@@ -350,6 +420,24 @@ export default class CalloutEnhancePlugin extends Plugin {
         const parentID = parent?.dataset?.nodeId || "";
         const previousID = block.previousElementSibling?.dataset?.nodeId || "";
         return { parentID, previousID };
+    }
+
+    private ensureEmptyBodyPlaceholderForCallout(block: HTMLElement) {
+        if (!block.classList.contains("callout")) return;
+        const content = this.getCalloutBodyContainer(block);
+        if (!content) return;
+
+        const bodyChildren = Array.from(content.children).filter((child) => {
+            const el = child as HTMLElement;
+            return !el.classList.contains("protyle-attr") &&
+                !el.classList.contains("callout-title") &&
+                !el.classList.contains("callout-info");
+        }) as HTMLElement[];
+
+        if (bodyChildren.length > 0) return;
+
+        const newBodyBlock = createEmptyParagraphElement();
+        content.insertAdjacentElement("afterbegin", newBodyBlock);
     }
 
     private ensureCalloutTypeMenu() {
@@ -744,8 +832,9 @@ export default class CalloutEnhancePlugin extends Plugin {
         const titleEl = closestTitleFromTarget(e.target);
         if (!titleEl) return;
         ensureCalloutTitleEditable(titleEl);
-        this.titleEditSnapshots.set(titleEl, titleEl.textContent || "");
         const block = titleEl.closest(".callout") as HTMLElement | null;
+        const protyle = this.getCurrentProtyle(block, titleEl);
+        this.titleEditSnapshots.set(titleEl, normalizeCalloutTitlePlainText(titleEl, protyle));
         if (block) {
             // 保存完整的块 HTML 作为快照，用于 undo
             this.calloutHtmlSnapshots.set(block, block.outerHTML);
@@ -760,13 +849,83 @@ export default class CalloutEnhancePlugin extends Plugin {
         titleEl.classList.remove("is-title-editing");
         if (!block) return;
         if (block.dataset.deleting === "true") return;
+        
+        // 清除防抖 timer，确保最后的变更立即保存
+        const pendingTimer = this.titleEditDebounceTimers.get(titleEl);
+        if (pendingTimer) {
+            clearTimeout(pendingTimer);
+            this.titleEditDebounceTimers.delete(titleEl);
+        }
+
+        const protyle = this.getCurrentProtyle(block, titleEl);
         const previousTitle = this.titleEditSnapshots.get(titleEl) ?? "";
-        const currentTitle = titleEl.textContent || "";
+        const currentTitle = normalizeCalloutTitlePlainText(titleEl, protyle);
+        const titleChanged = currentTitle !== previousTitle;
+
+        // 先清洗标题，再保留正文占位，确保同步到存储层时内容已规范化
+        cleanCalloutTitleEditable(titleEl, protyle);
+        this.ensureEmptyBodyPlaceholderForCallout(block);
+        
         const originalHtml = this.calloutHtmlSnapshots.get(block) || block.outerHTML;
         this.titleEditSnapshots.delete(titleEl);
         this.calloutHtmlSnapshots.delete(block);
-        if (currentTitle === previousTitle) return;
+        this.titleEditComposing.delete(titleEl);
+        
+        if (!titleChanged) return;
         requestAnimationFrame(() => this.syncBlock(block, originalHtml));
+    };
+
+    private handleTitleInput = (e: Event) => {
+        const titleEl = closestTitleFromTarget(e.target);
+        if (!titleEl) return;
+        
+        // 跳过 IME 组合输入期间
+        if (this.titleEditComposing.has(titleEl)) return;
+        
+        const block = titleEl.closest(".callout") as HTMLElement | null;
+        if (!block || block.dataset.deleting === "true") return;
+
+        // 保持正文区域至少有一个空段，避免输入/粘贴标题时正文空块被折叠成只剩标题
+        this.ensureEmptyBodyPlaceholderForCallout(block);
+        
+        // 清除旧的防抖 timer
+        const oldTimer = this.titleEditDebounceTimers.get(titleEl);
+        if (oldTimer) clearTimeout(oldTimer);
+        
+        // 设置新的防抖 timer：100ms 后执行保存
+        const newTimer = setTimeout(() => {
+            this.titleEditDebounceTimers.delete(titleEl);
+            const protyle = this.getCurrentProtyle(block, titleEl);
+            const previousTitle = this.titleEditSnapshots.get(titleEl) ?? "";
+            const currentTitle = normalizeCalloutTitlePlainText(titleEl, protyle);
+            const originalHtml = this.calloutHtmlSnapshots.get(block) || block.outerHTML;
+            
+            if (currentTitle !== previousTitle) {
+                // 更新快照用于下次比较
+                this.titleEditSnapshots.set(titleEl, currentTitle);
+                cleanCalloutTitleEditable(titleEl, protyle);
+                this.ensureEmptyBodyPlaceholderForCallout(block);
+                this.calloutHtmlSnapshots.set(block, block.outerHTML);
+                if (DEBUG) log("[TitleInput] Auto-saving title change via debounce");
+                this.syncBlock(block, originalHtml);
+            }
+        }, 100);
+        
+        this.titleEditDebounceTimers.set(titleEl, newTimer);
+    };
+
+    private handleTitleCompositionStart = (e: Event) => {
+        const titleEl = closestTitleFromTarget(e.target);
+        if (!titleEl) return;
+        this.titleEditComposing.add(titleEl);
+    };
+
+    private handleTitleCompositionEnd = (e: Event) => {
+        const titleEl = closestTitleFromTarget(e.target);
+        if (!titleEl) return;
+        this.titleEditComposing.delete(titleEl);
+        // Composition 结束后，触发 input 处理来保存
+        this.handleTitleInput(e);
     };
 
     private handleTitleKeydown = (e: KeyboardEvent) => {
@@ -889,6 +1048,39 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (!titleEl) return;
         if (e.type === "keydown" && (e as KeyboardEvent).key === "Enter") return;
         if (e instanceof KeyboardEvent && this.isUndoRedoShortcut(e)) return;
+
+        if (e.type === "beforeinput" || e.type === "paste") {
+            const block = titleEl.closest(".callout") as HTMLElement | null;
+            if (block && block.dataset.deleting !== "true") {
+                const inputType = (e as InputEvent).inputType || "";
+                if (e.type === "paste" || inputType.startsWith("insertFromPaste")) {
+                    this.ensureEmptyBodyPlaceholderForCallout(block);
+                    const plainText = e instanceof ClipboardEvent
+                        ? e.clipboardData?.getData("text/plain") || ""
+                        : (e as InputEvent).data || "";
+                    const protyle = this.getCurrentProtyle(block, titleEl);
+                    const normalized = normalizeCalloutTitleText(plainText);
+                    const titleText = normalizeCalloutTitlePlainTextFromMarkdown(normalized, protyle);
+                    if (titleText) {
+                        e.preventDefault();
+                        const selection = window.getSelection();
+                        if (selection?.rangeCount) {
+                            const range = selection.getRangeAt(0);
+                            if (titleEl.contains(range.commonAncestorContainer)) {
+                                range.deleteContents();
+                                const textNode = document.createTextNode(titleText);
+                                range.insertNode(textNode);
+                                range.setStartAfter(textNode);
+                                range.collapse(true);
+                                selection.removeAllRanges();
+                                selection.addRange(range);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         e.stopPropagation();
         e.stopImmediatePropagation();
     };
@@ -1222,9 +1414,15 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.listen(document, "focusout", this.handleTitleFocusOut, true);
         this.listen(document, "keydown", this.handleGlobalKeydown, true);
         this.listen(document, "beforeinput", this.guardTitleEvents, true);
+        this.listen(document, "paste", this.guardTitleEvents, true);
+        // 标题 input 事件：防抖后自动保存（在 guardTitleEvents 之前执行）
+        this.listen(document, "input", this.handleTitleInput as EventListener, true);
         this.listen(document, "input", this.guardTitleEvents, true);
+        // 标题 composition 事件：跟踪 IME 输入状态
+        this.listen(document, "compositionstart", this.handleTitleCompositionStart as EventListener, true);
         this.listen(document, "compositionstart", this.guardTitleEvents, true);
         this.listen(document, "compositionupdate", this.guardTitleEvents, true);
+        this.listen(document, "compositionend", this.handleTitleCompositionEnd as EventListener, true);
         this.listen(document, "compositionend", this.guardTitleEvents, true);
         this.listen(document, "pointerdown", this.handleGlobalPointerDown, true);
 
@@ -1260,6 +1458,10 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.cleanupHandlers = [];
         this.observer?.disconnect();
         this.observer = null;
+        // 清除所有防抖 timer
+        this.titleEditDebounceTimers.forEach((timer) => clearTimeout(timer));
+        this.titleEditDebounceTimers.clear();
+        this.titleEditComposing.clear();
         this.hideCalloutTypeMenu();
         this.hideCompletionMenu();
         this.calloutTypeMenuElement?.remove();
