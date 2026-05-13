@@ -14,7 +14,7 @@ type CompletionSession = {
     start: number;
 };
 
-const DEBUG = true;
+const DEBUG = false;
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 const CALLOUT_TYPES: CalloutTypeItem[] = [
     { type: "Info", label: "Info", icon: "ℹ️" },
@@ -38,6 +38,14 @@ function log(...args: any[]) {
     if (DEBUG) {
         console.log("[CalloutEnhance]", ...args);
     }
+}
+
+function warn(...args: any[]) {
+    console.warn(...args);
+}
+
+function error(...args: any[]) {
+    console.error(...args);
 }
 
 function describeCallout(block: HTMLElement | null) {
@@ -283,9 +291,7 @@ function applyCompletionTransform(selectedType: string, anchor?: { node: Text | 
             document.dispatchEvent(enterEvent);
         }
     } catch (err) {
-        if (DEBUG) {
-            console.error("[CalloutEnhance] applyCompletionTransform error", err);
-        }
+        error("[ERROR] Completion transform failed:", err);
     }
 }
 
@@ -377,7 +383,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             protyle.transaction(doOperations, undoOperations);
             return true;
         }
-        console.warn("[CalloutEnhance] transaction unavailable on resolved protyle", protyle);
+        warn("[WARN] Transaction API unavailable - protyle may not support transactions");
         return false;
     }
 
@@ -485,19 +491,12 @@ export default class CalloutEnhancePlugin extends Plugin {
         const nextSubtype = newType.toUpperCase();
         const previousSubtype = block.getAttribute("data-subtype") || "";
         const originalHtml = block.outerHTML;
-        log("type:request", {
-            block: describeCallout(block),
-            nextSubtype,
-            previousSubtype,
-        });
+        if (DEBUG) log("[Type] Changing from", previousSubtype || "(default)", "to", nextSubtype);
         block.dataset.subtype = nextSubtype;
 
         const ok = await this.syncBlock(block, originalHtml);
         if (ok) {
-            log("type:success", {
-                block: describeCallout(block),
-                nextSubtype,
-            });
+            if (DEBUG) log("[Type] Success: changed to", nextSubtype);
             this.hideCalloutTypeMenu();
             return;
         }
@@ -507,11 +506,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         } else {
             delete block.dataset.subtype;
         }
-        log("type:rollback", {
-            block: describeCallout(block),
-            nextSubtype,
-            previousSubtype,
-        });
+        log("[Type] Rollback: reverted to", previousSubtype || "(default)");
         showMessage("callout subtype save failed");
     }
 
@@ -668,11 +663,15 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     private async setFoldState(block: HTMLElement | null, fold: boolean) {
         if (!block || !block.dataset.nodeId) return false;
+        const blockId = block.dataset.nodeId;
+        const actionLabel = fold ? "Fold" : "Unfold";
         try {
             const previousFold = block.getAttribute("fold");
             const originalHtml = block.outerHTML;
             if (fold) block.setAttribute("fold", "1");
             else block.removeAttribute("fold");
+            
+            if (DEBUG) log(`[${actionLabel}] Callout block`, blockId);
 
             const ok = await this.syncBlock(block, originalHtml);
             if (ok) {
@@ -687,7 +686,8 @@ export default class CalloutEnhancePlugin extends Plugin {
             }
             return false;
         } catch (err) {
-            console.error("setFoldState error:", err);
+            const action = fold ? "Fold" : "Unfold";
+            error(`[ERROR] ${action} failed for block ${blockId}:`, err);
             return false;
         }
     }
@@ -725,21 +725,11 @@ export default class CalloutEnhancePlugin extends Plugin {
             
             // 只在内容真正改变时才发送事务
             if (newHtml === previousHtml) {
-                log("sync:unchanged", {
-                    block: describeCallout(blockElement),
-                    blockId,
-                    previousHtmlLength: previousHtml.length,
-                    newHtmlLength: newHtml.length,
-                });
+                if (DEBUG) log("[Title] No changes for block", blockId);
                 return true;
             }
 
-            log("sync:request", {
-                block: describeCallout(blockElement),
-                blockId,
-                previousHtmlLength: previousHtml.length,
-                newHtmlLength: newHtml.length,
-            });
+            if (DEBUG) log("[Title] Saving block", blockId);
             
             const doOperations: IOperation[] = [{
                 action: "update",
@@ -755,13 +745,13 @@ export default class CalloutEnhancePlugin extends Plugin {
             
             const ok = this.createTransaction(protyle, doOperations, undoOperations);
             if (!ok) {
-                console.warn("[CalloutEnhance] Sync failed for block", blockId);
+                error("[ERROR] Title save transaction failed for block", blockId);
                 showMessage("无法调用思源事务接口，标题修改未保存");
                 return false;
             }
             return true;
         } catch (err) {
-            console.error("syncBlock exception:", err);
+            error("[ERROR] Title save exception for block", blockId, ":", err);
             return false;
         }
     }
@@ -788,7 +778,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             this.createTransaction(protyle, doOperations, undoOperations);
             return true;
         } catch (err) {
-            console.error("deleteCallout exception:", err);
+            error("[ERROR] Delete failed for block", blockId, ":", err);
             delete block.dataset.deleting;
             return false;
         }
@@ -835,7 +825,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         // Some themes/versions render callout title under `.callout` without a strict data-type selector.
         const block = (titleEl.closest('.callout[data-type="NodeCallout"]') || titleEl.closest(".callout")) as HTMLElement | null;
         if (!block) {
-            console.error("[CalloutEnhance] Callout block not found from title", titleEl);
+            error("[ERROR] TitleEnter failed: Callout block not found from title element");
             return;
         }
         if (block.dataset.deleting === "true") return;
@@ -845,12 +835,13 @@ export default class CalloutEnhancePlugin extends Plugin {
             if (this.titleEnterInFlight.has(blockId)) return;
             const protyle = this.getCurrentProtyle(block, titleEl);
             if (!blockId || !protyle) {
-                console.error("[CalloutEnhance] Missing blockId or protyle for title-Enter");
+                error("[ERROR] TitleEnter failed: Missing blockId or protyle context");
                 showMessage("标题回车失败：未找到编辑器上下文");
                 return;
             }
 
             try {
+                if (DEBUG) log("[TitleEnter] Creating new block after", blockId);
                 this.titleEnterInFlight.add(blockId);
                 if (block.getAttribute("fold") === "1") {
                             await this.setFoldState(block, false);
@@ -892,12 +883,12 @@ export default class CalloutEnhancePlugin extends Plugin {
                 const ok = this.createTransaction(protyle, doOperations, undoOperations);
                 if (!ok) {
                     newBlock.remove();
-                    console.error("[CalloutEnhance] Title-Enter: transaction failed", { blockId, newBlockId });
+                    error("[ERROR] TitleEnter transaction failed for block", blockId, "- new block:", newBlockId);
                     showMessage("无法调用思源事务接口，标题回车插入失败");
                     return;
                 }
             } catch (err) {
-                console.error("[CalloutEnhance] Title-Enter exception:", err, { blockId });
+                error("[ERROR] TitleEnter exception for block", blockId, ":", err);
             } finally {
                 this.titleEnterInFlight.delete(blockId);
             }
