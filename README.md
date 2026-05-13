@@ -1,8 +1,70 @@
 # SiYuan Callout Enhance Plugin
 
-[中文版](https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/README_zh_CN.md)
+[简体中文](https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/README_zh_CN.md)
 
 > [!important]
 >
-> In addition to supporting the five native callout types in Siyuan, this plugin also adds several new styles. Please note that after converting the new styles back to the official callout format (i.e., after disabling this plugin), there will be display issues — the callouts will become transparent in the background and the icons will disappear. Please use with caution if this bothers you!
+> In addition to the five native callout types in SiYuan, this plugin adds several new styles. Please note that when these new styles are converted back to official callouts (i.e., when this plugin is disabled), there will be display issues: they will become callout blocks with transparent backgrounds and missing icons. Use with caution if you mind this!
 
+## Main Features
+
+#### (1) Callout Style Optimization
+
+Basic styles:
+
+![callout_type](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type.png)
+
+After nesting:
+
+![callout_nesting](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nesting.png)
+
+#### (2) Quick Title Editing
+
+![title_editing](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/title_editing.gif)
+
+#### (3) Quick Fold/Unfold
+
+![fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/fold%26unfold.gif)
+
+#### (4) Completion Menu
+
+- Press `>` + `[` / `【` to call out the completion menu.
+- Supports using the keyboard to switch or the mouse to click and select a type.
+- Supports auto-completion. Note: You do not need to type `!` after `[` / `【`; just type letters to trigger completion.
+
+![completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/completion_menu.gif)
+
+#### (5) Type Menu
+
+- Click the icon to call out the type menu.
+- Supports using the keyboard to switch or the mouse to click and select a type.
+
+![type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/type_menu.gif)
+
+## Changelog
+
+See [CHANGELOG.md](https://cdn.jsdelivr.net/gh/QMike0/siyuan-plugin-callout-enhance@main/CHANGELOG.md)
+
+## Development
+
+Download the source code of this repository and package the plugin as follows:
+
+1. Install Node.js and pnpm.
+2. Run `pnpm i` in the current directory.
+3. Run `pnpm run dev` for the development build.
+4. Run `pnpm run build` to package `package.zip`.
+
+## License
+
+MIT License
+
+## Acknowledgments
+
+- Developed based on the [SiYuan plugin sample](https://github.com/siyuan-note/plugin-sample) template.
+- Special thanks to [xqh042](https://github.com/wzj042) for the code snippets, which inspired this plugin.
+
+## Other
+
+For simple usage, you can also just base it on the code snippets [here](https://github.com/QMike0/Siyuan-ObsidianType-Callout) without adding this plugin.
+
+**However, please note that the plugin has made many optimizations based on them. Unless there are special circumstances, the code snippets will not be updated in the future. Therefore, it is strongly recommended to use the plugin directly.**

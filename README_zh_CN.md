@@ -6,31 +6,27 @@
 >
 > 本插件除了支持思源笔记原生的五种callout类型，还另外增加了几个新样式。需要注意新样式在转换回官方 callout 后（即关闭本插件）存在显示上的问题，会变成背景透明、ICON 消失的 callout。介意的话慎用！
 
-## 概述
-
-在思源笔记原生callout的基础上进行样式优化，并提供标题快速编辑、折叠/展开、补全菜单、类型菜单等功能。
-
 ## 主要特性
 
 #### （1）Callout样式优化
 
 基础样式：
 
-![callout_type](./assets/callout_type.png)
+![callout_type](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type.png)
 
 嵌套后：
 
-![callout_nesting](./assets/callout_nesting.png)
+![callout_nesting](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nesting.png)
 
 
 
 #### （2）标题快速编辑
 
-![title_editing](./assets/title_editing.gif)
+![title_editing](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/title_editing.gif)
 
 #### （3）快速折叠/展开
 
-![fold&unfold](./assets/fold&unfold.gif)
+![fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/fold%26unfold.gif)
 
 #### （4）补全菜单
 
@@ -38,16 +34,14 @@
 -  支持键盘切换或鼠标点击选择类型
 - 支持自动补全。注意`[`/`【`后无需输入`!`，直接输入字母即可触发补全
 
-![completion_menu](./assets/completion_menu.gif)
+![completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/completion_menu.gif)
 
 #### （5）类型菜单
 
 - 点击icon唤出类型菜单
 - 支持键盘切换或鼠标点击选择类型
 
-![type_menu](./assets/type_menu.gif)
-
-
+![type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/type_menu.gif)
 
 ## 更新日志
 
@@ -69,7 +63,7 @@ MIT License
 ## 致谢
 
 - 基于 [SiYuan plugin sample](https://github.com/siyuan-note/plugin-sample) 模板开发
-- 特别感谢[xqh042](https://ld246.com/member/xqh042?u_atoken=6a036560-33b8-1ba9-b549-abd7558cf702&u_asig=b7e8ebb117786074566265465e)提供的代码片段，本插件源于此
+- 特别感谢[xqh042](https://github.com/wzj042)提供的代码片段，本插件源于此
 
 ## 其他
 
