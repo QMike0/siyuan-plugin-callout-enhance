@@ -28,7 +28,7 @@ After nesting:
 
 #### (4) Completion Menu
 
-- Press `>` + `[` / `【` to call out the completion menu.
+- Press `[` or `【` at the beginning of the first line of a quote block to to trigger the completion menu.
 - Supports using the keyboard to switch or the mouse to click and select a type.
 - Supports auto-completion. Note: You do not need to type `!` after `[` / `【`; just type letters to trigger completion.
 

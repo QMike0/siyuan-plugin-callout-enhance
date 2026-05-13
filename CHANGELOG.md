@@ -1,3 +1,10 @@
+## v0.1.1 2026-05-13
+
+- 🇨🇳 优化代码逻辑，排除了一些潜在问题
+- 🇨🇳 更改补全菜单的唤起逻辑：引述块首行的开头处输入[或【唤起补全菜单，不再判断引述块是否为空
+- 🇺🇸 Optimize code logic and eliminate some potential issues
+- 🇺🇸 Change the trigger logic of the completion menu: when typing [ or 【 at the beginning of the first line of a quote block, the completion menu will be triggered, without checking whether the quote block is empty.
+
 ## v0.1.0 2026-05-13
 
 - 🇨🇳 将[代码片段](https://github.com/QMike0/Siyuan-ObsidianType-Callout)转换成本插件
