@@ -2,6 +2,14 @@
 
 - 🇨🇳 放宽callout块的最大长度限制，避免超过限制后便不显示剩余内容
 - 🇨🇳 放宽`waitForNativeEmptyCalloutHandling`时间限制
+- 🇨🇳 优化callout标题的短时保存&撤回机制
+- 🇨🇳 修复callout正文为空时，向标题粘贴文本会导致正文区域内容块消失的问题
+- 🇨🇳 增加输入清洗与内容规范化，确保callout标题区域输入的都是纯文本
+- 🇺🇸 Relax the maximum length limit of callout blocks to prevent remaining content from being hidden after exceeding the limit
+- 🇺🇸 Relax the time limit for `waitForNativeEmptyCalloutHandling`
+- 🇺🇸 Optimize the short-term saving & undo mechanism for callout titles
+- 🇺🇸 Fix the issue where pasting text into the title causes content blocks in the body area to disappear when the callout body is empty
+- 🇺🇸 Add input sanitization and content normalization to ensure only plain text is entered in the callout title area
 
 ## v0.1.1 2026-05-13
 
