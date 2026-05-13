@@ -16,6 +16,8 @@
 }
 
 .callout[data-type="NodeCallout"] {
+    /* max-height 折叠动画无法在「展开」态使用 none，须用足够大的有限值，避免正文被裁切 */
+    --callout-body-expanded-max-height: 999999px;
     --callout-fold-duration: 140ms;
     --callout-fold-easing: cubic-bezier(.25, .8, .25, 1);
     padding-top: 10px;
@@ -93,7 +95,7 @@
     /* 正文区域动画：避免折叠/展开时头部位置跳动 */
     &>*:not(:first-child) {
         overflow: hidden;
-        max-height: 1200px;
+        max-height: var(--callout-body-expanded-max-height);
         transition:
             max-height var(--callout-fold-duration) var(--callout-fold-easing),
             margin-top 0s linear 0s,

@@ -47,27 +47,6 @@ function error(...args: any[]) {
     console.error(...args);
 }
 
-function describeCallout(block: HTMLElement | null) {
-    if (!block) return null;
-    const titleEl = block.querySelector(".callout-title") as HTMLElement | null;
-    const parentCallout = block.parentElement?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
-    let depth = 0;
-    let current: HTMLElement | null = parentCallout;
-    while (current) {
-        depth += 1;
-        current = current.parentElement?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
-    }
-    return {
-        id: block.dataset.nodeId || "",
-        depth,
-        fold: block.getAttribute("fold") || "",
-        subtype: block.getAttribute("data-subtype") || block.dataset.subtype || "",
-        title: (titleEl?.textContent || "").trim(),
-        deleting: block.dataset.deleting === "true",
-        enhanced: block.dataset.enhanced === "true",
-    };
-}
-
 function getNewNodeId() {
     const lute = (window as any).Lute;
     if (typeof lute?.NewNodeID === "function") {
@@ -208,64 +187,6 @@ function isTriggerAtLogicalLineStart(lineEl: HTMLElement | null, focusNode: Text
     } catch {
         return false;
     }
-}
-
-function isQuoteEffectivelyEmptyForCompletion(quoteEl: HTMLElement | null, focusNode: Text | null, cursorOffset: number) {
-    if (!quoteEl) return false;
-
-    const triggerInfo = (() => {
-        if (!focusNode || focusNode.nodeType !== Node.TEXT_NODE) return null;
-        const text = focusNode.textContent || "";
-        const textBeforeCursor = text.substring(0, cursorOffset);
-        const match = textBeforeCursor.match(TRIGGER_PATTERN);
-        if (!match) return null;
-        return {
-            start: textBeforeCursor.lastIndexOf(match[0]),
-            end: cursorOffset,
-            text: match[0],
-        };
-    })();
-
-    let hasRealContent = false;
-
-    const walk = (node: Node) => {
-        if (!node || hasRealContent) return;
-
-        if (node.nodeType === Node.TEXT_NODE) {
-            const text = node.textContent || "";
-            const normalized = text.replace(/[\u200B\u00A0]/g, "").trim();
-            if (!normalized) return;
-
-            if (node === focusNode && triggerInfo) {
-                const beforeTrigger = text.slice(0, triggerInfo.start).replace(/[\u200B\u00A0]/g, "").trim();
-                const afterCursor = text.slice(triggerInfo.end).replace(/[\u200B\u00A0]/g, "").trim();
-                if (!beforeTrigger && !afterCursor) return;
-            }
-
-            hasRealContent = true;
-            return;
-        }
-
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-        const el = node as HTMLElement;
-        if (el.matches?.("img,video,audio,iframe,svg,canvas,table,hr,math,pre,code,input,button,select,textarea,embed,object,figure,figcaption,attachment-file,span[data-type],span[data-subtype]")) {
-            hasRealContent = true;
-            return;
-        }
-
-        for (const child of el.childNodes) {
-            walk(child);
-            if (hasRealContent) return;
-        }
-    };
-
-    for (const child of quoteEl.childNodes) {
-        walk(child);
-        if (hasRealContent) return false;
-    }
-
-    return true;
 }
 
 function applyCompletionTransform(selectedType: string): boolean {
@@ -1014,7 +935,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             setTimeout(() => {
                 const stillExists = document.body.contains(block);
                 resolve(!stillExists);
-            }, 100);
+            }, 200);
         });
     };
 
