@@ -9,12 +9,11 @@ type CalloutTypeItem = {
 
 type CompletionSession = {
     active: boolean;
-    node: Text | null;
     quote: HTMLElement | null;
     start: number;
 };
 
-const DEBUG = false;
+const DEBUG = true;
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 const CALLOUT_TYPES: CalloutTypeItem[] = [
     { type: "Info", label: "Info", icon: "ℹ️" },
@@ -185,6 +184,32 @@ function getBlockquoteElement(node: Node | null) {
     return null;
 }
 
+/** 光标所在、作为 `.bq` 直接子节点的首行内容块（思源中通常为一段） */
+function getQuoteContentLineElement(quoteEl: HTMLElement | null, sourceNode: Node | null): HTMLElement | null {
+    if (!quoteEl || !sourceNode) return null;
+    const sourceEl = sourceNode.nodeType === Node.TEXT_NODE ? sourceNode.parentElement : (sourceNode as HTMLElement);
+    let current: HTMLElement | null = sourceEl;
+    while (current && current.parentElement && current.parentElement !== quoteEl) {
+        current = current.parentElement;
+    }
+    return current && current.parentElement === quoteEl ? current : null;
+}
+
+/** 从首行块 DOM 起点到触发符之间无可见内容（仅空白 / ZWSP / nbsp），即触发符在该行逻辑开头 */
+function isTriggerAtLogicalLineStart(lineEl: HTMLElement | null, focusNode: Text, triggerOffset: number): boolean {
+    if (!lineEl || !focusNode) return false;
+    try {
+        if (!lineEl.contains(focusNode)) return false;
+        const range = document.createRange();
+        range.setStart(lineEl, 0);
+        range.setEnd(focusNode, triggerOffset);
+        const before = range.toString().replace(/[\u200B\u00A0]/g, "").trim();
+        return before.length === 0;
+    } catch {
+        return false;
+    }
+}
+
 function isQuoteEffectivelyEmptyForCompletion(quoteEl: HTMLElement | null, focusNode: Text | null, cursorOffset: number) {
     if (!quoteEl) return false;
 
@@ -243,23 +268,21 @@ function isQuoteEffectivelyEmptyForCompletion(quoteEl: HTMLElement | null, focus
     return true;
 }
 
-function applyCompletionTransform(selectedType: string, anchor?: { node: Text | null; start: number }) {
+function applyCompletionTransform(selectedType: string): boolean {
     try {
         const selection = window.getSelection();
-        if (!selection) return;
-        const sessionNode = anchor?.node && anchor.node.isConnected ? anchor.node : null;
-        const textNode = sessionNode || (selection?.rangeCount ? (selection.getRangeAt(0).startContainer as Text) : null);
-        if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
+        if (!selection) return false;
+        const textNode = selection?.rangeCount ? (selection.getRangeAt(0).startContainer as Text) : null;
+        if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return false;
 
         const content = textNode.textContent || "";
-        const startOffset = typeof anchor?.start === "number" && anchor.start >= 0
-            ? anchor.start
-            : (() => {
-                const match = content.match(TRIGGER_PATTERN);
-                if (!match) return -1;
-                return content.lastIndexOf(match[0]);
-            })();
-        if (startOffset < 0) return;
+        const match = content.match(TRIGGER_PATTERN);
+        const startOffset = match ? content.lastIndexOf(match[0]) : -1;
+        if (startOffset < 0) return false;
+
+        const quoteEl = getBlockquoteElement(textNode);
+        const lineEl = getQuoteContentLineElement(quoteEl, textNode);
+        if (!isTriggerAtLogicalLineStart(lineEl, textNode, startOffset)) return false;
 
         const replacement = `[!${selectedType}]\n`;
         const workRange = document.createRange();
@@ -290,8 +313,10 @@ function applyCompletionTransform(selectedType: string, anchor?: { node: Text | 
         } else {
             document.dispatchEvent(enterEvent);
         }
+        return true;
     } catch (err) {
         error("[ERROR] Completion transform failed:", err);
+        return false;
     }
 }
 
@@ -301,6 +326,8 @@ export default class CalloutEnhancePlugin extends Plugin {
     private isComposing = false;
     private titleBoundEls = new WeakSet<HTMLElement>();
     private titleEnterInFlight = new Set<string>();
+    private titleEditSnapshots = new WeakMap<HTMLElement, string>();
+    private calloutHtmlSnapshots = new WeakMap<HTMLElement, string>();
 
     private calloutTypeMenuElement: HTMLDivElement | null = null;
     private calloutTypeMenuActiveBlock: HTMLElement | null = null;
@@ -312,7 +339,6 @@ export default class CalloutEnhancePlugin extends Plugin {
     private completionVisible = false;
     private completionSession: CompletionSession = {
         active: false,
-        node: null,
         quote: null,
         start: -1,
     };
@@ -556,10 +582,20 @@ export default class CalloutEnhancePlugin extends Plugin {
     private hideCompletionMenu() {
         this.completionVisible = false;
         this.completionIndex = -1;
+        this.completionSession.active = false;
         this.completionSession.quote = null;
+        this.completionSession.start = -1;
         if (this.completionMenuElement) {
             this.completionMenuElement.classList.add("fn__none");
         }
+    }
+
+    private isFirstLineOfQuote(quoteEl: HTMLElement | null, sourceNode: Node | null): boolean {
+        if (!quoteEl || !sourceNode) return false;
+        const line = getQuoteContentLineElement(quoteEl, sourceNode);
+        if (!line) return false;
+        const firstLine = Array.from(quoteEl.children).find((child) => !((child as HTMLElement).classList?.contains("protyle-attr"))) as HTMLElement | undefined;
+        return !!firstLine && line === firstLine;
     }
 
     private renderCompletionMenu() {
@@ -627,16 +663,11 @@ export default class CalloutEnhancePlugin extends Plugin {
     private applyCompletion(index = this.completionIndex) {
         const selected = this.completionFiltered[index];
         if (!selected) return;
-        const anchor = {
-            node: this.completionSession.node,
-            start: this.completionSession.start,
-        };
         this.hideCompletionMenu();
-        this.completionSession.active = false;
-        this.completionSession.node = null;
-        this.completionSession.quote = null;
-        this.completionSession.start = -1;
-        applyCompletionTransform(selected.type, anchor);
+        const ok = applyCompletionTransform(selected.type);
+        if (!ok) {
+            showMessage("callout completion transform failed");
+        }
     }
 
     private initCallout(block: HTMLElement) {
@@ -664,14 +695,13 @@ export default class CalloutEnhancePlugin extends Plugin {
     private async setFoldState(block: HTMLElement | null, fold: boolean) {
         if (!block || !block.dataset.nodeId) return false;
         const blockId = block.dataset.nodeId;
-        const actionLabel = fold ? "Fold" : "Unfold";
         try {
             const previousFold = block.getAttribute("fold");
             const originalHtml = block.outerHTML;
             if (fold) block.setAttribute("fold", "1");
             else block.removeAttribute("fold");
             
-            if (DEBUG) log(`[${actionLabel}] Callout block`, blockId);
+            if (DEBUG) log(`[${fold ? "Fold" : "Unfold"}] Callout block`, blockId);
 
             const ok = await this.syncBlock(block, originalHtml);
             if (ok) {
@@ -775,7 +805,12 @@ export default class CalloutEnhancePlugin extends Plugin {
                 previousID,
                 data: blockHTML,
             }];
-            this.createTransaction(protyle, doOperations, undoOperations);
+            const ok = this.createTransaction(protyle, doOperations, undoOperations);
+            if (!ok) {
+                error("[ERROR] Delete transaction failed for block", blockId);
+                delete block.dataset.deleting;
+                return false;
+            }
             return true;
         } catch (err) {
             error("[ERROR] Delete failed for block", blockId, ":", err);
@@ -788,12 +823,12 @@ export default class CalloutEnhancePlugin extends Plugin {
         const titleEl = closestTitleFromTarget(e.target);
         if (!titleEl) return;
         ensureCalloutTitleEditable(titleEl);
+        this.titleEditSnapshots.set(titleEl, titleEl.textContent || "");
         const block = titleEl.closest(".callout") as HTMLElement | null;
         if (block) {
             // 保存完整的块 HTML 作为快照，用于 undo
-            block.dataset.calloutTitleHtmlSnapshot = block.outerHTML;
+            this.calloutHtmlSnapshots.set(block, block.outerHTML);
         }
-        titleEl.dataset.calloutTitleSnapshot = titleEl.textContent || "";
         titleEl.classList.add("is-title-editing");
     };
 
@@ -804,11 +839,11 @@ export default class CalloutEnhancePlugin extends Plugin {
         titleEl.classList.remove("is-title-editing");
         if (!block) return;
         if (block.dataset.deleting === "true") return;
-        const previousTitle = titleEl.dataset.calloutTitleSnapshot ?? "";
+        const previousTitle = this.titleEditSnapshots.get(titleEl) ?? "";
         const currentTitle = titleEl.textContent || "";
-        const originalHtml = block.dataset.calloutTitleHtmlSnapshot || block.outerHTML;
-        delete titleEl.dataset.calloutTitleSnapshot;
-        delete block.dataset.calloutTitleHtmlSnapshot;
+        const originalHtml = this.calloutHtmlSnapshots.get(block) || block.outerHTML;
+        this.titleEditSnapshots.delete(titleEl);
+        this.calloutHtmlSnapshots.delete(block);
         if (currentTitle === previousTitle) return;
         requestAnimationFrame(() => this.syncBlock(block, originalHtml));
     };
@@ -1026,7 +1061,6 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
         if (this.completionMenuElement && !this.completionMenuElement.contains(e.target as Node)) {
             this.hideCompletionMenu();
-            this.completionSession.active = false;
         }
 
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
@@ -1066,43 +1100,77 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
     };
 
+    private handleGlobalKeydown = async (e: KeyboardEvent) => {
+        const calloutTypeMenuOpen = !!this.calloutTypeMenuElement && !this.calloutTypeMenuElement.classList.contains("fn__none");
+        if (calloutTypeMenuOpen && ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "Tab", "Escape"].includes(e.key)) {
+            this.handleCalloutTypeKeydown(e);
+            return;
+        }
+
+        if (this.completionVisible && this.completionMenuElement && ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "Tab", "Escape"].includes(e.key)) {
+            this.handleCompletionKeydown(e);
+            return;
+        }
+
+        const titleEl = closestTitleFromTarget(e.target);
+        if (titleEl) {
+            if (e.key === "Enter") {
+                this.handleTitleKeydown(e);
+                return;
+            }
+            if (this.isUndoRedoShortcut(e)) return;
+            this.guardTitleEvents(e);
+            return;
+        }
+
+        if (e.key === "ArrowLeft") {
+            this.handleBodyArrowLeft(e);
+            return;
+        }
+
+        if (e.key === "Enter") {
+            await this.guardEmptyCalloutEnter(e);
+        }
+    };
+
     private handleCompletionInput = (e: InputEvent) => {
         if (this.isComposing) return;
         const sel = window.getSelection();
         if (!sel || !sel.rangeCount) {
             this.hideCompletionMenu();
-            this.completionSession.active = false;
             return;
         }
         const focusNode = sel.focusNode;
         if (focusNode?.nodeType !== Node.TEXT_NODE) {
             this.hideCompletionMenu();
-            this.completionSession.active = false;
             return;
         }
+        const focusText = focusNode as Text;
 
-        const quoteEl = getBlockquoteElement(focusNode);
+        const quoteEl = getBlockquoteElement(focusText);
         if (!quoteEl) {
             this.hideCompletionMenu();
-            this.completionSession.active = false;
             return;
         }
 
         const cursorOffset = sel.focusOffset;
-        const text = focusNode.textContent || "";
+        const text = focusText.textContent || "";
         const textBeforeCursor = text.substring(0, cursorOffset);
 
         if (this.completionSession.active) {
-            if (focusNode !== this.completionSession.node || cursorOffset < this.completionSession.start) {
+            if (cursorOffset < this.completionSession.start) {
                 this.hideCompletionMenu();
-                this.completionSession.active = false;
-                this.completionSession.quote = null;
                 return;
             }
 
-            if (!isQuoteEffectivelyEmptyForCompletion(quoteEl, focusNode, cursorOffset)) {
+            if (!this.isFirstLineOfQuote(quoteEl, focusText)) {
                 if (this.completionVisible) this.hideCompletionMenu();
-                this.completionSession.active = false;
+                return;
+            }
+
+            const lineEl = getQuoteContentLineElement(quoteEl, focusText);
+            if (!isTriggerAtLogicalLineStart(lineEl, focusText, this.completionSession.start)) {
+                this.hideCompletionMenu();
                 return;
             }
 
@@ -1110,14 +1178,12 @@ export default class CalloutEnhancePlugin extends Plugin {
             const sessionMatch = segment.match(SESSION_TRIGGER_PATTERN);
             if (!sessionMatch) {
                 this.hideCompletionMenu();
-                this.completionSession.active = false;
-                this.completionSession.quote = null;
                 return;
             }
 
             const rect = sel.getRangeAt(0).getBoundingClientRect();
-            const block = (focusNode.parentElement?.closest?.("[data-node-id]") as HTMLElement | null) || focusNode.parentElement as HTMLElement;
-            this.showCompletionMenu(sessionMatch[1], rect, block || focusNode.parentElement as HTMLElement);
+            const block = (focusText.parentElement?.closest?.("[data-node-id]") as HTMLElement | null) || focusText.parentElement as HTMLElement;
+            this.showCompletionMenu(sessionMatch[1], rect, block || focusText.parentElement as HTMLElement);
             return;
         }
 
@@ -1138,26 +1204,28 @@ export default class CalloutEnhancePlugin extends Plugin {
             return;
         }
 
-        if (!isQuoteEffectivelyEmptyForCompletion(quoteEl, focusNode, cursorOffset)) {
+        if (!this.isFirstLineOfQuote(quoteEl, focusText)) {
             if (this.completionVisible) this.hideCompletionMenu();
-            this.completionSession.active = false;
-            this.completionSession.quote = null;
             return;
         }
 
         const match = textBeforeCursor.match(TRIGGER_PATTERN);
         if (match) {
+            const triggerStart = textBeforeCursor.lastIndexOf(match[0]);
+            const lineEl = getQuoteContentLineElement(quoteEl, focusText);
+            if (!isTriggerAtLogicalLineStart(lineEl, focusText, triggerStart)) {
+                if (this.completionVisible) this.hideCompletionMenu();
+                return;
+            }
+
             this.completionSession.active = true;
-            this.completionSession.node = focusNode;
             this.completionSession.quote = quoteEl;
-            this.completionSession.start = textBeforeCursor.lastIndexOf(match[0]);
+            this.completionSession.start = triggerStart;
             const rect = sel.getRangeAt(0).getBoundingClientRect();
-            const block = (focusNode.parentElement?.closest?.("[data-node-id]") as HTMLElement | null) || focusNode.parentElement as HTMLElement;
-            this.showCompletionMenu(match[1], rect, block || focusNode.parentElement as HTMLElement);
+            const block = (focusText.parentElement?.closest?.("[data-node-id]") as HTMLElement | null) || focusText.parentElement as HTMLElement;
+            this.showCompletionMenu(match[1], rect, block || focusText.parentElement as HTMLElement);
         } else {
             if (this.completionVisible) this.hideCompletionMenu();
-            this.completionSession.active = false;
-            this.completionSession.quote = null;
         }
     };
 
@@ -1174,34 +1242,44 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (!this.completionVisible || !this.completionMenuElement) return;
         if (e.key === "ArrowUp") {
             e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             this.completionIndex = (this.completionIndex - 1 + this.completionFiltered.length) % this.completionFiltered.length;
             this.renderCompletionMenu();
         } else if (e.key === "ArrowDown") {
             e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             this.completionIndex = (this.completionIndex + 1) % this.completionFiltered.length;
             this.renderCompletionMenu();
         } else if (e.key === "Home") {
             e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             this.completionIndex = 0;
             this.renderCompletionMenu();
         } else if (e.key === "End") {
             e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             this.completionIndex = this.completionFiltered.length - 1;
             this.renderCompletionMenu();
         } else if (e.key === "Enter" || e.key === "Tab") {
             e.preventDefault();
+            e.stopPropagation();
             e.stopImmediatePropagation();
             this.applyCompletion();
         } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             this.hideCompletionMenu();
-            this.completionSession.active = false;
         }
     };
 
     private handleCompletionMousedown = (e: MouseEvent) => {
         if (this.completionMenuElement && !this.completionMenuElement.contains(e.target as Node)) {
             this.hideCompletionMenu();
-            this.completionSession.active = false;
         }
     };
 
@@ -1212,8 +1290,6 @@ export default class CalloutEnhancePlugin extends Plugin {
         const quote = focusNode ? getBlockquoteElement(focusNode) : null;
         if (!sel || !sel.rangeCount || !quote || quote !== this.completionSession.quote) {
             this.hideCompletionMenu();
-            this.completionSession.active = false;
-            this.completionSession.quote = null;
         }
     };
 
@@ -1223,23 +1299,18 @@ export default class CalloutEnhancePlugin extends Plugin {
 
         this.listen(document, "focusin", this.handleTitleFocusIn, true);
         this.listen(document, "focusout", this.handleTitleFocusOut, true);
-        this.listen(document, "keydown", this.handleTitleKeydown, true);
-        this.listen(document, "keydown", this.handleCalloutTypeKeydown, true);
-        this.listen(document, "keydown", this.handleBodyArrowLeft, true);
-        this.listen(document, "keydown", this.guardTitleEvents, true);
+        this.listen(document, "keydown", this.handleGlobalKeydown, true);
         this.listen(document, "beforeinput", this.guardTitleEvents, true);
         this.listen(document, "input", this.guardTitleEvents, true);
         this.listen(document, "compositionstart", this.guardTitleEvents, true);
         this.listen(document, "compositionupdate", this.guardTitleEvents, true);
         this.listen(document, "compositionend", this.guardTitleEvents, true);
         this.listen(document, "pointerdown", this.handleGlobalPointerDown, true);
-        this.listen(document, "keydown", this.guardEmptyCalloutEnter, true);
 
         this.listen(document.body, "click", this.handleGlobalClick, true);
         this.listen(document.body, "input", this.handleCompletionInput as EventListener, true);
         this.listen(document.body, "compositionstart", this.handleCompletionCompositionStart, true);
         this.listen(document.body, "compositionend", this.handleCompletionCompositionEnd, true);
-        this.listen(document.body, "keydown", this.handleCompletionKeydown, true);
         this.listen(document.body, "mousedown", this.handleCompletionMousedown, true);
         this.listen(document, "selectionchange", this.handleSelectionChange, true);
 
