@@ -1,9 +1,10 @@
 import { Plugin, IOperation, showMessage } from "siyuan";
 import "./index.scss";
-import { closestTitleFromTarget, getBlockquoteElement, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd, focusNewBlockEditableStart } from "./utils/dom";
+import { closestTitleFromTarget, getBlockquoteElement, getCalloutFromEventTarget, getSelectionCallout, focusNewBlockEditableStart, placeCaretAtEnd } from "./utils/dom";
 import { ensureEmptyBodyPlaceholderForCallout, getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, createEmptyParagraphElement } from "./utils/callout";
 import { normalizeCalloutTitleText } from "./utils/text";
-import { createTransaction, getCurrentProtyle, getFirstBlockInnerHTMLFromMd, getNewNodeId, getSiyuanLute } from "./core/api";
+import { createTransaction, getCurrentProtyle, getNewNodeId } from "./core/api";
+import { cleanCalloutTitleEditable, ensureCalloutTitleEditable, normalizeCalloutTitlePlainText, normalizeCalloutTitlePlainTextFromMarkdown, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown } from "./features/title_edit";
 
 type CalloutTypeItem = {
     type: string;
@@ -51,60 +52,6 @@ function error(...args: any[]) {
     console.error(...args);
 }
 
-function ensureCalloutTitleEditable(titleEl: HTMLElement | null) {
-    if (!titleEl) return;
-    titleEl.contentEditable = "true";
-    titleEl.spellcheck = false;
-}
-
-function normalizeCalloutTitlePlainTextFromMarkdown(markdown: string, protyle?: any | null) {
-    const lute = getSiyuanLute(protyle);
-    let text = markdown;
-
-    if (lute && typeof lute.Md2BlockDOM === "function") {
-        try {
-            const normalizedInlineHTML = getFirstBlockInnerHTMLFromMd(lute, normalizeCalloutTitleText(markdown));
-            if (normalizedInlineHTML) {
-                const template = document.createElement("template");
-                template.innerHTML = normalizedInlineHTML;
-                text = template.content.textContent || "";
-            }
-        } catch {
-            // Fall back to plain-text normalization below.
-        }
-    }
-
-    return normalizeCalloutTitleText(text);
-}
-
-function normalizeCalloutTitlePlainText(titleEl: HTMLElement | null, protyle?: any | null) {
-    if (!titleEl) return "";
-    const lute = getSiyuanLute(protyle);
-    let markdown = "";
-
-    if (lute && typeof lute.BlockDOM2StdMd === "function") {
-        try {
-            markdown = lute.BlockDOM2StdMd(titleEl.innerHTML);
-        } catch {
-            markdown = titleEl.textContent || "";
-        }
-    } else {
-        markdown = titleEl.textContent || "";
-    }
-
-    return normalizeCalloutTitlePlainTextFromMarkdown(markdown, protyle);
-}
-
-function cleanCalloutTitleEditable(titleEl: HTMLElement | null, protyle?: any | null) {
-    if (!titleEl) return false;
-    const normalized = normalizeCalloutTitlePlainText(titleEl, protyle);
-    const currentText = titleEl.textContent || "";
-    const hasRichContent = Array.from(titleEl.childNodes).some((node) => node.nodeType !== Node.TEXT_NODE);
-    if (normalized === currentText && !hasRichContent) return false;
-    titleEl.textContent = normalized;
-    placeCaretAtEnd(titleEl);
-    return true;
-}
 
 /** 光标所在、作为 `.bq` 直接子节点的首行内容块（思源中通常为一段） */
 function getQuoteContentLineElement(quoteEl: HTMLElement | null, sourceNode: Node | null): HTMLElement | null {
@@ -620,188 +567,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
     }
 
-    private handleTitleFocusIn = (e: FocusEvent) => {
-        const titleEl = closestTitleFromTarget(e.target);
-        if (!titleEl) return;
-        ensureCalloutTitleEditable(titleEl);
-        const block = titleEl.closest(".callout") as HTMLElement | null;
-        const protyle = getCurrentProtyle(this,block, titleEl);
-        this.titleEditSnapshots.set(titleEl, normalizeCalloutTitlePlainText(titleEl, protyle));
-        if (block) {
-            // 保存完整的块 HTML 作为快照，用于 undo
-            this.calloutHtmlSnapshots.set(block, block.outerHTML);
-        }
-        titleEl.classList.add("is-title-editing");
-    };
 
-    private handleTitleFocusOut = (e: FocusEvent) => {
-        const titleEl = closestTitleFromTarget(e.target);
-        if (!titleEl) return;
-        const block = titleEl.closest(".callout") as HTMLElement | null;
-        titleEl.classList.remove("is-title-editing");
-        if (!block) return;
-        if (block.dataset.deleting === "true") return;
-        
-        // 清除防抖 timer，确保最后的变更立即保存
-        const pendingTimer = this.titleEditDebounceTimers.get(titleEl);
-        if (pendingTimer) {
-            clearTimeout(pendingTimer);
-            this.titleEditDebounceTimers.delete(titleEl);
-        }
 
-        const protyle = getCurrentProtyle(this, block, titleEl);
-        const previousTitle = this.titleEditSnapshots.get(titleEl) ?? "";
-        const currentTitle = normalizeCalloutTitlePlainText(titleEl, protyle);
-        const titleChanged = currentTitle !== previousTitle;
-
-        // 先清洗标题，再保留正文占位，确保同步到存储层时内容已规范化
-        cleanCalloutTitleEditable(titleEl, protyle);
-        ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
-        
-        const originalHtml = this.calloutHtmlSnapshots.get(block) || block.outerHTML;
-        this.titleEditSnapshots.delete(titleEl);
-        this.calloutHtmlSnapshots.delete(block);
-        this.titleEditComposing.delete(titleEl);
-        
-        if (!titleChanged) return;
-        requestAnimationFrame(() => this.syncBlock(block, originalHtml));
-    };
-
-    private handleTitleInput = (e: Event) => {
-        const titleEl = closestTitleFromTarget(e.target);
-        if (!titleEl) return;
-        
-        // 跳过 IME 组合输入期间
-        if (this.titleEditComposing.has(titleEl)) return;
-        
-        const block = titleEl.closest(".callout") as HTMLElement | null;
-        if (!block || block.dataset.deleting === "true") return;
-
-        // 保持正文区域至少有一个空段，避免输入/粘贴标题时正文空块被折叠成只剩标题
-        ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
-        
-        // 清除旧的防抖 timer
-        const oldTimer = this.titleEditDebounceTimers.get(titleEl);
-        if (oldTimer) clearTimeout(oldTimer);
-        
-        // 设置新的防抖 timer：100ms 后执行保存
-        const newTimer = setTimeout(() => {
-            this.titleEditDebounceTimers.delete(titleEl);
-            const protyle = getCurrentProtyle(this, block, titleEl);
-            const previousTitle = this.titleEditSnapshots.get(titleEl) ?? "";
-            const currentTitle = normalizeCalloutTitlePlainText(titleEl, protyle);
-            const originalHtml = this.calloutHtmlSnapshots.get(block) || block.outerHTML;
-            
-            if (currentTitle !== previousTitle) {
-                // 更新快照用于下次比较
-                this.titleEditSnapshots.set(titleEl, currentTitle);
-                cleanCalloutTitleEditable(titleEl, protyle);
-                ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
-                this.calloutHtmlSnapshots.set(block, block.outerHTML);
-                if (DEBUG) log("[TitleInput] Auto-saving title change via debounce");
-                this.syncBlock(block, originalHtml);
-            }
-        }, 100);
-        
-        this.titleEditDebounceTimers.set(titleEl, newTimer);
-    };
-
-    private handleTitleCompositionStart = (e: Event) => {
-        const titleEl = closestTitleFromTarget(e.target);
-        if (!titleEl) return;
-        this.titleEditComposing.add(titleEl);
-    };
-
-    private handleTitleCompositionEnd = (e: Event) => {
-        const titleEl = closestTitleFromTarget(e.target);
-        if (!titleEl) return;
-        this.titleEditComposing.delete(titleEl);
-        // Composition 结束后，触发 input 处理来保存
-        this.handleTitleInput(e);
-    };
-
-    private handleTitleKeydown = (e: KeyboardEvent) => {
-        if (e.key !== "Enter") return;
-        const titleEl = closestTitleFromTarget(e.target);
-        if (!titleEl) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        // Some themes/versions render callout title under `.callout` without a strict data-type selector.
-        const block = (titleEl.closest('.callout[data-type="NodeCallout"]') || titleEl.closest(".callout")) as HTMLElement | null;
-        if (!block) {
-            error("[ERROR] TitleEnter failed: Callout block not found from title element");
-            return;
-        }
-        if (block.dataset.deleting === "true") return;
-
-        (async () => {
-            const blockId = block.dataset.nodeId || "";
-            if (this.titleEnterInFlight.has(blockId)) return;
-            const protyle = getCurrentProtyle(this, block, titleEl);
-            if (!blockId || !protyle) {
-                error("[ERROR] TitleEnter failed: Missing blockId or protyle context");
-                showMessage("标题回车失败：未找到编辑器上下文");
-                return;
-            }
-
-            try {
-                if (DEBUG) log("[TitleEnter] Creating new block after", blockId);
-                this.titleEnterInFlight.add(blockId);
-                if (block.getAttribute("fold") === "1") {
-                            await this.setFoldState(block, false);
-                }
-
-                const newBlockId = getNewNodeId();
-                if (!newBlockId) {
-                    showMessage("标题回车失败：无法生成合法块 ID");
-                    return;
-                }
-                const newBlock = createEmptyParagraphElement(getNewNodeId, newBlockId);
-                const content = getCalloutBodyContainer(block);
-                const firstBodyBlock = Array.from(content.children).find((child) => {
-                    const el = child as HTMLElement;
-                    return !el.classList.contains("protyle-attr") &&
-                        !el.classList.contains("callout-title") &&
-                        !el.classList.contains("callout-info");
-                }) as HTMLElement | undefined;
-                if (firstBodyBlock) {
-                    firstBodyBlock.insertAdjacentElement("beforebegin", newBlock);
-                } else {
-                    content.insertAdjacentElement("afterbegin", newBlock);
-                }
-
-                focusNewBlockEditableStart(newBlock);
-
-                const transactionHTML = newBlock.outerHTML;
-                const doOperations: IOperation[] = [{
-                    action: "insert",
-                    id: newBlockId,
-                    parentID: blockId,
-                    previousID: "",
-                    data: transactionHTML,
-                }];
-                const undoOperations: IOperation[] = [{
-                    action: "delete",
-                    id: newBlockId,
-                }];
-                const ok = createTransaction(protyle, doOperations, undoOperations);
-                if (!ok) {
-                    warn("[WARN] Transaction API unavailable during title enter insert", { blockId, newBlockId });
-                    newBlock.remove();
-                    error("[ERROR] TitleEnter transaction failed for block", blockId, "- new block:", newBlockId);
-                    showMessage("无法调用思源事务接口，标题回车插入失败");
-                    return;
-                }
-            } catch (err) {
-                error("[ERROR] TitleEnter exception for block", blockId, ":", err);
-            } finally {
-                this.titleEnterInFlight.delete(blockId);
-            }
-        })();
-    };
 
     private handleBodyArrowLeft = (e: KeyboardEvent) => {
         if (e.key !== "ArrowLeft") return;
@@ -836,47 +603,6 @@ export default class CalloutEnhancePlugin extends Plugin {
         e.stopImmediatePropagation();
     };
 
-    private guardTitleEvents = (e: Event) => {
-        const titleEl = closestTitleFromTarget(e.target);
-        if (!titleEl) return;
-        if (e.type === "keydown" && (e as KeyboardEvent).key === "Enter") return;
-        if (e instanceof KeyboardEvent && this.isUndoRedoShortcut(e)) return;
-
-        if (e.type === "beforeinput" || e.type === "paste") {
-            const block = titleEl.closest(".callout") as HTMLElement | null;
-            if (block && block.dataset.deleting !== "true") {
-                const inputType = (e as InputEvent).inputType || "";
-                if (e.type === "paste" || inputType.startsWith("insertFromPaste")) {
-                    ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
-                    const plainText = e instanceof ClipboardEvent
-                        ? e.clipboardData?.getData("text/plain") || ""
-                        : (e as InputEvent).data || "";
-                    const protyle = getCurrentProtyle(this, block, titleEl);
-                    const normalized = normalizeCalloutTitleText(plainText);
-                    const titleText = normalizeCalloutTitlePlainTextFromMarkdown(normalized, protyle);
-                    if (titleText) {
-                        e.preventDefault();
-                        const selection = window.getSelection();
-                        if (selection?.rangeCount) {
-                            const range = selection.getRangeAt(0);
-                            if (titleEl.contains(range.commonAncestorContainer)) {
-                                range.deleteContents();
-                                const textNode = document.createTextNode(titleText);
-                                range.insertNode(textNode);
-                                range.setStartAfter(textNode);
-                                range.collapse(true);
-                                selection.removeAllRanges();
-                                selection.addRange(range);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-    };
 
     private triggerBackspaceForEmptyCallout = (block: HTMLElement, sourceTarget: EventTarget | null) => {
         if (!block) return false;
@@ -1021,11 +747,11 @@ export default class CalloutEnhancePlugin extends Plugin {
         const titleEl = closestTitleFromTarget(e.target);
         if (titleEl) {
             if (e.key === "Enter") {
-                this.handleTitleKeydown(e);
+                handleTitleKeydown(this, e);
                 return;
             }
             if (this.isUndoRedoShortcut(e)) return;
-            this.guardTitleEvents(e);
+            guardTitleEvents(this, e);
             return;
         }
 
@@ -1203,20 +929,20 @@ export default class CalloutEnhancePlugin extends Plugin {
         if ((window as any)[STARTUP_FLAG]) return;
         (window as any)[STARTUP_FLAG] = true;
 
-        this.listen(document, "focusin", this.handleTitleFocusIn, true);
-        this.listen(document, "focusout", this.handleTitleFocusOut, true);
+        this.listen(document, "focusin", (e) => handleTitleFocusIn(this, e as FocusEvent), true);
+        this.listen(document, "focusout", (e) => handleTitleFocusOut(this, e as FocusEvent), true);
         this.listen(document, "keydown", this.handleGlobalKeydown, true);
-        this.listen(document, "beforeinput", this.guardTitleEvents, true);
-        this.listen(document, "paste", this.guardTitleEvents, true);
+        this.listen(document, "beforeinput", (e) => guardTitleEvents(this, e), true);
+        this.listen(document, "paste", (e) => guardTitleEvents(this, e), true);
         // 标题 input 事件：防抖后自动保存（在 guardTitleEvents 之前执行）
-        this.listen(document, "input", this.handleTitleInput as EventListener, true);
-        this.listen(document, "input", this.guardTitleEvents, true);
+        this.listen(document, "input", (e) => handleTitleInput(this, e as Event), true);
+        this.listen(document, "input", (e) => guardTitleEvents(this, e), true);
         // 标题 composition 事件：跟踪 IME 输入状态
-        this.listen(document, "compositionstart", this.handleTitleCompositionStart as EventListener, true);
-        this.listen(document, "compositionstart", this.guardTitleEvents, true);
-        this.listen(document, "compositionupdate", this.guardTitleEvents, true);
-        this.listen(document, "compositionend", this.handleTitleCompositionEnd as EventListener, true);
-        this.listen(document, "compositionend", this.guardTitleEvents, true);
+        this.listen(document, "compositionstart", (e) => handleTitleCompositionStart(this, e as Event), true);
+        this.listen(document, "compositionstart", (e) => guardTitleEvents(this, e), true);
+        this.listen(document, "compositionupdate", (e) => guardTitleEvents(this, e), true);
+        this.listen(document, "compositionend", (e) => handleTitleCompositionEnd(this, e as Event), true);
+        this.listen(document, "compositionend", (e) => guardTitleEvents(this, e), true);
         this.listen(document, "pointerdown", this.handleGlobalPointerDown, true);
 
         this.listen(document.body, "click", this.handleGlobalClick, true);
