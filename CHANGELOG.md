@@ -4,12 +4,13 @@
 - 🇨🇳 放宽`waitForNativeEmptyCalloutHandling`时间限制
 - 🇨🇳 优化callout标题的短时保存&撤回机制
 - 🇨🇳 修复callout正文为空时，向标题粘贴文本会导致正文区域内容块消失的问题
-- 🇨🇳 增加输入清洗与内容规范化，确保callout标题区域输入的都是纯文本
+- 🇨🇳 增加callout标题的输入清洗与内容规范化。确保callout标题区域粘贴/输入的都是纯文本，并对标题文字做到去除NBSP、去除零宽字符、折叠多余空白、去除首尾空白
 - 🇺🇸 Relax the maximum length limit of callout blocks to prevent remaining content from being hidden after exceeding the limit
 - 🇺🇸 Relax the time limit for `waitForNativeEmptyCalloutHandling`
 - 🇺🇸 Optimize the short-term saving & undo mechanism for callout titles
 - 🇺🇸 Fix the issue where pasting text into the title causes content blocks in the body area to disappear when the callout body is empty
 - 🇺🇸 Add input sanitization and content normalization to ensure only plain text is entered in the callout title area
+- 🇺🇸 Add input sanitization and content normalization for callout titles. Ensure that only plain text is pasted/entered into the callout title area, and apply the following to the title text: remove NBSP (non-breaking spaces), remove zero-width characters, collapse excess whitespace, and trim leading/trailing whitespace
 
 ## v0.1.1 2026-05-13
 

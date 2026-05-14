@@ -242,7 +242,7 @@ function getQuoteContentLineElement(quoteEl: HTMLElement | null, sourceNode: Nod
     return current && current.parentElement === quoteEl ? current : null;
 }
 
-/** 从首行块 DOM 起点到触发符之间无可见内容（仅空白 / ZWSP / nbsp），即触发符在该行逻辑开头 */
+/** 从首行块 DOM 起点到触发符之间无可见内容（仅空白 /  / nbsp），即触发符在该行逻辑开头 */
 function isTriggerAtLogicalLineStart(lineEl: HTMLElement | null, focusNode: Text, triggerOffset: number): boolean {
     if (!lineEl || !focusNode) return false;
     try {
