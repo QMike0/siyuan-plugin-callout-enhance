@@ -1,5 +1,9 @@
-import { Plugin, IOperation, showMessage, getAllEditor } from "siyuan";
+import { Plugin, IOperation, showMessage } from "siyuan";
 import "./index.scss";
+import { closestTitleFromTarget, getBlockquoteElement, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd, focusNewBlockEditableStart } from "./utils/dom";
+import { ensureEmptyBodyPlaceholderForCallout, getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, createEmptyParagraphElement } from "./utils/callout";
+import { normalizeCalloutTitleText } from "./utils/text";
+import { createTransaction, getCurrentProtyle, getFirstBlockInnerHTMLFromMd, getNewNodeId, getSiyuanLute } from "./core/api";
 
 type CalloutTypeItem = {
     type: string;
@@ -47,72 +51,10 @@ function error(...args: any[]) {
     console.error(...args);
 }
 
-function getNewNodeId() {
-    const lute = (window as any).Lute;
-    if (typeof lute?.NewNodeID === "function") {
-        return lute.NewNodeID();
-    }
-    // Transaction insert requires a valid SiYuan node id. Random fallback ids may be rejected by kernel.
-    return "";
-}
-
-function createEmptyParagraphElement(id?: string) {
-    const element = document.createElement("div");
-    element.setAttribute("data-node-id", id || getNewNodeId());
-    element.setAttribute("data-type", "NodeParagraph");
-    element.classList.add("p");
-    const spellcheck = (window as any)?.siyuan?.config?.editor?.spellcheck ? "true" : "false";
-    element.innerHTML = `<div contenteditable="true" spellcheck="${spellcheck}"></div><div class="protyle-attr" contenteditable="false">${"\u200B"}</div>`;
-    return element;
-}
-
-function focusNewBlockEditableStart(newBlock: HTMLElement) {
-    const editable = newBlock.querySelector('[contenteditable="true"]') as HTMLElement | null;
-    if (!editable) return;
-    editable.focus();
-    const range = document.createRange();
-    range.setStart(editable, 0);
-    range.collapse(true);
-    const selection = window.getSelection();
-    if (!selection) return;
-    selection.removeAllRanges();
-    selection.addRange(range);
-}
-
-function placeCaretAtEnd(el: HTMLElement | null) {
-    if (!el) return;
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    const selection = window.getSelection();
-    if (!selection) return;
-    selection.removeAllRanges();
-    selection.addRange(range);
-}
-
 function ensureCalloutTitleEditable(titleEl: HTMLElement | null) {
     if (!titleEl) return;
     titleEl.contentEditable = "true";
     titleEl.spellcheck = false;
-}
-
-function getSiyuanLute(protyle?: any | null) {
-    return protyle?.lute || (window as any)?.Lute || null;
-}
-
-function getFirstBlockInnerHTMLFromMd(lute: any, markdown: string) {
-    if (!lute || typeof lute.Md2BlockDOM !== "function") return "";
-    const template = document.createElement("template");
-    template.innerHTML = lute.Md2BlockDOM(markdown);
-    return template.content.firstElementChild?.firstElementChild?.innerHTML || "";
-}
-
-function normalizeCalloutTitleText(text: string) {
-    return (text || "")
-        .replace(/\u00A0/g, " ")
-        .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
 }
 
 function normalizeCalloutTitlePlainTextFromMarkdown(markdown: string, protyle?: any | null) {
@@ -162,73 +104,6 @@ function cleanCalloutTitleEditable(titleEl: HTMLElement | null, protyle?: any | 
     titleEl.textContent = normalized;
     placeCaretAtEnd(titleEl);
     return true;
-}
-
-function closestTitleFromTarget(target: EventTarget | null) {
-    if (!target) return null;
-    const element = target instanceof Node && target.nodeType === Node.TEXT_NODE ? target.parentElement : target as Element;
-    return element?.closest?.(".callout-title") as HTMLElement | null;
-}
-
-function getCalloutFromEventTarget(target: EventTarget | null) {
-    if (!target) return null;
-    const element = target instanceof Node && target.nodeType === Node.TEXT_NODE ? target.parentElement : target as Element;
-    return element?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
-}
-
-function hasCalloutBody(block: HTMLElement | null) {
-    function isMeaningfulNode(node: Node): boolean {
-        if (!node) return false;
-        if (node.nodeType === Node.TEXT_NODE) {
-            return (node.textContent || "").replace(/[\u200B\u00A0]/g, "").trim().length > 0;
-        }
-        if (node.nodeType !== Node.ELEMENT_NODE) return false;
-        const el = node as HTMLElement;
-        const tagName = el.tagName?.toUpperCase?.() || "";
-        if (tagName === "BR") return false;
-        if (el.classList?.contains("protyle-attr")) return false;
-        if (el.matches?.("img,video,audio,iframe,svg,canvas,table,hr,math,pre,code,input,button,select,textarea,embed,object")) {
-            return true;
-        }
-        return Array.from(el.childNodes).some(isMeaningfulNode);
-    }
-
-    if (!block) return false;
-    return Array.from(block.children).some((child) => {
-        if ((child as HTMLElement).classList?.contains("callout-title")) return false;
-        if ((child as HTMLElement).classList?.contains("callout-info")) return false;
-        if ((child as HTMLElement).classList?.contains("protyle-attr")) return false;
-        return isMeaningfulNode(child);
-    });
-}
-
-function getCalloutBodyLineCount(block: HTMLElement | null) {
-    if (!block) return 0;
-    const content = (block.querySelector?.(".callout-content") as HTMLElement | null) || block;
-    return Array.from(content.children).filter((child) => {
-        if ((child as HTMLElement).classList?.contains("protyle-attr")) return false;
-        return true;
-    }).length;
-}
-
-function getSelectionCallout() {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return null;
-    const node = sel.focusNode || sel.anchorNode;
-    const element = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-    return element?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
-}
-
-function getBlockquoteElement(node: Node | null) {
-    if (!node) return null;
-    let current: HTMLElement | null = node.nodeType === Node.TEXT_NODE ? node.parentElement : node as HTMLElement;
-    while (current && current !== document.body) {
-        if (current.classList && current.classList.contains("bq")) {
-            return current;
-        }
-        current = current.parentElement;
-    }
-    return null;
 }
 
 /** 光标所在、作为 `.bq` 直接子节点的首行内容块（思源中通常为一段） */
@@ -339,70 +214,6 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.cleanupHandlers.push(() => target.removeEventListener(type, handler, options as any));
     }
 
-    private getEditorInstance(): any | null {
-        try {
-            const editor = (this as any).getEditor?.();
-            return editor || null;
-        } catch {
-            return null;
-        }
-    }
-
-    private getCurrentProtyle(block?: HTMLElement | null, sourceNode?: Node | null): any | null {
-        try {
-            const editors = getAllEditor?.() || [];
-            const source = sourceNode || block || null;
-
-            // Prefer resolving by the actual event/source node to avoid using a stale or inactive editor instance.
-            if (source) {
-                for (const item of editors) {
-                    const protyle = item?.protyle;
-                    const protyleEl = protyle?.element as HTMLElement | undefined;
-                    const wysiwygEl = protyle?.wysiwyg?.element as HTMLElement | undefined;
-                    if (protyle?.getInstance && ((protyleEl && protyleEl.contains(source)) || (wysiwygEl && wysiwygEl.contains(source)))) {
-                        return protyle;
-                    }
-                }
-            }
-
-            // If DOM has nearest protyle container, map it back to the editor list.
-            if (source) {
-                const sourceEl = (source.nodeType === Node.TEXT_NODE ? source.parentElement : source as HTMLElement) as HTMLElement | null;
-                const closestProtyle = sourceEl?.closest?.(".protyle") as any;
-                if (closestProtyle?.protyle?.getInstance) {
-                    return closestProtyle.protyle;
-                }
-                if (closestProtyle) {
-                    for (const item of editors) {
-                        const protyle = item?.protyle;
-                        if (protyle?.getInstance && protyle.element === closestProtyle) {
-                            return protyle;
-                        }
-                    }
-                }
-            }
-        } catch {
-            // Ignore and fall back to current editor.
-        }
-
-        const editor = this.getEditorInstance();
-        if (!block && editor?.protyle?.getInstance) return editor.protyle;
-        return null;
-    }
-
-    private createTransaction(protyle: any, doOperations: IOperation[], undoOperations?: IOperation[]) {
-        const instance = protyle?.getInstance?.();
-        if (instance?.transaction) {
-            instance.transaction(doOperations, undoOperations);
-            return true;
-        }
-        if (typeof protyle?.transaction === "function") {
-            protyle.transaction(doOperations, undoOperations);
-            return true;
-        }
-        warn("[WARN] Transaction API unavailable - protyle may not support transactions");
-        return false;
-    }
 
     private isUndoRedoShortcut(e: KeyboardEvent) {
         const key = (e.key || "").toLowerCase();
@@ -411,33 +222,12 @@ export default class CalloutEnhancePlugin extends Plugin {
         return key === "z" || key === "y";
     }
 
-    private getCalloutBodyContainer(block: HTMLElement) {
-        return (block.querySelector?.(".callout-content") as HTMLElement | null) || block;
-    }
-
     private getCalloutParentAndPrevious(block: HTMLElement) {
-        const parent = block.parentElement;
+        const parent = block.parentElement as HTMLElement | null;
+        const previous = block.previousElementSibling as HTMLElement | null;
         const parentID = parent?.dataset?.nodeId || "";
-        const previousID = block.previousElementSibling?.dataset?.nodeId || "";
+        const previousID = previous?.dataset?.nodeId || "";
         return { parentID, previousID };
-    }
-
-    private ensureEmptyBodyPlaceholderForCallout(block: HTMLElement) {
-        if (!block.classList.contains("callout")) return;
-        const content = this.getCalloutBodyContainer(block);
-        if (!content) return;
-
-        const bodyChildren = Array.from(content.children).filter((child) => {
-            const el = child as HTMLElement;
-            return !el.classList.contains("protyle-attr") &&
-                !el.classList.contains("callout-title") &&
-                !el.classList.contains("callout-info");
-        }) as HTMLElement[];
-
-        if (bodyChildren.length > 0) return;
-
-        const newBodyBlock = createEmptyParagraphElement();
-        content.insertAdjacentElement("afterbegin", newBodyBlock);
     }
 
     private ensureCalloutTypeMenu() {
@@ -736,7 +526,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (blockElement.dataset.deleting === "true") return false;
         const blockId = blockElement.dataset.nodeId;
         
-        const protyle = this.getCurrentProtyle(blockElement);
+        const protyle = getCurrentProtyle(this,blockElement);
         if (!protyle) return false;
 
         try {
@@ -782,8 +572,9 @@ export default class CalloutEnhancePlugin extends Plugin {
                 data: previousHtml,
             }];
             
-            const ok = this.createTransaction(protyle, doOperations, undoOperations);
+            const ok = createTransaction(protyle, doOperations, undoOperations);
             if (!ok) {
+                warn("[WARN] Transaction API unavailable during title save", { blockId });
                 error("[ERROR] Title save transaction failed for block", blockId);
                 showMessage("无法调用思源事务接口，标题修改未保存");
                 return false;
@@ -799,7 +590,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (!block || !block.dataset.nodeId) return false;
         const blockId = block.dataset.nodeId;
         if (block.dataset.deleting === "true") return false;
-        const protyle = this.getCurrentProtyle(block);
+        const protyle = getCurrentProtyle(this,block);
         if (!protyle) return false;
 
         try {
@@ -814,8 +605,9 @@ export default class CalloutEnhancePlugin extends Plugin {
                 previousID,
                 data: blockHTML,
             }];
-            const ok = this.createTransaction(protyle, doOperations, undoOperations);
+            const ok = createTransaction(protyle, doOperations, undoOperations);
             if (!ok) {
+                warn("[WARN] Transaction API unavailable during callout delete", { blockId });
                 error("[ERROR] Delete transaction failed for block", blockId);
                 delete block.dataset.deleting;
                 return false;
@@ -833,7 +625,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (!titleEl) return;
         ensureCalloutTitleEditable(titleEl);
         const block = titleEl.closest(".callout") as HTMLElement | null;
-        const protyle = this.getCurrentProtyle(block, titleEl);
+        const protyle = getCurrentProtyle(this,block, titleEl);
         this.titleEditSnapshots.set(titleEl, normalizeCalloutTitlePlainText(titleEl, protyle));
         if (block) {
             // 保存完整的块 HTML 作为快照，用于 undo
@@ -857,14 +649,14 @@ export default class CalloutEnhancePlugin extends Plugin {
             this.titleEditDebounceTimers.delete(titleEl);
         }
 
-        const protyle = this.getCurrentProtyle(block, titleEl);
+        const protyle = getCurrentProtyle(this, block, titleEl);
         const previousTitle = this.titleEditSnapshots.get(titleEl) ?? "";
         const currentTitle = normalizeCalloutTitlePlainText(titleEl, protyle);
         const titleChanged = currentTitle !== previousTitle;
 
         // 先清洗标题，再保留正文占位，确保同步到存储层时内容已规范化
         cleanCalloutTitleEditable(titleEl, protyle);
-        this.ensureEmptyBodyPlaceholderForCallout(block);
+        ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
         
         const originalHtml = this.calloutHtmlSnapshots.get(block) || block.outerHTML;
         this.titleEditSnapshots.delete(titleEl);
@@ -886,7 +678,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (!block || block.dataset.deleting === "true") return;
 
         // 保持正文区域至少有一个空段，避免输入/粘贴标题时正文空块被折叠成只剩标题
-        this.ensureEmptyBodyPlaceholderForCallout(block);
+        ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
         
         // 清除旧的防抖 timer
         const oldTimer = this.titleEditDebounceTimers.get(titleEl);
@@ -895,7 +687,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         // 设置新的防抖 timer：100ms 后执行保存
         const newTimer = setTimeout(() => {
             this.titleEditDebounceTimers.delete(titleEl);
-            const protyle = this.getCurrentProtyle(block, titleEl);
+            const protyle = getCurrentProtyle(this, block, titleEl);
             const previousTitle = this.titleEditSnapshots.get(titleEl) ?? "";
             const currentTitle = normalizeCalloutTitlePlainText(titleEl, protyle);
             const originalHtml = this.calloutHtmlSnapshots.get(block) || block.outerHTML;
@@ -904,7 +696,7 @@ export default class CalloutEnhancePlugin extends Plugin {
                 // 更新快照用于下次比较
                 this.titleEditSnapshots.set(titleEl, currentTitle);
                 cleanCalloutTitleEditable(titleEl, protyle);
-                this.ensureEmptyBodyPlaceholderForCallout(block);
+                ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
                 this.calloutHtmlSnapshots.set(block, block.outerHTML);
                 if (DEBUG) log("[TitleInput] Auto-saving title change via debounce");
                 this.syncBlock(block, originalHtml);
@@ -948,7 +740,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         (async () => {
             const blockId = block.dataset.nodeId || "";
             if (this.titleEnterInFlight.has(blockId)) return;
-            const protyle = this.getCurrentProtyle(block, titleEl);
+            const protyle = getCurrentProtyle(this, block, titleEl);
             if (!blockId || !protyle) {
                 error("[ERROR] TitleEnter failed: Missing blockId or protyle context");
                 showMessage("标题回车失败：未找到编辑器上下文");
@@ -967,8 +759,8 @@ export default class CalloutEnhancePlugin extends Plugin {
                     showMessage("标题回车失败：无法生成合法块 ID");
                     return;
                 }
-                const newBlock = createEmptyParagraphElement(newBlockId);
-                const content = this.getCalloutBodyContainer(block);
+                const newBlock = createEmptyParagraphElement(getNewNodeId, newBlockId);
+                const content = getCalloutBodyContainer(block);
                 const firstBodyBlock = Array.from(content.children).find((child) => {
                     const el = child as HTMLElement;
                     return !el.classList.contains("protyle-attr") &&
@@ -995,8 +787,9 @@ export default class CalloutEnhancePlugin extends Plugin {
                     action: "delete",
                     id: newBlockId,
                 }];
-                const ok = this.createTransaction(protyle, doOperations, undoOperations);
+                const ok = createTransaction(protyle, doOperations, undoOperations);
                 if (!ok) {
+                    warn("[WARN] Transaction API unavailable during title enter insert", { blockId, newBlockId });
                     newBlock.remove();
                     error("[ERROR] TitleEnter transaction failed for block", blockId, "- new block:", newBlockId);
                     showMessage("无法调用思源事务接口，标题回车插入失败");
@@ -1022,7 +815,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         const range = sel.getRangeAt(0);
         if (!range.collapsed) return;
 
-        const content = this.getCalloutBodyContainer(currentCallout);
+        const content = getCalloutBodyContainer(currentCallout);
         if (!content) return;
 
         let node: Node | null = range.startContainer;
@@ -1054,11 +847,11 @@ export default class CalloutEnhancePlugin extends Plugin {
             if (block && block.dataset.deleting !== "true") {
                 const inputType = (e as InputEvent).inputType || "";
                 if (e.type === "paste" || inputType.startsWith("insertFromPaste")) {
-                    this.ensureEmptyBodyPlaceholderForCallout(block);
+                    ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
                     const plainText = e instanceof ClipboardEvent
                         ? e.clipboardData?.getData("text/plain") || ""
                         : (e as InputEvent).data || "";
-                    const protyle = this.getCurrentProtyle(block, titleEl);
+                    const protyle = getCurrentProtyle(this, block, titleEl);
                     const normalized = normalizeCalloutTitleText(plainText);
                     const titleText = normalizeCalloutTitlePlainTextFromMarkdown(normalized, protyle);
                     if (titleText) {

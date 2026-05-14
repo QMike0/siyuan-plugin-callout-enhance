@@ -1,3 +1,8 @@
+## v0.2.0
+
+- 🇨🇳 重构插件代码，使函数模块化。相关改动包括：
+  - 从`index.ts`抽离工具型函数，包括`src/core/api.ts`、`src/utils/dom.ts`、`src/utils/text.ts`、`src/utils/callout.ts`
+
 ## v0.1.2 2026-05-14
 
 - 🇨🇳 放宽callout块的最大长度限制，避免超过限制后便不显示剩余内容
