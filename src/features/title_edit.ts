@@ -273,30 +273,42 @@ export function handleTitleKeydown(plugin: TitleEditPluginLike, e: KeyboardEvent
         }
 
         try {
-            debugLog("[TitleEnter] Creating new block after", blockId);
             plugin.titleEnterInFlight.add(blockId);
-            if (block.getAttribute("fold") === "1") {
-                await setFoldState(plugin, block, false);
-            }
-
+            const isFolded = block.getAttribute("fold") === "1";
             const newBlockId = getNewNodeId();
             if (!newBlockId) {
                 showMessage("标题回车失败：无法生成合法块 ID");
                 return;
             }
             const newBlock = createEmptyParagraphElement(getNewNodeId, newBlockId);
-            const content = getCalloutBodyContainer(block);
-            const firstBodyBlock = Array.from(content.children).find((child) => {
-                const el = child as HTMLElement;
-                return !el.classList.contains("protyle-attr") && !el.classList.contains("callout-title") && !el.classList.contains("callout-info");
-            }) as HTMLElement | undefined;
-            if (firstBodyBlock) firstBodyBlock.insertAdjacentElement("beforebegin", newBlock);
-            else content.insertAdjacentElement("afterbegin", newBlock);
-
-            focusNewBlockEditableStart(newBlock);
-
             const transactionHTML = newBlock.outerHTML;
-            const doOperations: IOperation[] = [{ action: "insert", id: newBlockId, parentID: blockId, previousID: "", data: transactionHTML }];
+            let doOperations: IOperation[];
+
+            if (isFolded) {
+                debugLog("[TitleEnter] Creating new sibling block after folded callout", blockId);
+                block.insertAdjacentElement("afterend", newBlock);
+                focusNewBlockEditableStart(newBlock);
+                doOperations = [{
+                    action: "insert",
+                    id: newBlockId,
+                    parentID: block.parentElement?.closest?.("[data-node-id]")?.getAttribute("data-node-id") || protyle.block?.parentID || protyle.block?.rootID || "",
+                    previousID: blockId,
+                    data: transactionHTML,
+                }];
+            } else {
+                debugLog("[TitleEnter] Creating new first child block in callout", blockId);
+                const content = getCalloutBodyContainer(block);
+                const firstBodyBlock = Array.from(content.children).find((child) => {
+                    const el = child as HTMLElement;
+                    return !el.classList.contains("protyle-attr") && !el.classList.contains("callout-title") && !el.classList.contains("callout-info");
+                }) as HTMLElement | undefined;
+                if (firstBodyBlock) firstBodyBlock.insertAdjacentElement("beforebegin", newBlock);
+                else content.insertAdjacentElement("afterbegin", newBlock);
+
+                focusNewBlockEditableStart(newBlock);
+                doOperations = [{ action: "insert", id: newBlockId, parentID: blockId, previousID: "", data: transactionHTML }];
+            }
+
             const undoOperations: IOperation[] = [{ action: "delete", id: newBlockId }];
             const ok = createTransaction(protyle, doOperations, undoOperations);
             if (!ok) {
