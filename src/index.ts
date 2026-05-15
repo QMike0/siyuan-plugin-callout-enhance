@@ -1,42 +1,13 @@
 import { Plugin, IOperation, showMessage } from "siyuan";
 import "./index.scss";
-import { closestTitleFromTarget, getBlockquoteElement, getCalloutFromEventTarget, getSelectionCallout, focusNewBlockEditableStart, placeCaretAtEnd } from "./utils/dom";
-import { ensureEmptyBodyPlaceholderForCallout, getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, createEmptyParagraphElement } from "./utils/callout";
-import { normalizeCalloutTitleText } from "./utils/text";
+import { closestTitleFromTarget, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
+import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody } from "./utils/callout";
 import { createTransaction, getCurrentProtyle, getNewNodeId } from "./core/api";
 import { cleanCalloutTitleEditable, ensureCalloutTitleEditable, normalizeCalloutTitlePlainText, normalizeCalloutTitlePlainTextFromMarkdown, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown } from "./features/title_edit";
-
-type CalloutTypeItem = {
-    type: string;
-    label: string;
-    icon: string;
-};
-
-type CompletionSession = {
-    active: boolean;
-    quote: HTMLElement | null;
-    start: number;
-};
+import { CALLOUT_TYPES, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu, CompletionSession } from "./features/completion_menu";
 
 const DEBUG = true;
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
-const CALLOUT_TYPES: CalloutTypeItem[] = [
-    { type: "Info", label: "Info", icon: "ℹ️" },
-    { type: "NOTE", label: "Note", icon: "🖊️" },
-    { type: "IMPORTANT", label: "Important", icon: "✨" },
-    { type: "Quote", label: "Quote", icon: "❞" },
-    { type: "TIP", label: "Tip", icon: "💡" },
-    { type: "WARNING", label: "Warning", icon: "⚠️" },
-    { type: "CAUTION", label: "Caution", icon: "🚨" },
-    { type: "Question", label: "Question", icon: "❓" },
-];
-
-const TRIGGER_PATTERN = /[\[【［]([a-zA-Z]*)$/i;
-const SESSION_TRIGGER_PATTERN = /^[\[【［]([a-zA-Z]*)$/i;
-
-function isTriggerChar(ch: string) {
-    return ch === "[" || ch === "【" || ch === "［";
-}
 
 function log(...args: any[]) {
     if (DEBUG) {
@@ -52,84 +23,6 @@ function error(...args: any[]) {
     console.error(...args);
 }
 
-
-/** 光标所在、作为 `.bq` 直接子节点的首行内容块（思源中通常为一段） */
-function getQuoteContentLineElement(quoteEl: HTMLElement | null, sourceNode: Node | null): HTMLElement | null {
-    if (!quoteEl || !sourceNode) return null;
-    const sourceEl = sourceNode.nodeType === Node.TEXT_NODE ? sourceNode.parentElement : (sourceNode as HTMLElement);
-    let current: HTMLElement | null = sourceEl;
-    while (current && current.parentElement && current.parentElement !== quoteEl) {
-        current = current.parentElement;
-    }
-    return current && current.parentElement === quoteEl ? current : null;
-}
-
-/** 从首行块 DOM 起点到触发符之间无可见内容（仅空白 /  / nbsp），即触发符在该行逻辑开头 */
-function isTriggerAtLogicalLineStart(lineEl: HTMLElement | null, focusNode: Text, triggerOffset: number): boolean {
-    if (!lineEl || !focusNode) return false;
-    try {
-        if (!lineEl.contains(focusNode)) return false;
-        const range = document.createRange();
-        range.setStart(lineEl, 0);
-        range.setEnd(focusNode, triggerOffset);
-        const before = range.toString().replace(/[\u200B\u00A0]/g, "").trim();
-        return before.length === 0;
-    } catch {
-        return false;
-    }
-}
-
-function applyCompletionTransform(selectedType: string): boolean {
-    try {
-        const selection = window.getSelection();
-        if (!selection) return false;
-        const textNode = selection?.rangeCount ? (selection.getRangeAt(0).startContainer as Text) : null;
-        if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return false;
-
-        const content = textNode.textContent || "";
-        const match = content.match(TRIGGER_PATTERN);
-        const startOffset = match ? content.lastIndexOf(match[0]) : -1;
-        if (startOffset < 0) return false;
-
-        const quoteEl = getBlockquoteElement(textNode);
-        const lineEl = getQuoteContentLineElement(quoteEl, textNode);
-        if (!isTriggerAtLogicalLineStart(lineEl, textNode, startOffset)) return false;
-
-        const replacement = `[!${selectedType}]\n`;
-        const workRange = document.createRange();
-        workRange.setStart(textNode, startOffset);
-        workRange.setEnd(textNode, content.length);
-        workRange.deleteContents();
-
-        const newNode = document.createTextNode(replacement);
-        workRange.insertNode(newNode);
-
-        const afterRange = document.createRange();
-        afterRange.setStartAfter(newNode);
-        afterRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(afterRange);
-
-        const enterEvent = new KeyboardEvent("keydown", {
-            key: "Enter",
-            keyCode: 13,
-            code: "Enter",
-            which: 13,
-            bubbles: true,
-            cancelable: true,
-        });
-        const parentEl = newNode.parentElement || textNode.parentElement;
-        if (parentEl && parentEl.dispatchEvent) {
-            parentEl.dispatchEvent(enterEvent);
-        } else {
-            document.dispatchEvent(enterEvent);
-        }
-        return true;
-    } catch (err) {
-        error("[ERROR] Completion transform failed:", err);
-        return false;
-    }
-}
 
 export default class CalloutEnhancePlugin extends Plugin {
     private cleanupHandlers: Array<() => void> = [];
@@ -317,104 +210,6 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
     };
 
-    private ensureCompletionMenu() {
-        if (this.completionMenuElement) return;
-        this.completionMenuElement = document.createElement("div");
-        this.completionMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none";
-        this.completionMenuElement.style.cssText = "position:fixed; z-index:9999; min-width:160px; padding:6px; box-shadow: var(--b3-dialog-shadow);";
-        document.body.appendChild(this.completionMenuElement);
-    }
-
-    private hideCompletionMenu() {
-        this.completionVisible = false;
-        this.completionIndex = -1;
-        this.completionSession.active = false;
-        this.completionSession.quote = null;
-        this.completionSession.start = -1;
-        if (this.completionMenuElement) {
-            this.completionMenuElement.classList.add("fn__none");
-        }
-    }
-
-    private isFirstLineOfQuote(quoteEl: HTMLElement | null, sourceNode: Node | null): boolean {
-        if (!quoteEl || !sourceNode) return false;
-        const line = getQuoteContentLineElement(quoteEl, sourceNode);
-        if (!line) return false;
-        const firstLine = Array.from(quoteEl.children).find((child) => !((child as HTMLElement).classList?.contains("protyle-attr"))) as HTMLElement | undefined;
-        return !!firstLine && line === firstLine;
-    }
-
-    private renderCompletionMenu() {
-        if (!this.completionMenuElement) return;
-        this.completionMenuElement.innerHTML = "";
-        this.completionFiltered.forEach((item, i) => {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.tabIndex = -1;
-            btn.className = `b3-list-item b3-list-item--two ${i === this.completionIndex ? "b3-list-item--focus" : ""}`;
-            btn.innerHTML = `
-                <div class="b3-list-item__first" style="display:flex; align-items:center; gap:4px;">
-                    <span class="b3-list-item__graphic" style="width:20px; flex-shrink:0; text-align:center; font-size:16px; border:none; background:transparent;">${item.icon}</span>
-                    <span class="b3-list-item__text" style="font-size:15px;">${item.label}</span>
-                </div>`;
-            btn.onmousedown = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.applyCompletion(i);
-            };
-            this.completionMenuElement!.appendChild(btn);
-        });
-        this.completionMenuElement.classList.remove("fn__none");
-        if (this.completionIndex === -1) this.completionIndex = 0;
-        const activeButton = this.completionMenuElement.querySelector(".b3-list-item--focus") as HTMLButtonElement | null;
-        activeButton?.scrollIntoView({ block: "nearest" });
-    }
-
-    private updateCompletionMenuPosition(rect: DOMRect) {
-        if (!this.completionMenuElement) return;
-        const menuWidth = this.completionMenuElement.offsetWidth || 200;
-        const menuHeight = this.completionMenuElement.offsetHeight || 300;
-        const padding = 8;
-        let top = rect.bottom + padding;
-        let left = rect.left;
-        if (top + menuHeight + padding > window.innerHeight) {
-            top = rect.top - menuHeight - padding;
-        }
-        if (top < padding) top = padding;
-        if (left + menuWidth + padding > window.innerWidth) {
-            left = Math.max(padding, window.innerWidth - menuWidth - padding);
-        }
-        if (left < padding) left = padding;
-        this.completionMenuElement.style.top = `${top}px`;
-        this.completionMenuElement.style.left = `${left}px`;
-    }
-
-    private showCompletionMenu(filterText: string, rect: DOMRect, block: HTMLElement) {
-        this.ensureCompletionMenu();
-        if (!this.completionMenuElement) return;
-        this.completionFiltered = CALLOUT_TYPES.filter((t) =>
-            t.type.toLowerCase().includes(filterText.toLowerCase()) ||
-            t.label.toLowerCase().includes(filterText.toLowerCase())
-        );
-        if (this.completionFiltered.length === 0) {
-            this.hideCompletionMenu();
-            return;
-        }
-        this.completionVisible = true;
-        this.completionIndex = 0;
-        this.renderCompletionMenu();
-        this.updateCompletionMenuPosition(rect);
-    }
-
-    private applyCompletion(index = this.completionIndex) {
-        const selected = this.completionFiltered[index];
-        if (!selected) return;
-        this.hideCompletionMenu();
-        const ok = applyCompletionTransform(selected.type);
-        if (!ok) {
-            showMessage("callout completion transform failed");
-        }
-    }
 
     private initCallout(block: HTMLElement) {
         if (block.dataset?.nodeId) {
@@ -692,7 +487,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             this.hideCalloutTypeMenu();
         }
         if (this.completionMenuElement && !this.completionMenuElement.contains(e.target as Node)) {
-            this.hideCompletionMenu();
+            hideCompletionMenu(this);
         }
 
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
@@ -740,7 +535,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
 
         if (this.completionVisible && this.completionMenuElement && ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "Tab", "Escape"].includes(e.key)) {
-            this.handleCompletionKeydown(e);
+            handleCompletionKeydown(this, e);
             return;
         }
 
@@ -765,165 +560,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
     };
 
-    private handleCompletionInput = (e: InputEvent) => {
-        if (this.isComposing) return;
-        const sel = window.getSelection();
-        if (!sel || !sel.rangeCount) {
-            this.hideCompletionMenu();
-            return;
-        }
-        const focusNode = sel.focusNode;
-        if (focusNode?.nodeType !== Node.TEXT_NODE) {
-            this.hideCompletionMenu();
-            return;
-        }
-        const focusText = focusNode as Text;
 
-        const quoteEl = getBlockquoteElement(focusText);
-        if (!quoteEl) {
-            this.hideCompletionMenu();
-            return;
-        }
-
-        const cursorOffset = sel.focusOffset;
-        const text = focusText.textContent || "";
-        const textBeforeCursor = text.substring(0, cursorOffset);
-
-        if (this.completionSession.active) {
-            if (cursorOffset < this.completionSession.start) {
-                this.hideCompletionMenu();
-                return;
-            }
-
-            if (!this.isFirstLineOfQuote(quoteEl, focusText)) {
-                if (this.completionVisible) this.hideCompletionMenu();
-                return;
-            }
-
-            const lineEl = getQuoteContentLineElement(quoteEl, focusText);
-            if (!isTriggerAtLogicalLineStart(lineEl, focusText, this.completionSession.start)) {
-                this.hideCompletionMenu();
-                return;
-            }
-
-            const segment = text.slice(this.completionSession.start, cursorOffset);
-            const sessionMatch = segment.match(SESSION_TRIGGER_PATTERN);
-            if (!sessionMatch) {
-                this.hideCompletionMenu();
-                return;
-            }
-
-            const rect = sel.getRangeAt(0).getBoundingClientRect();
-            const block = (focusText.parentElement?.closest?.("[data-node-id]") as HTMLElement | null) || focusText.parentElement as HTMLElement;
-            this.showCompletionMenu(sessionMatch[1], rect, block || focusText.parentElement as HTMLElement);
-            return;
-        }
-
-        const insertedText = e?.data || "";
-        const lastChar = textBeforeCursor.slice(-1);
-        const isInsertInput = typeof e?.inputType === "string" && e.inputType.startsWith("insert");
-        
-        // 支持中文输入法：当 compositionend 后调用时 e 为 undefined，此时需要检查 lastChar 是否为触发字符
-        const isTriggerInput = !e 
-            ? isTriggerChar(lastChar)  // compositionend 触发：仅检查最后字符
-            : isInsertInput && (
-                isTriggerChar(insertedText) ||
-                (isTriggerChar(lastChar) && (!insertedText || insertedText === lastChar))
-            );
-        
-        if (!isTriggerInput) {
-            if (this.completionVisible) this.hideCompletionMenu();
-            return;
-        }
-
-        if (!this.isFirstLineOfQuote(quoteEl, focusText)) {
-            if (this.completionVisible) this.hideCompletionMenu();
-            return;
-        }
-
-        const match = textBeforeCursor.match(TRIGGER_PATTERN);
-        if (match) {
-            const triggerStart = textBeforeCursor.lastIndexOf(match[0]);
-            const lineEl = getQuoteContentLineElement(quoteEl, focusText);
-            if (!isTriggerAtLogicalLineStart(lineEl, focusText, triggerStart)) {
-                if (this.completionVisible) this.hideCompletionMenu();
-                return;
-            }
-
-            this.completionSession.active = true;
-            this.completionSession.quote = quoteEl;
-            this.completionSession.start = triggerStart;
-            const rect = sel.getRangeAt(0).getBoundingClientRect();
-            const block = (focusText.parentElement?.closest?.("[data-node-id]") as HTMLElement | null) || focusText.parentElement as HTMLElement;
-            this.showCompletionMenu(match[1], rect, block || focusText.parentElement as HTMLElement);
-        } else {
-            if (this.completionVisible) this.hideCompletionMenu();
-        }
-    };
-
-    private handleCompletionCompositionStart = () => {
-        this.isComposing = true;
-    };
-
-    private handleCompletionCompositionEnd = () => {
-        this.isComposing = false;
-        setTimeout(() => this.handleCompletionInput(undefined as any), 10);
-    };
-
-    private handleCompletionKeydown = (e: KeyboardEvent) => {
-        if (!this.completionVisible || !this.completionMenuElement) return;
-        if (e.key === "ArrowUp") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.completionIndex = (this.completionIndex - 1 + this.completionFiltered.length) % this.completionFiltered.length;
-            this.renderCompletionMenu();
-        } else if (e.key === "ArrowDown") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.completionIndex = (this.completionIndex + 1) % this.completionFiltered.length;
-            this.renderCompletionMenu();
-        } else if (e.key === "Home") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.completionIndex = 0;
-            this.renderCompletionMenu();
-        } else if (e.key === "End") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.completionIndex = this.completionFiltered.length - 1;
-            this.renderCompletionMenu();
-        } else if (e.key === "Enter" || e.key === "Tab") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.applyCompletion();
-        } else if (e.key === "Escape") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.hideCompletionMenu();
-        }
-    };
-
-    private handleCompletionMousedown = (e: MouseEvent) => {
-        if (this.completionMenuElement && !this.completionMenuElement.contains(e.target as Node)) {
-            this.hideCompletionMenu();
-        }
-    };
-
-    private handleSelectionChange = () => {
-        if (!this.completionSession.active) return;
-        const sel = window.getSelection();
-        const focusNode = sel?.focusNode || null;
-        const quote = focusNode ? getBlockquoteElement(focusNode) : null;
-        if (!sel || !sel.rangeCount || !quote || quote !== this.completionSession.quote) {
-            this.hideCompletionMenu();
-        }
-    };
 
     onload() {
         if ((window as any)[STARTUP_FLAG]) return;
@@ -946,11 +583,11 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.listen(document, "pointerdown", this.handleGlobalPointerDown, true);
 
         this.listen(document.body, "click", this.handleGlobalClick, true);
-        this.listen(document.body, "input", this.handleCompletionInput as EventListener, true);
-        this.listen(document.body, "compositionstart", this.handleCompletionCompositionStart, true);
-        this.listen(document.body, "compositionend", this.handleCompletionCompositionEnd, true);
-        this.listen(document.body, "mousedown", this.handleCompletionMousedown, true);
-        this.listen(document, "selectionchange", this.handleSelectionChange, true);
+        this.listen(document.body, "input", (e) => handleCompletionInput(this, e as InputEvent), true);
+        this.listen(document.body, "compositionstart", () => handleCompletionCompositionStart(this), true);
+        this.listen(document.body, "compositionend", () => handleCompletionCompositionEnd(this), true);
+        this.listen(document.body, "mousedown", (e) => handleCompletionMousedown(this, e as MouseEvent), true);
+        this.listen(document, "selectionchange", () => handleSelectionChange(this), true);
 
         this.observer = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
@@ -982,7 +619,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.titleEditDebounceTimers.clear();
         this.titleEditComposing.clear();
         this.hideCalloutTypeMenu();
-        this.hideCompletionMenu();
+        hideCompletionMenu(this);
         this.calloutTypeMenuElement?.remove();
         this.calloutTypeMenuElement = null;
         this.completionMenuElement?.remove();
