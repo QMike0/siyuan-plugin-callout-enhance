@@ -1,7 +1,8 @@
 import { Plugin, IOperation, showMessage } from "siyuan";
 import "./index.scss";
-import { closestTitleFromTarget, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
+import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
 import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody } from "./utils/callout";
+import { getParentBlockLikeSiyuan } from "./utils/getBlock";
 import { createTransaction, getCurrentProtyle, getNewNodeId } from "./core/api";
 import { deleteCallout } from "./features/callout_delete";
 import { setFoldState } from "./features/callout_fold";
@@ -173,51 +174,61 @@ export default class CalloutEnhancePlugin extends Plugin {
         e.stopImmediatePropagation();
     };
 
+    // 模拟的是思源笔记源码app/src/protyle/wysiwyg/getBlock.ts的getParentBlock函数
+    private moveEmptyCalloutBodyBlockAfterCallout = async (callout: HTMLElement, sourceTarget: EventTarget | null) => {
+        const blockId = callout.dataset.nodeId || "";
+        const content = getCalloutBodyContainer(callout);
+        const bodyBlock = Array.from(content.children).find((child) => {
+            const el = child as HTMLElement;
+            return !el.classList.contains("protyle-attr") && !el.classList.contains("callout-title") && !el.classList.contains("callout-info") && !!el.getAttribute("data-node-id");
+        }) as HTMLElement | undefined;
+        const bodyBlockId = bodyBlock?.dataset.nodeId || "";
+        const protyle = getCurrentProtyle(this, callout, sourceTarget instanceof Node ? sourceTarget : callout);
 
-    private triggerBackspaceForEmptyCallout = (block: HTMLElement, sourceTarget: EventTarget | null) => {
-        if (!block) return false;
+        if (!blockId || !bodyBlock || !bodyBlockId || !protyle) {
+            warnLog("[WARN] Empty callout enter failed: missing context", { blockId, bodyBlockId });
+            return false;
+        }
 
-        const sourceEl = sourceTarget instanceof Node && sourceTarget.nodeType === Node.TEXT_NODE 
-            ? sourceTarget.parentElement 
-            : sourceTarget as HTMLElement | null;
-        const activeEl = document.activeElement as HTMLElement | null;
-        const activeEditable = activeEl?.isContentEditable ? activeEl : null;
-        const sourceEditable = sourceEl?.closest?.('[contenteditable="true"]') as HTMLElement | null;
-        const target = sourceEditable || activeEditable || block.querySelector('[contenteditable="true"]');
-        if (!target) return false;
+        const originalCalloutHtml = callout.outerHTML;
+        const originalBodyBlockHtml = bodyBlock.outerHTML;
+        const parentBlockElement = getParentBlockLikeSiyuan(bodyBlock);
+        const previousSibling = callout.previousElementSibling as HTMLElement | null;
+        const previousID = previousSibling?.getAttribute("data-node-id") || "";
+        const parentID = getParentBlockLikeSiyuan(callout)?.getAttribute("data-node-id") || (protyle as any).block?.parentID || "";
+        if (!parentBlockElement || parentBlockElement !== callout || !parentID) {
+            warnLog("[WARN] Empty callout enter failed: invalid parent context", { blockId, bodyBlockId, parentID });
+            return false;
+        }
 
-        const keydownEvent = new KeyboardEvent("keydown", {
-            key: "Backspace",
-            code: "Backspace",
-            keyCode: 8,
-            which: 8,
-            bubbles: true,
-            cancelable: true,
-        });
-        target.dispatchEvent(keydownEvent);
+        bodyBlock.remove();
+        callout.replaceWith(bodyBlock);
+        focusNewBlockEditableStart(bodyBlock);
 
-        const keyupEvent = new KeyboardEvent("keyup", {
-            key: "Backspace",
-            code: "Backspace",
-            keyCode: 8,
-            which: 8,
-            bubbles: true,
-            cancelable: true,
-        });
-        target.dispatchEvent(keyupEvent);
-
+        const doOperations: IOperation[] = [
+            { action: "delete", id: blockId },
+            { action: "insert", id: bodyBlockId, previousID, parentID, data: originalBodyBlockHtml },
+        ];
+        const undoOperations: IOperation[] = [
+            { action: "delete", id: bodyBlockId },
+            { action: "insert", id: blockId, previousID, parentID, data: originalCalloutHtml },
+        ];
+        const ok = createTransaction(protyle, doOperations, undoOperations);
+        if (!ok) {
+            bodyBlock.remove();
+            if (callout.isConnected) {
+                content.insertAdjacentElement("afterbegin", bodyBlock);
+            } else {
+                const wrapper = document.createElement("div");
+                wrapper.innerHTML = originalCalloutHtml;
+                const restoredCallout = wrapper.firstElementChild as HTMLElement | null;
+                if (restoredCallout) bodyBlock.replaceWith(restoredCallout);
+            }
+            warnLog("[WARN] Transaction API unavailable during empty callout enter", { blockId, bodyBlockId });
+            showMessage("无法调用思源事务接口，空 callout 回车处理失败");
+            return false;
+        }
         return true;
-    };
-
-    private waitForNativeEmptyCalloutHandling = async (block: HTMLElement) => {
-        // 等待思源编辑器的原生处理（模拟 Backspace 后）
-        // 延迟一段时间以让编辑器更新，然后检查 callout 是否仍在 DOM 中
-        return new Promise<boolean>((resolve) => {
-            setTimeout(() => {
-                const stillExists = document.body.contains(block);
-                resolve(!stillExists);
-            }, 200);
-        });
     };
 
     private guardEmptyCalloutEnter = async (e: KeyboardEvent) => {
@@ -233,14 +244,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        // 先尝试模拟 Backspace 触发思源原生处理
-        const dispatched = this.triggerBackspaceForEmptyCallout(callout, e.target);
-        const nativeHandled = dispatched
-            ? await this.waitForNativeEmptyCalloutHandling(callout)
-            : false;
-        
-        // 如果原生处理未成功删除 callout，则使用事务 API 删除
-        if (!nativeHandled && document.body.contains(callout)) {
+        const moved = await this.moveEmptyCalloutBodyBlockAfterCallout(callout, e.target);
+        if (!moved) {
             await deleteCallout(this, callout);
         }
     };

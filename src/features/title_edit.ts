@@ -291,7 +291,7 @@ export function handleTitleKeydown(plugin: TitleEditPluginLike, e: KeyboardEvent
                 doOperations = [{
                     action: "insert",
                     id: newBlockId,
-                    parentID: block.parentElement?.closest?.("[data-node-id]")?.getAttribute("data-node-id") || protyle.block?.parentID || protyle.block?.rootID || "",
+                    parentID: block.parentElement?.closest?.("[data-node-id]")?.getAttribute("data-node-id") || (protyle as any).block?.parentID || (protyle as any).block?.rootID || "",
                     previousID: blockId,
                     data: transactionHTML,
                 }];
