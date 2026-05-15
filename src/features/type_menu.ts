@@ -7,9 +7,17 @@
  */
 import { showMessage } from "siyuan";
 import { CALLOUT_TYPES } from "../utils/callout_types";
+import { PluginWithGetEditor } from "../core/api";
 import { debugLog } from "../utils/logger";
 
-export function ensureCalloutTypeMenu(plugin: any) {
+export type TypeMenuPluginLike = PluginWithGetEditor & {
+    calloutTypeMenuElement: HTMLDivElement | null;
+    calloutTypeMenuActiveBlock: HTMLElement | null;
+    calloutTypeMenuIndex: number;
+    syncBlock: (blockElement: HTMLElement, originalHtml?: string, reason?: "title" | "fold" | "type") => Promise<boolean>;
+};
+
+export function ensureCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (plugin.calloutTypeMenuElement) return;
     plugin.calloutTypeMenuElement = document.createElement("div");
     plugin.calloutTypeMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none";
@@ -18,7 +26,7 @@ export function ensureCalloutTypeMenu(plugin: any) {
     document.body.appendChild(plugin.calloutTypeMenuElement);
 }
 
-export function hideCalloutTypeMenu(plugin: any) {
+export function hideCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (plugin.calloutTypeMenuElement) {
         plugin.calloutTypeMenuElement.classList.add("fn__none");
     }
@@ -26,7 +34,7 @@ export function hideCalloutTypeMenu(plugin: any) {
     plugin.calloutTypeMenuIndex = -1;
 }
 
-function renderCalloutTypeMenu(plugin: any) {
+function renderCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (!plugin.calloutTypeMenuElement) return;
     plugin.calloutTypeMenuElement.innerHTML = "";
     CALLOUT_TYPES.forEach((item, index) => {
@@ -48,7 +56,7 @@ function renderCalloutTypeMenu(plugin: any) {
     });
 }
 
-function focusCalloutTypeMenuItem(plugin: any, index: number) {
+function focusCalloutTypeMenuItem(plugin: TypeMenuPluginLike, index: number) {
     if (!plugin.calloutTypeMenuElement || CALLOUT_TYPES.length === 0) return;
     const normalizedIndex = (index + CALLOUT_TYPES.length) % CALLOUT_TYPES.length;
     plugin.calloutTypeMenuIndex = normalizedIndex;
@@ -58,7 +66,7 @@ function focusCalloutTypeMenuItem(plugin: any, index: number) {
     activeButton?.scrollIntoView({ block: "nearest" });
 }
 
-export function showCalloutTypeMenu(plugin: any, block: HTMLElement, x: number, y: number) {
+export function showCalloutTypeMenu(plugin: TypeMenuPluginLike, block: HTMLElement, x: number, y: number) {
     ensureCalloutTypeMenu(plugin);
     if (!plugin.calloutTypeMenuElement) return;
     plugin.calloutTypeMenuActiveBlock = block;
@@ -86,7 +94,7 @@ export function showCalloutTypeMenu(plugin: any, block: HTMLElement, x: number, 
     }, 0);
 }
 
-export async function applyCalloutType(plugin: any, newType: string) {
+export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: string) {
     const block = plugin.calloutTypeMenuActiveBlock;
     if (!block) return;
     const blockId = block.dataset.nodeId;
@@ -98,7 +106,7 @@ export async function applyCalloutType(plugin: any, newType: string) {
     debugLog(plugin, "[Type] Changing from", previousSubtype || "(default)", "to", nextSubtype);
     block.dataset.subtype = nextSubtype;
 
-    const ok = await plugin.syncBlock(block, originalHtml);
+    const ok = await plugin.syncBlock(block, originalHtml, "type");
     if (ok) {
         debugLog(plugin, "[Type] Success: changed to", nextSubtype);
         hideCalloutTypeMenu(plugin);
@@ -114,7 +122,7 @@ export async function applyCalloutType(plugin: any, newType: string) {
     showMessage("callout subtype save failed");
 }
 
-export function handleCalloutTypeKeydown(plugin: any, e: KeyboardEvent) {
+export function handleCalloutTypeKeydown(plugin: TypeMenuPluginLike, e: KeyboardEvent) {
     if (!plugin.calloutTypeMenuElement || plugin.calloutTypeMenuElement.classList.contains("fn__none")) return;
     if (e.key === "ArrowDown") {
         e.preventDefault();

@@ -7,14 +7,23 @@
 import { showMessage } from "siyuan";
 import { getBlockquoteElement, getSelectionCallout } from "../utils/dom";
 import { getCalloutBodyContainer } from "../utils/callout";
-import { getNewNodeId } from "../core/api";
-import { CALLOUT_TYPES } from "../utils/callout_types";
+import { getNewNodeId, PluginWithGetEditor } from "../core/api";
+import { CALLOUT_TYPES, CalloutTypeItem } from "../utils/callout_types";
 import { errorLog } from "../utils/logger";
 
 export type CompletionSession = {
     active: boolean;
     quote: HTMLElement | null;
     start: number;
+};
+
+export type CompletionMenuPluginLike = PluginWithGetEditor & {
+    isComposing: boolean;
+    completionMenuElement: HTMLDivElement | null;
+    completionFiltered: CalloutTypeItem[];
+    completionIndex: number;
+    completionVisible: boolean;
+    completionSession: CompletionSession;
 };
 
 const TRIGGER_PATTERN = /[\[【［]([a-zA-Z]*)$/i;
@@ -95,12 +104,12 @@ function applyCompletionTransform(selectedType: string): boolean {
         }
         return true;
     } catch (err) {
-        console.error("[ERROR] Completion transform failed:", err);
+        errorLog("[ERROR] Completion transform failed:", err);
         return false;
     }
 }
 
-export function ensureCompletionMenu(plugin: any) {
+export function ensureCompletionMenu(plugin: CompletionMenuPluginLike) {
     if (plugin.completionMenuElement) return;
     plugin.completionMenuElement = document.createElement("div");
     plugin.completionMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none";
@@ -108,7 +117,7 @@ export function ensureCompletionMenu(plugin: any) {
     document.body.appendChild(plugin.completionMenuElement);
 }
 
-export function hideCompletionMenu(plugin: any) {
+export function hideCompletionMenu(plugin: CompletionMenuPluginLike) {
     plugin.completionVisible = false;
     plugin.completionIndex = -1;
     plugin.completionSession.active = false;
@@ -119,10 +128,10 @@ export function hideCompletionMenu(plugin: any) {
     }
 }
 
-function renderCompletionMenu(plugin: any) {
+function renderCompletionMenu(plugin: CompletionMenuPluginLike) {
     if (!plugin.completionMenuElement) return;
     plugin.completionMenuElement.innerHTML = "";
-    plugin.completionFiltered.forEach((item: any, i: number) => {
+    plugin.completionFiltered.forEach((item, i) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.tabIndex = -1;
@@ -145,7 +154,7 @@ function renderCompletionMenu(plugin: any) {
     activeButton?.scrollIntoView({ block: "nearest" });
 }
 
-function updateCompletionMenuPosition(plugin: any, rect: DOMRect) {
+function updateCompletionMenuPosition(plugin: CompletionMenuPluginLike, rect: DOMRect) {
     if (!plugin.completionMenuElement) return;
     const menuWidth = plugin.completionMenuElement.offsetWidth || 200;
     const menuHeight = plugin.completionMenuElement.offsetHeight || 300;
@@ -160,7 +169,7 @@ function updateCompletionMenuPosition(plugin: any, rect: DOMRect) {
     plugin.completionMenuElement.style.left = `${left}px`;
 }
 
-export function showCompletionMenu(plugin: any, filterText: string, rect: DOMRect) {
+export function showCompletionMenu(plugin: CompletionMenuPluginLike, filterText: string, rect: DOMRect) {
     ensureCompletionMenu(plugin);
     if (!plugin.completionMenuElement) return;
     plugin.completionFiltered = CALLOUT_TYPES.filter((t) => t.type.toLowerCase().includes(filterText.toLowerCase()) || t.label.toLowerCase().includes(filterText.toLowerCase()));
@@ -174,7 +183,7 @@ export function showCompletionMenu(plugin: any, filterText: string, rect: DOMRec
     updateCompletionMenuPosition(plugin, rect);
 }
 
-export function applyCompletion(plugin: any, index = plugin.completionIndex) {
+export function applyCompletion(plugin: CompletionMenuPluginLike, index = plugin.completionIndex) {
     const selected = plugin.completionFiltered[index];
     if (!selected) return;
     hideCompletionMenu(plugin);
@@ -190,7 +199,7 @@ function isFirstLineOfQuote(quoteEl: HTMLElement | null, sourceNode: Node | null
     return !!firstLine && line === firstLine;
 }
 
-export function handleCompletionInput(plugin: any, e: InputEvent) {
+export function handleCompletionInput(plugin: CompletionMenuPluginLike, e: InputEvent) {
     if (plugin.isComposing) return;
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount) {
@@ -268,16 +277,16 @@ export function handleCompletionInput(plugin: any, e: InputEvent) {
     }
 }
 
-export function handleCompletionCompositionStart(plugin: any) {
+export function handleCompletionCompositionStart(plugin: CompletionMenuPluginLike) {
     plugin.isComposing = true;
 }
 
-export function handleCompletionCompositionEnd(plugin: any) {
+export function handleCompletionCompositionEnd(plugin: CompletionMenuPluginLike) {
     plugin.isComposing = false;
     setTimeout(() => handleCompletionInput(plugin, undefined as any), 10);
 }
 
-export function handleCompletionKeydown(plugin: any, e: KeyboardEvent) {
+export function handleCompletionKeydown(plugin: CompletionMenuPluginLike, e: KeyboardEvent) {
     if (!plugin.completionVisible || !plugin.completionMenuElement) return;
     if (e.key === "ArrowUp") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
@@ -304,13 +313,13 @@ export function handleCompletionKeydown(plugin: any, e: KeyboardEvent) {
     }
 }
 
-export function handleCompletionMousedown(plugin: any, e: MouseEvent) {
+export function handleCompletionMousedown(plugin: CompletionMenuPluginLike, e: MouseEvent) {
     if (plugin.completionMenuElement && !plugin.completionMenuElement.contains(e.target as Node)) {
         hideCompletionMenu(plugin);
     }
 }
 
-export function handleSelectionChange(plugin: any) {
+export function handleSelectionChange(plugin: CompletionMenuPluginLike) {
     if (!plugin.completionSession.active) return;
     const sel = window.getSelection();
     const focusNode = sel?.focusNode || null;

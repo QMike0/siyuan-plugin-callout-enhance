@@ -8,8 +8,19 @@ import { showMessage, IOperation } from "siyuan";
 import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "../utils/dom";
 import { ensureEmptyBodyPlaceholderForCallout, createEmptyParagraphElement, getCalloutBodyContainer, hasCalloutBody, getCalloutBodyLineCount } from "../utils/callout";
 import { normalizeCalloutTitleText } from "../utils/text";
-import { createTransaction, getCurrentProtyle, getNewNodeId, getSiyuanLute, getFirstBlockInnerHTMLFromMd } from "../core/api";
+import { createTransaction, getCurrentProtyle, getNewNodeId, getSiyuanLute, getFirstBlockInnerHTMLFromMd, PluginWithGetEditor } from "../core/api";
 import { debugLog, warnLog, errorLog } from "../utils/logger";
+import { setFoldState } from "./callout_fold";
+
+export type TitleEditPluginLike = PluginWithGetEditor & {
+    titleEditSnapshots: WeakMap<HTMLElement, string>;
+    calloutHtmlSnapshots: WeakMap<HTMLElement, string>;
+    titleEditDebounceTimers: Map<HTMLElement, ReturnType<typeof setTimeout>>;
+    titleEditComposing: Set<HTMLElement>;
+    titleEnterInFlight: Set<string>;
+    syncBlock: (blockElement: HTMLElement, originalHtml?: string, reason?: "title" | "fold" | "type") => Promise<boolean>;
+    isUndoRedoShortcut: (e: KeyboardEvent) => boolean;
+};
 
 export function ensureCalloutTitleEditable(titleEl: HTMLElement | null) {
     if (!titleEl) return;
@@ -66,7 +77,7 @@ export function cleanCalloutTitleEditable(titleEl: HTMLElement | null, protyle?:
     return true;
 }
 
-export function handleTitleFocusIn(plugin: any, e: FocusEvent) {
+export function handleTitleFocusIn(plugin: TitleEditPluginLike, e: FocusEvent) {
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;
     ensureCalloutTitleEditable(titleEl);
@@ -77,7 +88,7 @@ export function handleTitleFocusIn(plugin: any, e: FocusEvent) {
     titleEl.classList.add("is-title-editing");
 }
 
-export function handleTitleFocusOut(plugin: any, e: FocusEvent) {
+export function handleTitleFocusOut(plugin: TitleEditPluginLike, e: FocusEvent) {
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;
     const block = titleEl.closest(".callout") as HTMLElement | null;
@@ -104,10 +115,10 @@ export function handleTitleFocusOut(plugin: any, e: FocusEvent) {
     plugin.titleEditComposing.delete(titleEl);
 
     if (!titleChanged) return;
-    requestAnimationFrame(() => plugin.syncBlock(block, originalHtml));
+    requestAnimationFrame(() => plugin.syncBlock(block, originalHtml, "title"));
 }
 
-export function handleTitleInput(plugin: any, e: Event) {
+export function handleTitleInput(plugin: TitleEditPluginLike, e: Event) {
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;
     if (plugin.titleEditComposing.has(titleEl)) return;
@@ -132,28 +143,28 @@ export function handleTitleInput(plugin: any, e: Event) {
             cleanCalloutTitleEditable(titleEl, protyle);
             ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
             plugin.calloutHtmlSnapshots.set(block, block.outerHTML);
-            debugLog("[TitleInput] Auto-saving title change via debounce");            
-            plugin.syncBlock(block, originalHtml);
+            debugLog("[TitleInput] Auto-saving title change via debounce");
+            plugin.syncBlock(block, originalHtml, "title");
         }
     }, 100);
 
     plugin.titleEditDebounceTimers.set(titleEl, newTimer);
 }
 
-export function handleTitleCompositionStart(plugin: any, e: Event) {
+export function handleTitleCompositionStart(plugin: TitleEditPluginLike, e: Event) {
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;
     plugin.titleEditComposing.add(titleEl);
 }
 
-export function handleTitleCompositionEnd(plugin: any, e: Event) {
+export function handleTitleCompositionEnd(plugin: TitleEditPluginLike, e: Event) {
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;
     plugin.titleEditComposing.delete(titleEl);
     handleTitleInput(plugin, e);
 }
 
-export function handleTitleKeydown(plugin: any, e: KeyboardEvent) {
+export function handleTitleKeydown(plugin: TitleEditPluginLike, e: KeyboardEvent) {
     if (e.key !== "Enter") return;
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;
@@ -183,7 +194,7 @@ export function handleTitleKeydown(plugin: any, e: KeyboardEvent) {
             debugLog("[TitleEnter] Creating new block after", blockId);
             plugin.titleEnterInFlight.add(blockId);
             if (block.getAttribute("fold") === "1") {
-                await plugin.setFoldState(block, false);
+                await setFoldState(plugin, block, false);
             }
 
             const newBlockId = getNewNodeId();
@@ -221,7 +232,7 @@ export function handleTitleKeydown(plugin: any, e: KeyboardEvent) {
     })();
 }
 
-export function guardTitleEvents(plugin: any, e: Event) {
+export function guardTitleEvents(plugin: TitleEditPluginLike, e: Event) {
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;
     if (e.type === "keydown" && (e as KeyboardEvent).key === "Enter") return;

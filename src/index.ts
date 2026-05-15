@@ -3,6 +3,8 @@ import "./index.scss";
 import { closestTitleFromTarget, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
 import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody } from "./utils/callout";
 import { createTransaction, getCurrentProtyle, getNewNodeId } from "./core/api";
+import { deleteCallout } from "./features/callout_delete";
+import { setFoldState } from "./features/callout_fold";
 import { cleanCalloutTitleEditable, ensureCalloutTitleEditable, normalizeCalloutTitlePlainText, normalizeCalloutTitlePlainTextFromMarkdown, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
 import { CalloutTypeItem } from "./utils/callout_types";
@@ -16,23 +18,23 @@ const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 export default class CalloutEnhancePlugin extends Plugin {
     private cleanupHandlers: Array<() => void> = [];
     private observer: MutationObserver | null = null;
-    private isComposing = false;
+    isComposing = false;
     private titleBoundEls = new WeakSet<HTMLElement>();
-    private titleEnterInFlight = new Set<string>();
-    private titleEditSnapshots = new WeakMap<HTMLElement, string>();
-    private calloutHtmlSnapshots = new WeakMap<HTMLElement, string>();
-    private titleEditDebounceTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
-    private titleEditComposing = new Set<HTMLElement>();
+    titleEnterInFlight = new Set<string>();
+    titleEditSnapshots = new WeakMap<HTMLElement, string>();
+    calloutHtmlSnapshots = new WeakMap<HTMLElement, string>();
+    titleEditDebounceTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
+    titleEditComposing = new Set<HTMLElement>();
 
-    private calloutTypeMenuElement: HTMLDivElement | null = null;
-    private calloutTypeMenuActiveBlock: HTMLElement | null = null;
-    private calloutTypeMenuIndex = -1;
+    calloutTypeMenuElement: HTMLDivElement | null = null;
+    calloutTypeMenuActiveBlock: HTMLElement | null = null;
+    calloutTypeMenuIndex = -1;
 
-    private completionMenuElement: HTMLDivElement | null = null;
-    private completionFiltered: CalloutTypeItem[] = [];
-    private completionIndex = -1;
-    private completionVisible = false;
-    private completionSession: CompletionSession = {
+    completionMenuElement: HTMLDivElement | null = null;
+    completionFiltered: CalloutTypeItem[] = [];
+    completionIndex = -1;
+    completionVisible = false;
+    completionSession: CompletionSession = {
         active: false,
         quote: null,
         start: -1,
@@ -44,19 +46,11 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
 
-    private isUndoRedoShortcut(e: KeyboardEvent) {
+    isUndoRedoShortcut(e: KeyboardEvent) {
         const key = (e.key || "").toLowerCase();
         const withModifier = e.ctrlKey || e.metaKey;
         if (!withModifier) return false;
         return key === "z" || key === "y";
-    }
-
-    private getCalloutParentAndPrevious(block: HTMLElement) {
-        const parent = block.parentElement as HTMLElement | null;
-        const previous = block.previousElementSibling as HTMLElement | null;
-        const parentID = parent?.dataset?.nodeId || "";
-        const previousID = previous?.dataset?.nodeId || "";
-        return { parentID, previousID };
     }
 
     private initCallout(block: HTMLElement) {
@@ -81,37 +75,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         });
     }
 
-    private async setFoldState(block: HTMLElement | null, fold: boolean) {
-        if (!block || !block.dataset.nodeId) return false;
-        const blockId = block.dataset.nodeId;
-        try {
-            const previousFold = block.getAttribute("fold");
-            const originalHtml = block.outerHTML;
-            if (fold) block.setAttribute("fold", "1");
-            else block.removeAttribute("fold");
-            
-            if (DEBUG) debugLog(`[${fold ? "Fold" : "Unfold"}] Callout block`, blockId);
-
-            const ok = await this.syncBlock(block, originalHtml);
-            if (ok) {
-                return true;
-            }
-
-            // 事务失败时恢复 DOM，避免 UI 状态与内核状态不一致
-            if (previousFold === null) {
-                block.removeAttribute("fold");
-            } else {
-                block.setAttribute("fold", previousFold);
-            }
-            return false;
-        } catch (err) {
-            const action = fold ? "Fold" : "Unfold";
-            errorLog(`[ERROR] ${action} failed for block ${blockId}:`, err);
-            return false;
-        }
-    }
-
-    private async syncBlock(blockElement: HTMLElement, originalHtml?: string) {
+    async syncBlock(blockElement: HTMLElement, originalHtml?: string, reason: "title" | "fold" | "type" = "title") {
         if (!blockElement || !blockElement.dataset.nodeId) return false;
         if (blockElement.dataset.deleting === "true") return false;
         const blockId = blockElement.dataset.nodeId;
@@ -144,11 +108,11 @@ export default class CalloutEnhancePlugin extends Plugin {
             
             // 只在内容真正改变时才发送事务
             if (newHtml === previousHtml) {
-                if (DEBUG) debugLog("[Title] No changes for block", blockId);
+                if (DEBUG) debugLog(`[Block/${reason}] No changes for block`, blockId);
                 return true;
             }
 
-            if (DEBUG) debugLog("[Title] Saving block", blockId);
+            if (DEBUG) debugLog(`[Block/${reason}] Saving block`, blockId);
             
             const doOperations: IOperation[] = [{
                 action: "update",
@@ -164,9 +128,9 @@ export default class CalloutEnhancePlugin extends Plugin {
             
             const ok = createTransaction(protyle, doOperations, undoOperations);
             if (!ok) {
-                warnLog("[WARN] Transaction API unavailable during title save", { blockId });
-                errorLog("[ERROR] Title save transaction failed for block", blockId);
-                showMessage("无法调用思源事务接口，标题修改未保存");
+                warnLog(`[WARN] Transaction API unavailable during block save (${reason})`, { blockId });
+                errorLog(`[ERROR] Block save transaction failed (${reason}) for block`, blockId);
+                showMessage("无法调用思源事务接口，块修改未保存");
                 return false;
             }
             return true;
@@ -175,43 +139,6 @@ export default class CalloutEnhancePlugin extends Plugin {
             return false;
         }
     }
-
-    private async deleteCallout(block: HTMLElement) {
-        if (!block || !block.dataset.nodeId) return false;
-        const blockId = block.dataset.nodeId;
-        if (block.dataset.deleting === "true") return false;
-        const protyle = getCurrentProtyle(this,block);
-        if (!protyle) return false;
-
-        try {
-            block.dataset.deleting = "true";
-            const blockHTML = block.outerHTML;
-            const { parentID, previousID } = this.getCalloutParentAndPrevious(block);
-            const doOperations: IOperation[] = [{ action: "delete", id: blockId }];
-            const undoOperations: IOperation[] = [{
-                action: "insert",
-                id: blockId,
-                parentID,
-                previousID,
-                data: blockHTML,
-            }];
-            const ok = createTransaction(protyle, doOperations, undoOperations);
-            if (!ok) {
-                warnLog("[WARN] Transaction API unavailable during callout delete", { blockId });
-                errorLog("[ERROR] Delete transaction failed for block", blockId);
-                delete block.dataset.deleting;
-                return false;
-            }
-            return true;
-        } catch (err) {
-            error("[ERROR] Delete failed for block", blockId, ":", err);
-            delete block.dataset.deleting;
-            return false;
-        }
-    }
-
-
-
 
     private handleBodyArrowLeft = (e: KeyboardEvent) => {
         if (e.key !== "ArrowLeft") return;
@@ -314,7 +241,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         
         // 如果原生处理未成功删除 callout，则使用事务 API 删除
         if (!nativeHandled && document.body.contains(callout)) {
-            await this.deleteCallout(callout);
+            await deleteCallout(this, callout);
         }
     };
 
@@ -358,7 +285,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             e.stopPropagation();
             const isCurrentlyFolded = callout.getAttribute("fold") === "1";
             const nextFold = !isCurrentlyFolded;
-            this.setFoldState(callout, nextFold);
+            setFoldState(this, callout, nextFold);
             return;
         }
 
@@ -377,12 +304,12 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     private handleGlobalKeydown = async (e: KeyboardEvent) => {
         const calloutTypeMenuOpen = !!this.calloutTypeMenuElement && !this.calloutTypeMenuElement.classList.contains("fn__none");
-        if (calloutTypeMenuOpen && ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "Tab", "Escape"].includes(e.key)) {
+        if (calloutTypeMenuOpen && ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "Tab", "Escape"].indexOf(e.key) !== -1) {
             handleCalloutTypeKeydown(this, e);
             return;
         }
 
-        if (this.completionVisible && this.completionMenuElement && ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "Tab", "Escape"].includes(e.key)) {
+        if (this.completionVisible && this.completionMenuElement && ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "Tab", "Escape"].indexOf(e.key) !== -1) {
             handleCompletionKeydown(this, e);
             return;
         }
