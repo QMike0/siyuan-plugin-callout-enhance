@@ -77,6 +77,88 @@ export function cleanCalloutTitleEditable(titleEl: HTMLElement | null, protyle?:
     return true;
 }
 
+function isToolbarRelatedShortcut(e: KeyboardEvent) {
+    const key = (e.key || "").toLowerCase();
+    if (key === "process" || e.isComposing) return false;
+
+    // Keep browser/system editing shortcuts and plugin-specific Enter handling available.
+    if (["a", "c", "v", "x", "z", "y", "s"].indexOf(key) !== -1) return false;
+    if (e.key === "Enter") return false;
+
+    const withModifier = e.ctrlKey || e.metaKey || e.altKey;
+    if (!withModifier) return false;
+
+    // SiYuan handles Protyle toolbar actions from protyle.options.toolbar hotkeys.
+    // Defaults include Ctrl/Cmd+B/I/U/K/M/T/G/H/J/'/\\ and Alt+D, Alt+X, etc.; users may customize them.
+    // In callout titles these actions only create temporary rich DOM and may show the floating toolbar,
+    // so block all modified non-navigation keystrokes while the title is focused.
+    return true;
+}
+
+export function hideProtyleToolbarForTitle(target?: EventTarget | null, plugin?: TitleEditPluginLike) {
+    const titleEl = closestTitleFromTarget(target || document.activeElement);
+    if (!titleEl) return false;
+
+    const block = titleEl.closest(".callout") as HTMLElement | null;
+    const protyle = getCurrentProtyle(plugin || null, block, titleEl) as any;
+    const toolbarElement = protyle?.toolbar?.element as HTMLElement | undefined;
+    if (toolbarElement) {
+        toolbarElement.classList.add("fn__none");
+    }
+
+    document.querySelectorAll(".protyle-toolbar:not(.fn__none)").forEach((item) => {
+        (item as HTMLElement).classList.add("fn__none");
+    });
+
+    return true;
+}
+
+export function selectCalloutTitleText(e: KeyboardEvent) {
+    const titleEl = closestTitleFromTarget(e.target);
+    if (!titleEl) return false;
+    const key = (e.key || "").toLowerCase();
+    if (key !== "a" || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.isComposing) return false;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    const range = document.createRange();
+    range.selectNodeContents(titleEl);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    return true;
+}
+
+export function preventTitleToolbarShortcut(e: KeyboardEvent, plugin?: TitleEditPluginLike) {
+    const titleEl = closestTitleFromTarget(e.target);
+    if (!titleEl) return false;
+    if (!isToolbarRelatedShortcut(e)) return false;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    requestAnimationFrame(() => hideProtyleToolbarForTitle(titleEl, plugin));
+    return true;
+}
+
+export function preventTitleToolbarRender(e: Event, plugin?: TitleEditPluginLike) {
+    const titleEl = closestTitleFromTarget(e.target || document.activeElement);
+    if (!titleEl) return false;
+
+    hideProtyleToolbarForTitle(titleEl, plugin);
+    requestAnimationFrame(() => hideProtyleToolbarForTitle(titleEl, plugin));
+    setTimeout(() => hideProtyleToolbarForTitle(titleEl, plugin), 0);
+
+    if (e.type === "keyup") {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+    }
+
+    return true;
+}
+
 export function handleTitleFocusIn(plugin: TitleEditPluginLike, e: FocusEvent) {
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;

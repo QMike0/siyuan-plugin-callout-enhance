@@ -5,7 +5,7 @@ import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody } from
 import { createTransaction, getCurrentProtyle, getNewNodeId } from "./core/api";
 import { deleteCallout } from "./features/callout_delete";
 import { setFoldState } from "./features/callout_fold";
-import { cleanCalloutTitleEditable, ensureCalloutTitleEditable, normalizeCalloutTitlePlainText, normalizeCalloutTitlePlainTextFromMarkdown, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown } from "./features/title_edit";
+import { cleanCalloutTitleEditable, ensureCalloutTitleEditable, normalizeCalloutTitlePlainText, normalizeCalloutTitlePlainTextFromMarkdown, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
 import { CalloutTypeItem } from "./utils/callout_types";
 import { handleCalloutTypeKeydown, hideCalloutTypeMenu, showCalloutTypeMenu } from "./features/type_menu";
@@ -320,7 +320,9 @@ export default class CalloutEnhancePlugin extends Plugin {
                 handleTitleKeydown(this, e);
                 return;
             }
+            if (selectCalloutTitleText(e)) return;
             if (this.isUndoRedoShortcut(e)) return;
+            if (preventTitleToolbarShortcut(e, this)) return;
             guardTitleEvents(this, e);
             return;
         }
@@ -345,6 +347,9 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.listen(document, "focusin", (e) => handleTitleFocusIn(this, e as FocusEvent), true);
         this.listen(document, "focusout", (e) => handleTitleFocusOut(this, e as FocusEvent), true);
         this.listen(document, "keydown", this.handleGlobalKeydown, true);
+        this.listen(document, "keyup", (e) => preventTitleToolbarRender(e, this), true);
+        this.listen(document, "mouseup", (e) => preventTitleToolbarRender(e, this), true);
+        this.listen(document, "selectionchange", () => hideProtyleToolbarForTitle(document.activeElement, this), true);
         this.listen(document, "beforeinput", (e) => guardTitleEvents(this, e), true);
         this.listen(document, "paste", (e) => guardTitleEvents(this, e), true);
         // 标题 input 事件：防抖后自动保存（在 guardTitleEvents 之前执行）
