@@ -1,7 +1,11 @@
-## v0.2.0
+## v0.2.0 2026-05-15
 
-- 🇨🇳 重构插件代码，使函数模块化。相关改动包括：
-  - 从`index.ts`抽离工具型函数，包括`src/core/api.ts`、`src/utils/dom.ts`、`src/utils/text.ts`、`src/utils/callout.ts`
+- 🇨🇳 重构插件代码，拆分`index.ts`实现程序的模块化，并通过core、features、utils文件夹分别保存不同类型程序文件
+- 🇨🇳 统一日志管理，由`index.ts`统一日志输出的开关
+- 🇨🇳 优化代码逻辑
+- 🇺🇸 Refactor the plugin code, split `index.ts` to achieve modularization, and use core, features, and utils folders to store different types of program files respectively
+- 🇺🇸 Unify log management, with`index.ts` controlling the switch for unified log output
+- 🇺🇸 Optimize code logic
 
 ## v0.1.2 2026-05-14
 
