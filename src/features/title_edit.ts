@@ -9,20 +9,7 @@ import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEvent
 import { ensureEmptyBodyPlaceholderForCallout, createEmptyParagraphElement, getCalloutBodyContainer, hasCalloutBody, getCalloutBodyLineCount } from "../utils/callout";
 import { normalizeCalloutTitleText } from "../utils/text";
 import { createTransaction, getCurrentProtyle, getNewNodeId, getSiyuanLute, getFirstBlockInnerHTMLFromMd } from "../core/api";
-
-function debugLog(plugin: any, ...args: any[]) {
-    if (plugin?.DEBUG) {
-        console.log("[CalloutEnhance]", ...args);
-    }
-}
-
-function warnLog(...args: any[]) {
-    console.warn(...args);
-}
-
-function errorLog(...args: any[]) {
-    console.error(...args);
-}
+import { debugLog, warnLog, errorLog } from "../utils/logger";
 
 export function ensureCalloutTitleEditable(titleEl: HTMLElement | null) {
     if (!titleEl) return;
@@ -145,7 +132,7 @@ export function handleTitleInput(plugin: any, e: Event) {
             cleanCalloutTitleEditable(titleEl, protyle);
             ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
             plugin.calloutHtmlSnapshots.set(block, block.outerHTML);
-            debugLog(plugin, "[TitleInput] Auto-saving title change via debounce");
+            debugLog("[TitleInput] Auto-saving title change via debounce");            
             plugin.syncBlock(block, originalHtml);
         }
     }, 100);
@@ -193,7 +180,7 @@ export function handleTitleKeydown(plugin: any, e: KeyboardEvent) {
         }
 
         try {
-            debugLog(plugin, "[TitleEnter] Creating new block after", blockId);
+            debugLog("[TitleEnter] Creating new block after", blockId);
             plugin.titleEnterInFlight.add(blockId);
             if (block.getAttribute("fold") === "1") {
                 await plugin.setFoldState(block, false);

@@ -4,24 +4,13 @@ import { closestTitleFromTarget, getCalloutFromEventTarget, getSelectionCallout,
 import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody } from "./utils/callout";
 import { createTransaction, getCurrentProtyle, getNewNodeId } from "./core/api";
 import { cleanCalloutTitleEditable, ensureCalloutTitleEditable, normalizeCalloutTitlePlainText, normalizeCalloutTitlePlainTextFromMarkdown, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown } from "./features/title_edit";
-import { CALLOUT_TYPES, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu, CompletionSession } from "./features/completion_menu";
+import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
+import { CalloutTypeItem } from "./utils/callout_types";
+import { handleCalloutTypeKeydown, hideCalloutTypeMenu, showCalloutTypeMenu } from "./features/type_menu";
+import { debugLog, errorLog, setDebugEnabled, warnLog } from "./utils/logger";
 
 const DEBUG = true;
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
-
-function log(...args: any[]) {
-    if (DEBUG) {
-        console.log("[CalloutEnhance]", ...args);
-    }
-}
-
-function warn(...args: any[]) {
-    console.warn(...args);
-}
-
-function error(...args: any[]) {
-    console.error(...args);
-}
 
 
 export default class CalloutEnhancePlugin extends Plugin {
@@ -70,147 +59,6 @@ export default class CalloutEnhancePlugin extends Plugin {
         return { parentID, previousID };
     }
 
-    private ensureCalloutTypeMenu() {
-        if (this.calloutTypeMenuElement) return;
-        this.calloutTypeMenuElement = document.createElement("div");
-        this.calloutTypeMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none";
-        this.calloutTypeMenuElement.tabIndex = -1;
-        this.calloutTypeMenuElement.style.cssText = "position:fixed; z-index:9999; min-width:160px; padding:6px; box-shadow: var(--b3-dialog-shadow);";
-        document.body.appendChild(this.calloutTypeMenuElement);
-    }
-
-    private hideCalloutTypeMenu() {
-        if (this.calloutTypeMenuElement) {
-            this.calloutTypeMenuElement.classList.add("fn__none");
-        }
-        this.calloutTypeMenuActiveBlock = null;
-        this.calloutTypeMenuIndex = -1;
-    }
-
-    private renderCalloutTypeMenu() {
-        if (!this.calloutTypeMenuElement) return;
-        this.calloutTypeMenuElement.innerHTML = "";
-        CALLOUT_TYPES.forEach((item, index) => {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.tabIndex = -1;
-            btn.className = `b3-list-item b3-list-item--two ${index === this.calloutTypeMenuIndex ? "b3-list-item--focus" : ""}`;
-            btn.innerHTML = `
-          <div class="b3-list-item__first" style="display:flex; align-items:center; gap:4px;">
-            <span class="b3-list-item__graphic" style="width:20px; flex-shrink:0; text-align:center; font-size:16px; border:none; background:transparent;">${item.icon}</span>
-            <span class="b3-list-item__text" style="font-size:15px;">${item.label}</span>
-          </div>`;
-            btn.onclick = async (e) => {
-                e.stopPropagation();
-                this.calloutTypeMenuIndex = index;
-                await this.applyCalloutType(item.type);
-            };
-            this.calloutTypeMenuElement!.appendChild(btn);
-        });
-    }
-
-    private focusCalloutTypeMenuItem(index: number) {
-        if (!this.calloutTypeMenuElement || CALLOUT_TYPES.length === 0) return;
-        const normalizedIndex = (index + CALLOUT_TYPES.length) % CALLOUT_TYPES.length;
-        this.calloutTypeMenuIndex = normalizedIndex;
-        this.renderCalloutTypeMenu();
-        const activeButton = this.calloutTypeMenuElement.querySelector(".b3-list-item--focus") as HTMLButtonElement | null;
-        activeButton?.focus();
-        activeButton?.scrollIntoView({ block: "nearest" });
-    }
-
-    private showCalloutTypeMenu(block: HTMLElement, x: number, y: number) {
-        this.ensureCalloutTypeMenu();
-        if (!this.calloutTypeMenuElement) return;
-        this.calloutTypeMenuActiveBlock = block;
-        this.calloutTypeMenuIndex = 0;
-        this.renderCalloutTypeMenu();
-        this.calloutTypeMenuElement.classList.remove("fn__none");
-        setTimeout(() => {
-            if (!this.calloutTypeMenuElement) return;
-            const menuWidth = this.calloutTypeMenuElement.offsetWidth || 200;
-            const menuHeight = this.calloutTypeMenuElement.offsetHeight || 300;
-            const padding = 8;
-            let top = y;
-            let left = x;
-            if (top + menuHeight + padding > window.innerHeight) {
-                top = Math.max(padding, window.innerHeight - menuHeight - padding);
-            }
-            if (top < padding) top = padding;
-            if (left + menuWidth + padding > window.innerWidth) {
-                left = Math.max(padding, window.innerWidth - menuWidth - padding);
-            }
-            if (left < padding) left = padding;
-            this.calloutTypeMenuElement.style.top = `${top}px`;
-            this.calloutTypeMenuElement.style.left = `${left}px`;
-            this.focusCalloutTypeMenuItem(0);
-        }, 0);
-    }
-
-    private async applyCalloutType(newType: string) {
-        const block = this.calloutTypeMenuActiveBlock;
-        if (!block) return;
-        const blockId = block.dataset.nodeId;
-        if (!blockId) return;
-
-        const nextSubtype = newType.toUpperCase();
-        const previousSubtype = block.getAttribute("data-subtype") || "";
-        const originalHtml = block.outerHTML;
-        if (DEBUG) log("[Type] Changing from", previousSubtype || "(default)", "to", nextSubtype);
-        block.dataset.subtype = nextSubtype;
-
-        const ok = await this.syncBlock(block, originalHtml);
-        if (ok) {
-            if (DEBUG) log("[Type] Success: changed to", nextSubtype);
-            this.hideCalloutTypeMenu();
-            return;
-        }
-
-        if (previousSubtype) {
-            block.dataset.subtype = previousSubtype;
-        } else {
-            delete block.dataset.subtype;
-        }
-        log("[Type] Rollback: reverted to", previousSubtype || "(default)");
-        showMessage("callout subtype save failed");
-    }
-
-    private handleCalloutTypeKeydown = (e: KeyboardEvent) => {
-        if (!this.calloutTypeMenuElement || this.calloutTypeMenuElement.classList.contains("fn__none")) return;
-        if (e.key === "ArrowDown") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.focusCalloutTypeMenuItem(this.calloutTypeMenuIndex + 1);
-        } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.focusCalloutTypeMenuItem(this.calloutTypeMenuIndex - 1);
-        } else if (e.key === "Home") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.focusCalloutTypeMenuItem(0);
-        } else if (e.key === "End") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.focusCalloutTypeMenuItem(CALLOUT_TYPES.length - 1);
-        } else if (e.key === "Enter" || e.key === "Tab") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            void this.applyCalloutType(CALLOUT_TYPES[this.calloutTypeMenuIndex >= 0 ? this.calloutTypeMenuIndex : 0].type);
-        } else if (e.key === "Escape") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.hideCalloutTypeMenu();
-        }
-    };
-
-
     private initCallout(block: HTMLElement) {
         if (block.dataset?.nodeId) {
             delete block.dataset.deleting;
@@ -242,7 +90,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             if (fold) block.setAttribute("fold", "1");
             else block.removeAttribute("fold");
             
-            if (DEBUG) log(`[${fold ? "Fold" : "Unfold"}] Callout block`, blockId);
+            if (DEBUG) debugLog(`[${fold ? "Fold" : "Unfold"}] Callout block`, blockId);
 
             const ok = await this.syncBlock(block, originalHtml);
             if (ok) {
@@ -258,7 +106,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             return false;
         } catch (err) {
             const action = fold ? "Fold" : "Unfold";
-            error(`[ERROR] ${action} failed for block ${blockId}:`, err);
+            errorLog(`[ERROR] ${action} failed for block ${blockId}:`, err);
             return false;
         }
     }
@@ -296,11 +144,11 @@ export default class CalloutEnhancePlugin extends Plugin {
             
             // 只在内容真正改变时才发送事务
             if (newHtml === previousHtml) {
-                if (DEBUG) log("[Title] No changes for block", blockId);
+                if (DEBUG) debugLog("[Title] No changes for block", blockId);
                 return true;
             }
 
-            if (DEBUG) log("[Title] Saving block", blockId);
+            if (DEBUG) debugLog("[Title] Saving block", blockId);
             
             const doOperations: IOperation[] = [{
                 action: "update",
@@ -316,14 +164,14 @@ export default class CalloutEnhancePlugin extends Plugin {
             
             const ok = createTransaction(protyle, doOperations, undoOperations);
             if (!ok) {
-                warn("[WARN] Transaction API unavailable during title save", { blockId });
-                error("[ERROR] Title save transaction failed for block", blockId);
+                warnLog("[WARN] Transaction API unavailable during title save", { blockId });
+                errorLog("[ERROR] Title save transaction failed for block", blockId);
                 showMessage("无法调用思源事务接口，标题修改未保存");
                 return false;
             }
             return true;
         } catch (err) {
-            error("[ERROR] Title save exception for block", blockId, ":", err);
+            errorLog("[ERROR] Title save exception for block", blockId, ":", err);
             return false;
         }
     }
@@ -349,8 +197,8 @@ export default class CalloutEnhancePlugin extends Plugin {
             }];
             const ok = createTransaction(protyle, doOperations, undoOperations);
             if (!ok) {
-                warn("[WARN] Transaction API unavailable during callout delete", { blockId });
-                error("[ERROR] Delete transaction failed for block", blockId);
+                warnLog("[WARN] Transaction API unavailable during callout delete", { blockId });
+                errorLog("[ERROR] Delete transaction failed for block", blockId);
                 delete block.dataset.deleting;
                 return false;
             }
@@ -484,7 +332,7 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     private handleGlobalClick = (e: MouseEvent) => {
         if (this.calloutTypeMenuElement && !this.calloutTypeMenuElement.contains(e.target as Node)) {
-            this.hideCalloutTypeMenu();
+            hideCalloutTypeMenu(this);
         }
         if (this.completionMenuElement && !this.completionMenuElement.contains(e.target as Node)) {
             hideCompletionMenu(this);
@@ -501,7 +349,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (clickX >= 0 && clickX <= 40 && clickY <= 45) {
             e.preventDefault();
             e.stopPropagation();
-            this.showCalloutTypeMenu(callout, e.clientX, e.clientY);
+            showCalloutTypeMenu(this, callout, e.clientX, e.clientY);
             return;
         }
 
@@ -530,7 +378,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     private handleGlobalKeydown = async (e: KeyboardEvent) => {
         const calloutTypeMenuOpen = !!this.calloutTypeMenuElement && !this.calloutTypeMenuElement.classList.contains("fn__none");
         if (calloutTypeMenuOpen && ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "Tab", "Escape"].includes(e.key)) {
-            this.handleCalloutTypeKeydown(e);
+            handleCalloutTypeKeydown(this, e);
             return;
         }
 
@@ -563,6 +411,7 @@ export default class CalloutEnhancePlugin extends Plugin {
 
 
     onload() {
+        setDebugEnabled(DEBUG);
         if ((window as any)[STARTUP_FLAG]) return;
         (window as any)[STARTUP_FLAG] = true;
 
@@ -618,7 +467,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.titleEditDebounceTimers.forEach((timer) => clearTimeout(timer));
         this.titleEditDebounceTimers.clear();
         this.titleEditComposing.clear();
-        this.hideCalloutTypeMenu();
+        hideCalloutTypeMenu(this);
         hideCompletionMenu(this);
         this.calloutTypeMenuElement?.remove();
         this.calloutTypeMenuElement = null;
