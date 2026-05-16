@@ -1,5 +1,6 @@
 /* Callout块样式优化——修改基础和折叠样式 */
-/* version 0.0.5 */
+/* version 0.0.6 */
+/* 0.0.6 解除Asri主题对callout标题强制大写的限制，恢复原始大小写显示 */
 /* 0.0.5 修复列表块/非列表块中的callout块的标题输入区域长度不一致问题 */
 /* 0.0.4 修复列表块中的callout宽度异常问题；优化callout块的icon+标题的整体位置，增大callout正文子块边界与callout边界的距离 */
 /* 0.0.3 约束callout在flex容器里的拉伸，避免它的展开/折叠高度受到在水平布局超级块中同级块高度的影响 */
@@ -39,6 +40,7 @@
         font-weight: bold;
         width: 100%;
         line-height: 1.2;
+        text-transform: none !important;
     }
 
     .callout-title[contenteditable="true"]:focus,
