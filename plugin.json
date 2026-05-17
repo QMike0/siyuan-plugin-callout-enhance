@@ -2,7 +2,7 @@
   "name": "siyuan-plugin-callout-enhance",
   "author": "QMike0",
   "url": "https://github.com/QMike0/siyuan-plugin-callout-enhance",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "minAppVersion": "3.6.0",
   "backends": [
     "all"

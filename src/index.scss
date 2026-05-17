@@ -1,10 +1,5 @@
 /* Callout块样式优化——修改基础和折叠样式 */
-/* version 0.0.6 */
-/* 0.0.6 解除Asri主题对callout标题强制大写的限制，恢复原始大小写显示 */
-/* 0.0.5 修复列表块/非列表块中的callout块的标题输入区域长度不一致问题 */
-/* 0.0.4 修复列表块中的callout宽度异常问题；优化callout块的icon+标题的整体位置，增大callout正文子块边界与callout边界的距离 */
-/* 0.0.3 约束callout在flex容器里的拉伸，避免它的展开/折叠高度受到在水平布局超级块中同级块高度的影响 */
-/* 0.0.2 优化callout折叠/展开状态下的标题与icon位置，防止抖动；增加折叠/展开动作的上拉/下拉动画 */
+
 
 :root[data-theme-mode="dark"] {
     --callout-bg-mix: transparent 85%;
@@ -17,9 +12,7 @@
 }
 
 .callout[data-type="NodeCallout"] {
-    /* max-height 折叠动画无法在「展开」态使用 none，须用足够大的有限值，避免正文被裁切 */
-    --callout-body-expanded-max-height: 999999px;
-    --callout-fold-duration: 140ms;
+    --callout-fold-duration: 180ms;        /* callout折叠/展开动画时长 */
     --callout-fold-easing: cubic-bezier(.25, .8, .25, 1);
     padding-top: 10px;
     padding-right: 0px;
@@ -94,36 +87,18 @@
         }
     }
 
-    /* 正文区域动画：避免折叠/展开时头部位置跳动 */
+    /* 正文静态态由 CSS 兜底，折叠/展开动画过程由 callout_fold.ts 接管外层高度裁切 */
     &>*:not(:first-child) {
         overflow: hidden;
-        max-height: var(--callout-body-expanded-max-height);
-        transition:
-            max-height var(--callout-fold-duration) var(--callout-fold-easing),
-            margin-top 0s linear 0s,
-            margin-bottom 0s linear 0s;
-        will-change: max-height;
+        max-height: none;
     }
 
-    /* 折叠样式 */
+    /* 折叠态仅保留静态兜底，避免刷新/重载后正文短暂露出；动画过程不依赖此处 */
     &[fold="1"] {
-        /* 折叠态保持与展开态相同的布局特性，避免视觉跳动 */
-        /* 保留必要的覆盖项，避免重复声明基础样式（如 display、padding 已在基类中定义） */
         height: auto !important;
         overflow: visible !important;
-        /* 与展开态保持视觉一致 */
         opacity: 1 !important;
         background-image: none !important;
-
-        /* 折叠态下，覆盖子块间距规则，确保标题上下间距对称 */
-        &>.callout-info~* {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
-        }
-
-        &>.callout-info+* {
-            margin-top: 0 !important;
-        }
     }
 
     /* 水平布局超级块中的Callout块限制在交叉轴上向起始位置对齐，防止被拉伸或居中 */
@@ -141,11 +116,9 @@
     }
 
     &[fold="1"]>*:not(:first-child) {
-        transition:
-            max-height var(--callout-fold-duration) var(--callout-fold-easing),
-            margin-top 0s linear var(--callout-fold-duration),
-            margin-bottom 0s linear var(--callout-fold-duration);
         max-height: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
         pointer-events: none;
     }
 
@@ -393,14 +366,14 @@
         max-width: calc(100% - (var(--callout-nested-gap) * 1.5));
     }
 
-    /* 标题与第一个正文子块之间的间距 */
+    /* 标题与第一个正文子块之间的间距。注意折叠/展开过程在这块和上面的margin-bottom的处理容易出现问题 */
     &>.callout-info+* {
         margin-top: calc(var(--callout-nested-gap) * 0.5);
     }
 
-    /* 最后一个正文子块的底部间距收敛，避免底边过厚 */
-    &>.callout-info~*:last-child {
-        margin-bottom: var(--callout-nested-gap);
-    }
+    // /* 最后一个正文子块底部与callout下边界的间距，似乎和.callout-info~中的margin-bottom是差不多的*/
+    // &>.callout-info~*:last-child {
+    //     margin-bottom: calc(var(--callout-nested-gap) * 1.5);
+    // }
 
 }
