@@ -27,19 +27,25 @@
     --callout-body-padding-x: 10px; /* 正文区域左右边界留白 */
     --callout-body-padding-bottom: 12px; /* 正文区域下边界留白 */
     --callout-body-gap-top: 4px; /* 标题与首个正文块间距 */
-    --callout-border-radius: 8px; /* callout圆角 */
+    --callout-border-radius: 6px; /* callout圆角 */
 
     /* --- 命中区域变量：控制类型菜单/折叠按钮的可点击范围 --- */
     --callout-fold-hit-width: 40px; /* 折叠/展开按钮点击区域宽度 */
 
     /* --- 颜色变量：仅控制 callout 各 subtype 主色 --- */
-    --callout-color-default: #3575f0;
-    --callout-color-tip: #65b84d;
-    --callout-color-important: #8957e5;
-    --callout-color-warning: #ff9632;
-    --callout-color-caution: #d23f31;
+    // --callout-color-default: #3575f0;
+    // --callout-color-tip: #65b84d;
+    // --callout-color-important: #8957e5;
+    // --callout-color-warning: #ff9632;
+    // --callout-color-caution: #d23f31;
+    // --callout-color-question: #ff9632;
+    --callout-color-default: #00BFBC;
+    --callout-color-tip: #08B94D;
+    --callout-color-important: #7852EE;
+    --callout-color-warning: #EC7500;
+    --callout-color-caution: #E93147;
     --callout-color-quote: #7f8c8d;
-    --callout-color-question: #ff9632;
+    --callout-color-question: #EC7500;
     --callout-color-info: #086ddd;
 
     padding-top: var(--callout-shell-padding-top);
