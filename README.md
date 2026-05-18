@@ -8,6 +8,8 @@
 
 ## Main Features
 
+> For more details, please refer to [here](https://github.com/QMike0/siyuan-plugin-callout-enhance/tree/main/assets/TESTITEM.md).
+
 #### (1) Callout Style Optimization
 
 Basic styles:

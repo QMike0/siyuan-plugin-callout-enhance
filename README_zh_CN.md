@@ -8,6 +8,8 @@
 
 ## 主要特性
 
+> 若想了解更多细节，请参考[这里](https://github.com/QMike0/siyuan-plugin-callout-enhance/tree/main/assets/TESTITEM_zh_CN.md)
+
 #### （1）Callout样式优化
 
 基础样式：
