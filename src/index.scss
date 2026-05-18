@@ -142,6 +142,20 @@
         transform: translateY(-50%) rotate(0deg);
     }
 
+    /* 导出PDF的结果中隐藏折叠/展开按钮 */
+    @media print {
+        &>.callout-info::after {
+            display: none !important;
+        }
+    }
+
+    /* 导出图片容器与导出 HTML/PDF 预览容器中隐藏折叠/展开按钮 */
+    .export-img &>.callout-info::after,
+    .export-img .protyle-wysiwyg &>.callout-info::after,
+    body:not(.body--win32):not(.body--win32msg):not(.body--darwin):not(.body--linux):not(.body--mobile):not(.body--window) &>.callout-info::after {
+        display: none !important;
+    }
+
     /* --- 颜色处理部分 --- */
 
     /* 通用样式：使用 color-mix 混合背景色，避免嵌套变深 */
