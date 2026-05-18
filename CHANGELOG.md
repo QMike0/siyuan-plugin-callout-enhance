@@ -2,14 +2,14 @@
 
 - 🇨🇳 修复callout标题区域能通过快捷键等方式唤出工具栏的问题
 - 🇨🇳 优化callout标题区域的 Ctrl+A 操作，限制只能全选对应标题文字
-- 🇨🇳 区分折叠/展开状态下的callout标题区域回车行为，现在折叠状态下的callout标题区域
+- 🇨🇳 区分折叠/展开状态下的callout标题区域回车行为，现在折叠状态下的callout的标题区域回车行为改为在callout块下面新增块
 - 🇨🇳 优化callout正文区域的 Enter 逻辑，将callout正文为空且仅一个空行时的 Enter 由模拟 Backspace 转为模拟原生callout的 Enter
 - 🇨🇳 去除Asri主题中强制显示callout标题区域英文字母为大写形式的限制
 - 🇨🇳 更换icon.png
 - 🇨🇳 优化折叠/展开动画过程
 - 🇺🇸 Fix the issue where the callout title area can invoke the toolbar via keyboard shortcuts or other methods
 - 🇺🇸 Optimize the Ctrl+A operation in the callout title area to restrict it to only selecting the corresponding title text fully
-- 🇺🇸 Differentiate the Enter key behavior in the callout title area between collapsed and expanded states; currently for the collapsed state callout title area
+- 🇺🇸 Differentiate the Enter key behavior in the callout title area between collapsed and expanded states. Currently, the Enter key behavior in the callout title area when collapsed is changed to create a new block below the callout block
 - 🇺🇸 Optimize the Enter key logic in the callout body area, changing the Enter behavior when the callout body is empty with only one blank line from simulating Backspace to simulating native callout Enter
 - 🇺🇸 Remove the restriction in the Asri theme that forces English letters in the callout title area to display in uppercase
 - 🇺🇸 Replace icon.png

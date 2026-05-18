@@ -103,12 +103,12 @@ export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: stri
     const nextSubtype = newType.toUpperCase();
     const previousSubtype = block.getAttribute("data-subtype") || "";
     const originalHtml = block.outerHTML;
-    debugLog(plugin, "[Type] Changing from", previousSubtype || "(default)", "to", nextSubtype);
+    debugLog(`[Type] Changing from ${previousSubtype || "(default)"} to ${nextSubtype}`);
     block.dataset.subtype = nextSubtype;
 
     const ok = await plugin.syncBlock(block, originalHtml, "type");
     if (ok) {
-        debugLog(plugin, "[Type] Success: changed to", nextSubtype);
+        debugLog(`[Type] Success: changed to ${nextSubtype}`);
         hideCalloutTypeMenu(plugin);
         return;
     }
