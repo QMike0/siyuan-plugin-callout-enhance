@@ -18,6 +18,30 @@ const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 
 export default class CalloutEnhancePlugin extends Plugin {
     private cleanupHandlers: Array<() => void> = [];
+
+    private getCalloutHeaderHitAreas(callout: HTMLElement) {
+        const styles = getComputedStyle(callout);
+        const iconLeft = parseFloat(styles.getPropertyValue("--callout-icon-left")) || 20;
+        const headerXShift = parseFloat(styles.getPropertyValue("--callout-header-x-shift")) || 0;
+        const iconSize = parseFloat(styles.getPropertyValue("--callout-icon-size")) || 18;
+        const titleRowHeight = parseFloat(styles.getPropertyValue("--callout-title-row-height")) || 28;
+        const shellPaddingTop = parseFloat(styles.getPropertyValue("--callout-shell-padding-top")) || 10;
+
+        const iconCenterX = iconLeft + headerXShift + iconSize / 2;
+        const typeMenuHalfWidth = Math.max(12, iconSize * 0.7);
+        const typeMenuLeft = Math.max(0, iconCenterX - typeMenuHalfWidth);
+        const typeMenuRight = iconCenterX + typeMenuHalfWidth;
+        const headerHeight = shellPaddingTop + titleRowHeight + 8;
+
+        const foldHitWidth = parseFloat(styles.getPropertyValue("--callout-fold-hit-width")) || 40;
+
+        return {
+            typeMenuLeft,
+            typeMenuRight,
+            headerHeight,
+            foldButtonWidth: foldHitWidth,
+        };
+    }
     private observer: MutationObserver | null = null;
     isComposing = false;
     private titleBoundEls = new WeakSet<HTMLElement>();
@@ -256,7 +280,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         const rect = callout.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
-        if ((clickX >= 0 && clickX <= 40 && clickY <= 45) || (clickX >= rect.width - 40 && clickY <= 45)) {
+        const hit = this.getCalloutHeaderHitAreas(callout);
+        if ((clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight) || (clickX >= rect.width - hit.foldButtonWidth && clickY <= hit.headerHeight)) {
             e.preventDefault();
             e.stopPropagation();
         }
@@ -278,14 +303,16 @@ export default class CalloutEnhancePlugin extends Plugin {
         const clickY = e.clientY - rect.top;
         const blockId = callout.dataset.nodeId;
 
-        if (clickX >= 0 && clickX <= 40 && clickY <= 45) {
+        const hit = this.getCalloutHeaderHitAreas(callout);
+
+        if (clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight) {
             e.preventDefault();
             e.stopPropagation();
             showCalloutTypeMenu(this, callout, e.clientX, e.clientY);
             return;
         }
 
-        if (clickX >= rect.width - 40 && clickY <= 45 && blockId) {
+        if (clickX >= rect.width - hit.foldButtonWidth && clickY <= hit.headerHeight && blockId) {
             e.preventDefault();
             e.stopPropagation();
             const isCurrentlyFolded = callout.getAttribute("fold") === "1";

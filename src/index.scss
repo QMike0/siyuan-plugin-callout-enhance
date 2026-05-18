@@ -14,16 +14,45 @@
 .callout[data-type="NodeCallout"] {
     --callout-fold-duration: 180ms;        /* callout折叠/展开动画时长 */
     --callout-fold-easing: cubic-bezier(.25, .8, .25, 1);
-    padding-top: 10px;
-    padding-right: 0px;
-    padding-bottom: 4px;
-    padding-left: 12px;
+    /* --- 布局变量：控制外观结构、间距与定位基准 --- */
+    --callout-shell-padding-top: 10px;
+    --callout-shell-padding-right: 0px;
+    --callout-shell-padding-bottom: 4px;
+    --callout-shell-padding-left: 12px;
+    --callout-header-width-offset: 2px; /* 头部整体右移：同时作用于icon与标题区 */
+    --callout-header-height: 28px;
+    --callout-header-y-adjust: -4px; /* 需要时可微调上下偏移，负数上移，正数下移 */
+    --callout-icon-size: 18px;
+    --callout-icon-left: 20px;
+    --callout-body-padding-x: 10px; /* 正文区域左右边界留白 */
+    --callout-body-padding-bottom: 12px; /* 正文区域下边界留白 */
+    --callout-body-gap-top: 4px; /* 标题与首个正文块间距 */
+    --callout-border-radius: 8px; /* callout圆角 */
+
+    /* --- 命中区域变量：控制类型菜单/折叠按钮的可点击范围 --- */
+    --callout-fold-hit-width: 40px; /* 折叠/展开按钮点击区域宽度 */
+
+    /* --- 颜色变量：仅控制 callout 各 subtype 主色 --- */
+    --callout-color-default: #3575f0;
+    --callout-color-tip: #65b84d;
+    --callout-color-important: #8957e5;
+    --callout-color-warning: #ff9632;
+    --callout-color-caution: #d23f31;
+    --callout-color-quote: #7f8c8d;
+    --callout-color-question: #ff9632;
+    --callout-color-info: #086ddd;
+
+    padding-top: var(--callout-shell-padding-top);
+    padding-right: var(--callout-shell-padding-right);
+    padding-bottom: var(--callout-shell-padding-bottom);
+    padding-left: var(--callout-shell-padding-left);
     display: flex;
     flex-direction: column;
     /* 遵循思源官方布局，不强制宽度，让容器和父级样式决定宽度 */
     box-sizing: border-box;
     border: none !important;
     /* 去除外边框 */
+    border-radius: var(--callout-border-radius) !important;
     box-shadow: none !important;
     /* 同时去除可能的阴影（部分主题有） */
     outline: none !important;
@@ -43,9 +72,8 @@
         text-overflow: clip !important;
         word-break: break-all;
         outline: none;
-        background: color-mix(in srgb, currentColor, transparent 95%);
-        /* 轻微高亮提示编辑 */
-        border-radius: 4px;
+        background: color-mix(in srgb, currentColor, transparent 95%);/* 轻微高亮提示编辑 */
+        border-radius: var(--callout-border-radius);
     }
 
     .callout-icon {
@@ -57,13 +85,16 @@
         display: inline-block;
         overflow: visible !important;
         vertical-align: middle;
-        width: 20px;
-        height: 20px;
+        width: var(--callout-icon-size);
+        height: var(--callout-icon-size);
         background-color: currentColor;
         margin-right: 8px;
         mask-repeat: no-repeat;
-        top: 10px;
-        left: 18px;
+        mask-size: contain;
+        /* 锚定在标题行中心，不受折叠/展开后正文高度影响 */
+        top: calc(var(--callout-shell-padding-top) + (var(--callout-header-height) / 2) + var(--callout-header-y-adjust));
+        left: calc(var(--callout-icon-left) + var(--callout-header-width-offset));
+        transform: translateY(-50%);
         cursor: pointer;
         z-index: 1;
     }
@@ -71,9 +102,10 @@
     .callout-info {
         display: flex;
         align-items: center;
-        padding-left: 28px;
-        min-height: 28px;
-        transform: translateY(-3px);
+        position: relative;
+        padding-left: calc(28px + var(--callout-header-width-offset));
+        min-height: var(--callout-header-height);
+        transform: none;
 
         .callout-title {
             font-size: 100%;
@@ -83,7 +115,9 @@
             overflow: hidden;
             text-overflow: ellipsis;
             display: block;
-            line-height: 28px;
+            line-height: var(--callout-header-height);
+            /* 与icon/折叠按钮共享微调参数，保持同一视觉基线 */
+            transform: translateY(var(--callout-header-y-adjust));
         }
     }
 
@@ -126,7 +160,7 @@
         content: '';
         position: absolute;
         right: 0.5em;
-        top: 14px;
+        top: calc((var(--callout-header-height) / 2) + var(--callout-header-y-adjust));
         width: 1.25em;
         height: 1.25em;
         mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=");
@@ -160,15 +194,17 @@
 
     /* 通用样式：使用 color-mix 混合背景色，避免嵌套变深 */
     &[data-subtype] {
+        --local-color: var(--callout-color-default);
+
         background-color: color-mix(in srgb,
-                var(--b3-callout-note),
+                var(--local-color),
                 var(--callout-bg-mix)) !important;
 
         /* 标题颜色 */
         &,
         >.callout-info>.callout-title {
             color: color-mix(in srgb,
-                    var(--b3-callout-note),
+                    var(--local-color),
                     var(--callout-text-mix)) !important;
         }
 
@@ -187,18 +223,20 @@
         /* 折叠箭头颜色 */
         &>.callout-info::after {
             background-color: color-mix(in srgb,
-                    var(--b3-callout-note),
+                    var(--local-color),
                     var(--callout-text-mix)) !important;
         }
     }
 
     /* --- 原有类型 --- */
     &[data-subtype="TIP"] {
-        background-color: color-mix(in srgb, var(--b3-callout-tip), var(--callout-bg-mix)) !important;
+        --local-color: var(--callout-color-tip);
+
+        background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
 
         &,
         >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--b3-callout-tip), var(--callout-text-mix)) !important;
+            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
 
         >.callout-info~*,
@@ -212,16 +250,18 @@
         }
 
         &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--b3-callout-tip), var(--callout-text-mix)) !important;
+            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
     }
 
     &[data-subtype="IMPORTANT"] {
-        background-color: color-mix(in srgb, var(--b3-callout-important), var(--callout-bg-mix)) !important;
+        --local-color: var(--callout-color-important);
+
+        background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
 
         &,
         >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--b3-callout-important), var(--callout-text-mix)) !important;
+            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
 
         >.callout-info~*,
@@ -235,16 +275,18 @@
         }
 
         &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--b3-callout-important), var(--callout-text-mix)) !important;
+            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
     }
 
     &[data-subtype="WARNING"] {
-        background-color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-bg-mix)) !important;
+        --local-color: var(--callout-color-warning);
+
+        background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
 
         &,
         >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-text-mix)) !important;
+            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
 
         >.callout-info~*,
@@ -258,16 +300,18 @@
         }
 
         &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-text-mix)) !important;
+            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
     }
 
     &[data-subtype="CAUTION"] {
-        background-color: color-mix(in srgb, var(--b3-callout-caution), var(--callout-bg-mix)) !important;
+        --local-color: var(--callout-color-caution);
+
+        background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
 
         &,
         >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--b3-callout-caution), var(--callout-text-mix)) !important;
+            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
 
         >.callout-info~*,
@@ -281,14 +325,14 @@
         }
 
         &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--b3-callout-caution), var(--callout-text-mix)) !important;
+            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
     }
 
     /* --- 新增类型: QUOTE (灰色) --- */
     &[data-subtype="QUOTE" i] {
         /* i 表示 "insensitive"（不区分大小写） */
-        --local-color: #7f8c8d;
+        --local-color: var(--callout-color-quote);
         /* 自定义灰色 */
 
         background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
@@ -316,11 +360,13 @@
 
     /* --- 新增类型: QUESTION (同WARNING样式) --- */
     &[data-subtype="QUESTION" i] {
-        background-color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-bg-mix)) !important;
+        --local-color: var(--callout-color-question);
+
+        background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
 
         &,
         >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-text-mix)) !important;
+            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
 
         >.callout-info~*,
@@ -335,13 +381,13 @@
         }
 
         &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--b3-callout-warning), var(--callout-text-mix)) !important;
+            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
     }
 
     /* --- 新增类型: INFO (蓝色) --- */
     &[data-subtype="INFO" i] {
-        --local-color: #086ddd;
+        --local-color: var(--callout-color-info);
         /* 自定义蓝色 */
 
         background-color: color-mix(in srgb, var(--local-color), var(--callout-bg-mix)) !important;
@@ -367,27 +413,19 @@
         }
     }
 
-    /* --- 嵌套子块的统一边界间距判定（适用于 callout 内所有正文子块） --- */
-    --callout-nested-gap: 6px;
-
-    /* 对标题行之后的所有正文子块统一处理左右与下边界间距 */
+    /* --- 正文区域边界留白（标题下方内容区） --- */
     &>.callout-info~* {
-        margin-left: var(--callout-nested-gap);
-        margin-right: var(--callout-nested-gap);
-        margin-bottom: calc(var(--callout-nested-gap) * 1.5);
+        margin-left: var(--callout-body-padding-x);
+        margin-right: var(--callout-body-padding-x);
+        margin-bottom: var(--callout-body-padding-bottom);
         box-sizing: border-box;
         min-width: 0;
-        max-width: calc(100% - (var(--callout-nested-gap) * 1.5));
+        max-width: calc(100% - (var(--callout-body-padding-x) * 2));
     }
 
-    /* 标题与第一个正文子块之间的间距。注意折叠/展开过程在这块和上面的margin-bottom的处理容易出现问题 */
+    /* 标题与第一个正文子块之间的间距 */
     &>.callout-info+* {
-        margin-top: calc(var(--callout-nested-gap) * 0.5);
+        margin-top: var(--callout-body-gap-top);
     }
-
-    // /* 最后一个正文子块底部与callout下边界的间距，似乎和.callout-info~中的margin-bottom是差不多的*/
-    // &>.callout-info~*:last-child {
-    //     margin-bottom: calc(var(--callout-nested-gap) * 1.5);
-    // }
 
 }

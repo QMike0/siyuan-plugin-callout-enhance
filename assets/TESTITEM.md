@@ -100,13 +100,13 @@
 - Auto-completion:
   - Typing one or more letters after the bracket filters the corresponding callout types.
 - Selecting a type with the mouse:
-  - Clicking a menu item switches the type.
+  - Click the menu item to select the type, and automatically convert the quote block into a callout.
   - The icon / background color / title color change accordingly.
   - The body content is not affected.
 - Selecting a type with the keyboard:
   - ArrowUp / ArrowDown switch menu items.
   - Home / End jump to the first / last item.
-  - Enter / Tab confirm the selected type.
+  - Enter / Tab confirm the selected type, and automatically convert the quote block to a callout.
   - Escape closes the menu.
 - Undo/redo:
   - Converting a quoted block can be undone.
