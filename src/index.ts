@@ -3,21 +3,39 @@ import "./index.scss";
 import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
 import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody } from "./utils/callout";
 import { getParentBlockLikeSiyuan } from "./utils/getBlock";
-import { createTransaction, getCurrentProtyle, getNewNodeId } from "./core/api";
+import { createTransaction, getCurrentProtyle } from "./core/api";
 import { deleteCallout } from "./features/callout_delete";
 import { setFoldState } from "./features/callout_fold";
-import { cleanCalloutTitleEditable, ensureCalloutTitleEditable, normalizeCalloutTitlePlainText, normalizeCalloutTitlePlainTextFromMarkdown, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
+import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
-import { CalloutTypeItem } from "./utils/callout_types";
+import { CalloutTypeItem, resolveCalloutIconMask } from "./utils/callout_types";
+import { CalloutEnhanceSettings, createDefaultCalloutSettings, getResolvedCalloutTypes, normalizeCalloutSettings } from "./utils/settings";
 import { handleCalloutTypeKeydown, hideCalloutTypeMenu, showCalloutTypeMenu } from "./features/type_menu";
 import { debugLog, errorLog, setDebugEnabled, warnLog } from "./utils/logger";
+import { openSettingsDialog } from "./components/settings_panel";
+import { registerPluginIcons } from "./utils/icons";
 
 const DEBUG = true;
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
+const STORAGE_NAME = "callout-enhance-settings";
+const DYNAMIC_STYLE_ID = "callout-enhance-dynamic-styles";
 
+function escapeCssString(value: string) {
+    return (value || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n|\r|\f/g, "");
+}
+
+function safeCssValue(value: string) {
+    return (value || "").trim().replace(/[;{}\n\r\f]/g, "");
+}
 
 export default class CalloutEnhancePlugin extends Plugin {
+    declare data: {
+        settings?: CalloutEnhanceSettings;
+    };
+
     private cleanupHandlers: Array<() => void> = [];
+    settings: CalloutEnhanceSettings = createDefaultCalloutSettings();
+    resolvedCalloutTypes: CalloutTypeItem[] = getResolvedCalloutTypes(this.settings);
 
     private getCalloutHeaderHitAreas(callout: HTMLElement) {
         const styles = getComputedStyle(callout);
@@ -98,6 +116,62 @@ export default class CalloutEnhancePlugin extends Plugin {
         document.querySelectorAll('.callout[data-type="NodeCallout"]').forEach((node) => {
             this.initCallout(node as HTMLElement);
         });
+    }
+
+    getCalloutTypes() {
+        return this.resolvedCalloutTypes;
+    }
+
+    private updateDynamicCalloutStyles() {
+        let style = document.getElementById(DYNAMIC_STYLE_ID) as HTMLStyleElement | null;
+        if (!style) {
+            style = document.createElement("style");
+            style.id = DYNAMIC_STYLE_ID;
+            document.head.appendChild(style);
+        }
+
+        const rules: string[] = [];
+        this.resolvedCalloutTypes.forEach((item) => {
+            const subtype = (item.keyword || item.id || "").trim();
+            if (!subtype) return;
+
+            const selector = `.callout[data-type="NodeCallout"][data-subtype="${escapeCssString(subtype)}" i]`;
+            const declarations: string[] = [];
+            const color = safeCssValue(item.color);
+            if (color && (!window.CSS?.supports || CSS.supports("color", color))) {
+                declarations.push(`--local-color:${color}`);
+            }
+
+            const mask = safeCssValue(resolveCalloutIconMask(item.icon || item.keyword, item.keyword));
+            if (declarations.length > 0) {
+                rules.push(`${selector}{${declarations.join(";")}}`);
+            }
+            rules.push(`${selector}::before{-webkit-mask:${mask} center / cover no-repeat;mask:${mask} center / cover no-repeat}`);
+        });
+
+        style.textContent = rules.join("\n");
+    }
+
+    async setSettings(settings: Partial<CalloutEnhanceSettings>) {
+        this.settings = normalizeCalloutSettings({
+            ...this.settings,
+            ...settings,
+            callouts: settings.callouts ? settings.callouts : this.settings.callouts,
+        });
+        this.resolvedCalloutTypes = getResolvedCalloutTypes(this.settings);
+        this.updateDynamicCalloutStyles();
+        await this.persistSettings();
+    }
+
+    private async loadSettings() {
+        const saved = (await this.loadData(STORAGE_NAME)) as Partial<CalloutEnhanceSettings> | null;
+        this.settings = normalizeCalloutSettings(saved);
+        this.resolvedCalloutTypes = getResolvedCalloutTypes(this.settings);
+        this.updateDynamicCalloutStyles();
+    }
+
+    private async persistSettings() {
+        await this.saveData(STORAGE_NAME, this.settings);
     }
 
     async syncBlock(blockElement: HTMLElement, originalHtml?: string, reason: "title" | "fold" | "type" = "title") {
@@ -371,10 +445,17 @@ export default class CalloutEnhancePlugin extends Plugin {
 
 
 
-    onload() {
+    async onload() {
         setDebugEnabled(DEBUG);
         if ((window as any)[STARTUP_FLAG]) return;
         (window as any)[STARTUP_FLAG] = true;
+
+        registerPluginIcons(this);
+
+        await this.loadSettings();
+        this.data = { settings: this.settings };
+        (window as any).__calloutEnhancePlugin = this;
+        this.openSetting = this.openSetting.bind(this);
 
         this.listen(document, "focusin", (e) => handleTitleFocusIn(this, e as FocusEvent), true);
         this.listen(document, "focusout", (e) => handleTitleFocusOut(this, e as FocusEvent), true);
@@ -422,7 +503,11 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.scanAllCallouts();
     }
 
-    onunload() {
+    openSetting() {
+        openSettingsDialog(this);
+    }
+
+    async onunload() {
         this.cleanupHandlers.forEach((fn) => fn());
         this.cleanupHandlers = [];
         this.observer?.disconnect();
@@ -437,6 +522,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.calloutTypeMenuElement = null;
         this.completionMenuElement?.remove();
         this.completionMenuElement = null;
+        document.getElementById(DYNAMIC_STYLE_ID)?.remove();
         delete (window as any)[STARTUP_FLAG];
     }
 }

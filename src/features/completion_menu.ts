@@ -5,11 +5,14 @@
  * keyboard navigation, and completion transform handling for quote blocks.
  */
 import { showMessage } from "siyuan";
-import { getBlockquoteElement, getSelectionCallout } from "../utils/dom";
-import { getCalloutBodyContainer } from "../utils/callout";
-import { getNewNodeId, PluginWithGetEditor } from "../core/api";
-import { CALLOUT_TYPES, CalloutTypeItem } from "../utils/callout_types";
+import { getBlockquoteElement } from "../utils/dom";
+import { PluginWithGetEditor } from "../core/api";
+import { CalloutTypeItem, renderCalloutIconSpan } from "../utils/callout_types";
 import { errorLog } from "../utils/logger";
+
+interface CompletionTypeProvider {
+    getCalloutTypes?: () => CalloutTypeItem[];
+}
 
 export type CompletionSession = {
     active: boolean;
@@ -17,7 +20,7 @@ export type CompletionSession = {
     start: number;
 };
 
-export type CompletionMenuPluginLike = PluginWithGetEditor & {
+export type CompletionMenuPluginLike = PluginWithGetEditor & CompletionTypeProvider & {
     isComposing: boolean;
     completionMenuElement: HTMLDivElement | null;
     completionFiltered: CalloutTypeItem[];
@@ -113,7 +116,7 @@ export function ensureCompletionMenu(plugin: CompletionMenuPluginLike) {
     if (plugin.completionMenuElement) return;
     plugin.completionMenuElement = document.createElement("div");
     plugin.completionMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none";
-    plugin.completionMenuElement.style.cssText = "position:fixed; z-index:9999; min-width:160px; padding:6px; box-shadow: var(--b3-dialog-shadow);";
+    plugin.completionMenuElement.style.cssText = "position:fixed; z-index:9999; min-width:160px; max-height:320px; overflow-y:auto; padding:6px; box-shadow: var(--b3-dialog-shadow);";
     document.body.appendChild(plugin.completionMenuElement);
 }
 
@@ -136,11 +139,25 @@ function renderCompletionMenu(plugin: CompletionMenuPluginLike) {
         btn.type = "button";
         btn.tabIndex = -1;
         btn.className = `b3-list-item b3-list-item--two ${i === plugin.completionIndex ? "b3-list-item--focus" : ""}`;
-        btn.innerHTML = `
-                <div class="b3-list-item__first" style="display:flex; align-items:center; gap:4px;">
-                    <span class="b3-list-item__graphic" style="width:20px; flex-shrink:0; text-align:center; font-size:16px; border:none; background:transparent;">${item.icon}</span>
-                    <span class="b3-list-item__text" style="font-size:15px;">${item.label}</span>
-                </div>`;
+        const first = document.createElement("div");
+        first.className = "b3-list-item__first";
+        first.style.display = "flex";
+        first.style.alignItems = "center";
+        first.style.gap = "4px";
+        const iconEl = renderCalloutIconSpan(item.icon || item.keyword, "b3-list-item__graphic callout-enhance-menu-icon", item.keyword, {
+            preferEditorIcon: true,
+            subtype: item.keyword,
+            size: "var(--callout-enhance-menu-icon-size)",
+        });
+        iconEl.style.display = "inline-flex";
+        iconEl.style.alignItems = "center";
+        iconEl.style.justifyContent = "center";
+        const text = document.createElement("span");
+        text.className = "b3-list-item__text";
+        text.style.fontSize = "15px";
+        text.textContent = item.label;
+        first.append(iconEl, text);
+        btn.appendChild(first);
         btn.onmousedown = (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -172,7 +189,8 @@ function updateCompletionMenuPosition(plugin: CompletionMenuPluginLike, rect: DO
 export function showCompletionMenu(plugin: CompletionMenuPluginLike, filterText: string, rect: DOMRect) {
     ensureCompletionMenu(plugin);
     if (!plugin.completionMenuElement) return;
-    plugin.completionFiltered = CALLOUT_TYPES.filter((t) => t.type.toLowerCase().includes(filterText.toLowerCase()) || t.label.toLowerCase().includes(filterText.toLowerCase()));
+    const types = plugin.getCalloutTypes?.() ?? [];
+    plugin.completionFiltered = types.filter((t) => t.keyword.toLowerCase().includes(filterText.toLowerCase()) || t.label.toLowerCase().includes(filterText.toLowerCase()));
     if (plugin.completionFiltered.length === 0) {
         hideCompletionMenu(plugin);
         return;
@@ -187,7 +205,7 @@ export function applyCompletion(plugin: CompletionMenuPluginLike, index = plugin
     const selected = plugin.completionFiltered[index];
     if (!selected) return;
     hideCompletionMenu(plugin);
-    const ok = applyCompletionTransform(selected.type);
+    const ok = applyCompletionTransform(selected.keyword);
     if (!ok) showMessage("callout completion transform failed");
 }
 

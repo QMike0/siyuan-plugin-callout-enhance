@@ -6,14 +6,15 @@
  * index.ts can remain the lifecycle/event orchestration layer.
  */
 import { showMessage } from "siyuan";
-import { CALLOUT_TYPES } from "../utils/callout_types";
 import { PluginWithGetEditor } from "../core/api";
+import { CalloutTypeItem, renderCalloutIconSpan } from "../utils/callout_types";
 import { debugLog } from "../utils/logger";
 
 export type TypeMenuPluginLike = PluginWithGetEditor & {
     calloutTypeMenuElement: HTMLDivElement | null;
     calloutTypeMenuActiveBlock: HTMLElement | null;
     calloutTypeMenuIndex: number;
+    getCalloutTypes?: () => CalloutTypeItem[];
     syncBlock: (blockElement: HTMLElement, originalHtml?: string, reason?: "title" | "fold" | "type") => Promise<boolean>;
 };
 
@@ -22,7 +23,7 @@ export function ensureCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     plugin.calloutTypeMenuElement = document.createElement("div");
     plugin.calloutTypeMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none";
     plugin.calloutTypeMenuElement.tabIndex = -1;
-    plugin.calloutTypeMenuElement.style.cssText = "position:fixed; z-index:9999; min-width:160px; padding:6px; box-shadow: var(--b3-dialog-shadow);";
+    plugin.calloutTypeMenuElement.style.cssText = "position:fixed; z-index:9999; min-width:160px; max-height:320px; overflow-y:auto; padding:6px; box-shadow: var(--b3-dialog-shadow);";
     document.body.appendChild(plugin.calloutTypeMenuElement);
 }
 
@@ -37,28 +38,44 @@ export function hideCalloutTypeMenu(plugin: TypeMenuPluginLike) {
 function renderCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (!plugin.calloutTypeMenuElement) return;
     plugin.calloutTypeMenuElement.innerHTML = "";
-    CALLOUT_TYPES.forEach((item, index) => {
+    const calloutTypes = plugin.getCalloutTypes?.() ?? [];
+    calloutTypes.forEach((item, index) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.tabIndex = -1;
         btn.className = `b3-list-item b3-list-item--two ${index === plugin.calloutTypeMenuIndex ? "b3-list-item--focus" : ""}`;
-        btn.innerHTML = `
-          <div class="b3-list-item__first" style="display:flex; align-items:center; gap:4px;">
-            <span class="b3-list-item__graphic" style="width:20px; flex-shrink:0; text-align:center; font-size:16px; border:none; background:transparent;">${item.icon}</span>
-            <span class="b3-list-item__text" style="font-size:15px;">${item.label}</span>
-          </div>`;
+        const first = document.createElement("div");
+        first.className = "b3-list-item__first";
+        first.style.display = "flex";
+        first.style.alignItems = "center";
+        first.style.gap = "4px";
+        const iconEl = renderCalloutIconSpan(item.icon || item.keyword, "b3-list-item__graphic callout-enhance-menu-icon", item.keyword, {
+            preferEditorIcon: true,
+            subtype: item.keyword,
+            size: "var(--callout-enhance-menu-icon-size)",
+        });
+        iconEl.style.display = "inline-flex";
+        iconEl.style.alignItems = "center";
+        iconEl.style.justifyContent = "center";
+        const text = document.createElement("span");
+        text.className = "b3-list-item__text";
+        text.style.fontSize = "15px";
+        text.textContent = item.label;
+        first.append(iconEl, text);
+        btn.appendChild(first);
         btn.onclick = async (e) => {
             e.stopPropagation();
             plugin.calloutTypeMenuIndex = index;
-            await applyCalloutType(plugin, item.type);
+            await applyCalloutType(plugin, item.keyword);
         };
         plugin.calloutTypeMenuElement!.appendChild(btn);
     });
 }
 
 function focusCalloutTypeMenuItem(plugin: TypeMenuPluginLike, index: number) {
-    if (!plugin.calloutTypeMenuElement || CALLOUT_TYPES.length === 0) return;
-    const normalizedIndex = (index + CALLOUT_TYPES.length) % CALLOUT_TYPES.length;
+    const calloutTypes = plugin.getCalloutTypes?.() ?? [];
+    if (!plugin.calloutTypeMenuElement || calloutTypes.length === 0) return;
+    const normalizedIndex = (index + calloutTypes.length) % calloutTypes.length;
     plugin.calloutTypeMenuIndex = normalizedIndex;
     renderCalloutTypeMenu(plugin);
     const activeButton = plugin.calloutTypeMenuElement.querySelector(".b3-list-item--focus") as HTMLButtonElement | null;
@@ -124,6 +141,7 @@ export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: stri
 
 export function handleCalloutTypeKeydown(plugin: TypeMenuPluginLike, e: KeyboardEvent) {
     if (!plugin.calloutTypeMenuElement || plugin.calloutTypeMenuElement.classList.contains("fn__none")) return;
+    const calloutTypes = plugin.getCalloutTypes?.() ?? [];
     if (e.key === "ArrowDown") {
         e.preventDefault();
         e.stopPropagation();
@@ -143,12 +161,12 @@ export function handleCalloutTypeKeydown(plugin: TypeMenuPluginLike, e: Keyboard
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        focusCalloutTypeMenuItem(plugin, CALLOUT_TYPES.length - 1);
+        focusCalloutTypeMenuItem(plugin, calloutTypes.length - 1);
     } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        void applyCalloutType(plugin, CALLOUT_TYPES[plugin.calloutTypeMenuIndex >= 0 ? plugin.calloutTypeMenuIndex : 0].type);
+        void applyCalloutType(plugin, calloutTypes[plugin.calloutTypeMenuIndex >= 0 ? plugin.calloutTypeMenuIndex : 0]?.keyword ?? "");
     } else if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
