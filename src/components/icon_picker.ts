@@ -28,7 +28,7 @@ export type IconPickerOptions = {
     anchor: HTMLElement;
     /** Currently stored icon ref string (e.g. "symbol:iconCalloutInfo"). */
     current?: string;
-    fallbackKeyword?: string;
+    fallbackLabel?: string;
     onPick: (value: string, result: IconPickerResult) => void;
 };
 

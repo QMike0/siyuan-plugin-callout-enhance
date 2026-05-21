@@ -7,7 +7,7 @@
 import { showMessage } from "siyuan";
 import { getBlockquoteElement } from "../utils/dom";
 import { PluginWithGetEditor } from "../core/api";
-import { CalloutTypeItem, renderCalloutIconSpan } from "../utils/callout_types";
+import { CalloutTypeItem, calloutMatchesFilter, getCalloutPreviewTitle, renderCalloutIconSpan } from "../utils/callout_types";
 import { errorLog } from "../utils/logger";
 
 interface CompletionTypeProvider {
@@ -29,8 +29,10 @@ export type CompletionMenuPluginLike = PluginWithGetEditor & CompletionTypeProvi
     completionSession: CompletionSession;
 };
 
-const TRIGGER_PATTERN = /[\[【［]([a-zA-Z]*)$/i;
-const SESSION_TRIGGER_PATTERN = /^[\[【［]([a-zA-Z]*)$/i;
+/** Filter text after `[` while completion is open: unicode letters/digits plus common label chars. */
+const COMPLETION_FILTER_CHARS = "\\p{L}\\p{N}_-";
+const TRIGGER_PATTERN = new RegExp(`[\\[【［]([${COMPLETION_FILTER_CHARS}]*)$`, "u");
+const SESSION_TRIGGER_PATTERN = new RegExp(`^[\\[【［]([${COMPLETION_FILTER_CHARS}]*)$`, "u");
 
 function isTriggerChar(ch: string) {
     return ch === "[" || ch === "【" || ch === "［";
@@ -144,9 +146,9 @@ function renderCompletionMenu(plugin: CompletionMenuPluginLike) {
         first.style.display = "flex";
         first.style.alignItems = "center";
         first.style.gap = "4px";
-        const iconEl = renderCalloutIconSpan(item.icon || item.keyword, "b3-list-item__graphic callout-enhance-menu-icon", item.keyword, {
+        const iconEl = renderCalloutIconSpan(item.icon || item.label, "b3-list-item__graphic callout-enhance-menu-icon", item.label, {
             preferEditorIcon: true,
-            subtype: item.keyword,
+            subtype: item.label,
             size: "var(--callout-enhance-menu-icon-size)",
         });
         iconEl.style.display = "inline-flex";
@@ -155,7 +157,7 @@ function renderCompletionMenu(plugin: CompletionMenuPluginLike) {
         const text = document.createElement("span");
         text.className = "b3-list-item__text";
         text.style.fontSize = "15px";
-        text.textContent = item.label;
+        text.textContent = getCalloutPreviewTitle(item);
         first.append(iconEl, text);
         btn.appendChild(first);
         btn.onmousedown = (e) => {
@@ -190,7 +192,7 @@ export function showCompletionMenu(plugin: CompletionMenuPluginLike, filterText:
     ensureCompletionMenu(plugin);
     if (!plugin.completionMenuElement) return;
     const types = plugin.getCalloutTypes?.() ?? [];
-    plugin.completionFiltered = types.filter((t) => t.keyword.toLowerCase().includes(filterText.toLowerCase()) || t.label.toLowerCase().includes(filterText.toLowerCase()));
+    plugin.completionFiltered = types.filter((t) => calloutMatchesFilter(t, filterText));
     if (plugin.completionFiltered.length === 0) {
         hideCompletionMenu(plugin);
         return;
@@ -205,7 +207,7 @@ export function applyCompletion(plugin: CompletionMenuPluginLike, index = plugin
     const selected = plugin.completionFiltered[index];
     if (!selected) return;
     hideCompletionMenu(plugin);
-    const ok = applyCompletionTransform(selected.keyword);
+    const ok = applyCompletionTransform(selected.label);
     if (!ok) showMessage("callout completion transform failed");
 }
 

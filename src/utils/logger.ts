@@ -1,4 +1,4 @@
-let debugEnabled = true;
+let debugEnabled = false;
 
 export function setDebugEnabled(enabled: boolean) {
     debugEnabled = !!enabled;

@@ -1,7 +1,7 @@
 import { Plugin, IOperation, showMessage } from "siyuan";
 import "./index.scss";
 import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
-import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody } from "./utils/callout";
+import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, isCalloutSettingsPreview } from "./utils/callout";
 import { getParentBlockLikeSiyuan } from "./utils/getBlock";
 import { createTransaction, getCurrentProtyle } from "./core/api";
 import { deleteCallout } from "./features/callout_delete";
@@ -9,13 +9,12 @@ import { setFoldState } from "./features/callout_fold";
 import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
 import { CalloutTypeItem, resolveCalloutIconMask } from "./utils/callout_types";
-import { CalloutEnhanceSettings, createDefaultCalloutSettings, getResolvedCalloutTypes, normalizeCalloutSettings } from "./utils/settings";
+import { CalloutEnhanceSettings, createDefaultCalloutSettings, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings } from "./utils/settings";
+import { buildCalloutLayoutStylesheet, CalloutLayoutSettings, normalizeCalloutLayout } from "./utils/callout_layout_vars";
 import { handleCalloutTypeKeydown, hideCalloutTypeMenu, showCalloutTypeMenu } from "./features/type_menu";
 import { debugLog, errorLog, setDebugEnabled, warnLog } from "./utils/logger";
 import { openSettingsDialog } from "./components/settings_panel";
 import { registerPluginIcons } from "./utils/icons";
-
-const DEBUG = true;
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 const STORAGE_NAME = "callout-enhance-settings";
 const DYNAMIC_STYLE_ID = "callout-enhance-dynamic-styles";
@@ -25,7 +24,11 @@ function escapeCssString(value: string) {
 }
 
 function safeCssValue(value: string) {
-    return (value || "").trim().replace(/[;{}\n\r\f]/g, "");
+    const trimmed = (value || "").trim();
+    if (/^url\(/i.test(trimmed)) {
+        return trimmed.replace(/[{}\n\r\f]/g, "");
+    }
+    return trimmed.replace(/[;{}\n\r\f]/g, "");
 }
 
 export default class CalloutEnhancePlugin extends Plugin {
@@ -36,13 +39,18 @@ export default class CalloutEnhancePlugin extends Plugin {
     private cleanupHandlers: Array<() => void> = [];
     settings: CalloutEnhanceSettings = createDefaultCalloutSettings();
     resolvedCalloutTypes: CalloutTypeItem[] = getResolvedCalloutTypes(this.settings);
+    private appearancePreviewLayout: CalloutLayoutSettings | null = null;
 
     private getCalloutHeaderHitAreas(callout: HTMLElement) {
         const styles = getComputedStyle(callout);
         const iconLeft = parseFloat(styles.getPropertyValue("--callout-icon-left")) || 20;
-        const headerXShift = parseFloat(styles.getPropertyValue("--callout-header-x-shift")) || 0;
-        const iconSize = parseFloat(styles.getPropertyValue("--callout-icon-size")) || 18;
-        const titleRowHeight = parseFloat(styles.getPropertyValue("--callout-title-row-height")) || 28;
+        const headerXShift = parseFloat(styles.getPropertyValue("--callout-header-width-offset"))
+            || parseFloat(styles.getPropertyValue("--callout-header-x-shift"))
+            || 0;
+        const iconSize = parseFloat(styles.getPropertyValue("--callout-icon-size")) || 16;
+        const titleRowHeight = parseFloat(styles.getPropertyValue("--callout-header-height"))
+            || parseFloat(styles.getPropertyValue("--callout-title-row-height"))
+            || 28;
         const shellPaddingTop = parseFloat(styles.getPropertyValue("--callout-shell-padding-top")) || 10;
 
         const iconCenterX = iconLeft + headerXShift + iconSize / 2;
@@ -51,7 +59,10 @@ export default class CalloutEnhancePlugin extends Plugin {
         const typeMenuRight = iconCenterX + typeMenuHalfWidth;
         const headerHeight = shellPaddingTop + titleRowHeight + 8;
 
-        const foldHitWidth = parseFloat(styles.getPropertyValue("--callout-fold-hit-width")) || 40;
+        const foldVisible = styles.getPropertyValue("--callout-fold-after-display").trim() !== "none";
+        const foldHitWidth = foldVisible
+            ? (parseFloat(styles.getPropertyValue("--callout-fold-hit-width")) || 40)
+            : 0;
 
         return {
             typeMenuLeft,
@@ -97,6 +108,10 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     private initCallout(block: HTMLElement) {
+        if (isCalloutSettingsPreview(block)) {
+            block.dataset.enhanced = "true";
+            return;
+        }
         if (block.dataset?.nodeId) {
             delete block.dataset.deleting;
         }
@@ -122,6 +137,10 @@ export default class CalloutEnhancePlugin extends Plugin {
         return this.resolvedCalloutTypes;
     }
 
+    private getEffectiveCalloutLayout() {
+        return normalizeCalloutLayout(this.appearancePreviewLayout || this.settings.layout);
+    }
+
     private updateDynamicCalloutStyles() {
         let style = document.getElementById(DYNAMIC_STYLE_ID) as HTMLStyleElement | null;
         if (!style) {
@@ -131,8 +150,11 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
 
         const rules: string[] = [];
+        const layoutCss = buildCalloutLayoutStylesheet(this.getEffectiveCalloutLayout());
+        if (layoutCss) rules.push(layoutCss);
+
         this.resolvedCalloutTypes.forEach((item) => {
-            const subtype = (item.keyword || item.id || "").trim();
+            const subtype = (item.label || item.id || "").trim();
             if (!subtype) return;
 
             const selector = `.callout[data-type="NodeCallout"][data-subtype="${escapeCssString(subtype)}" i]`;
@@ -142,7 +164,7 @@ export default class CalloutEnhancePlugin extends Plugin {
                 declarations.push(`--local-color:${color}`);
             }
 
-            const mask = safeCssValue(resolveCalloutIconMask(item.icon || item.keyword, item.keyword));
+            const mask = safeCssValue(resolveCalloutIconMask(item.icon || item.label, item.label));
             if (declarations.length > 0) {
                 rules.push(`${selector}{${declarations.join(";")}}`);
             }
@@ -152,14 +174,74 @@ export default class CalloutEnhancePlugin extends Plugin {
         style.textContent = rules.join("\n");
     }
 
+    previewCalloutLayout(layout: Partial<CalloutLayoutSettings>) {
+        this.appearancePreviewLayout = normalizeCalloutLayout({
+            ...normalizeCalloutLayout(this.settings.layout),
+            ...layout,
+        });
+        this.updateDynamicCalloutStyles();
+    }
+
+    clearAppearancePreview() {
+        this.appearancePreviewLayout = null;
+        this.updateDynamicCalloutStyles();
+    }
+
+    async reloadAppearanceFromDisk() {
+        const saved = (await this.loadData(STORAGE_NAME)) as Partial<CalloutEnhanceSettings> | null;
+        const normalized = normalizeCalloutSettings(saved);
+        this.restoreAppearanceState({
+            layout: normalized.layout,
+            appearancePresets: normalized.appearancePresets,
+            activeAppearancePresetId: normalized.activeAppearancePresetId,
+        });
+        this.clearAppearancePreview();
+    }
+
+    applyCalloutLayout(layout: Partial<CalloutLayoutSettings>) {
+        this.clearAppearancePreview();
+        this.settings = normalizeCalloutSettings({
+            ...this.settings,
+            layout: {
+                ...normalizeCalloutLayout(this.settings.layout),
+                ...layout,
+            },
+            appearancePresets: this.settings.appearancePresets?.map((preset) => (
+                preset.id === this.settings.activeAppearancePresetId && !isDefaultAppearancePreset(preset.id)
+                    ? { ...preset, layout: normalizeCalloutLayout({ ...preset.layout, ...layout }) }
+                    : preset
+            )),
+        });
+        this.updateDynamicCalloutStyles();
+    }
+
+    restoreAppearanceState(settings: Pick<CalloutEnhanceSettings, "layout" | "appearancePresets" | "activeAppearancePresetId">) {
+        this.clearAppearancePreview();
+        this.settings = normalizeCalloutSettings({
+            ...this.settings,
+            layout: settings.layout,
+            appearancePresets: settings.appearancePresets,
+            activeAppearancePresetId: settings.activeAppearancePresetId,
+        });
+        this.updateDynamicCalloutStyles();
+    }
+
     async setSettings(settings: Partial<CalloutEnhanceSettings>) {
         this.settings = normalizeCalloutSettings({
             ...this.settings,
             ...settings,
             callouts: settings.callouts ? settings.callouts : this.settings.callouts,
+            layout: settings.layout
+                ? { ...normalizeCalloutLayout(this.settings.layout), ...settings.layout }
+                : this.settings.layout,
+            appearancePresets: settings.appearancePresets ?? this.settings.appearancePresets,
+            activeAppearancePresetId: settings.activeAppearancePresetId ?? this.settings.activeAppearancePresetId,
         });
         this.resolvedCalloutTypes = getResolvedCalloutTypes(this.settings);
         this.updateDynamicCalloutStyles();
+        if (settings.debugLogEnabled !== undefined) {
+            setDebugEnabled(!!this.settings.debugLogEnabled);
+        }
         await this.persistSettings();
     }
 
@@ -167,6 +249,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         const saved = (await this.loadData(STORAGE_NAME)) as Partial<CalloutEnhanceSettings> | null;
         this.settings = normalizeCalloutSettings(saved);
         this.resolvedCalloutTypes = getResolvedCalloutTypes(this.settings);
+        setDebugEnabled(!!this.settings.debugLogEnabled);
         this.updateDynamicCalloutStyles();
     }
 
@@ -207,11 +290,11 @@ export default class CalloutEnhancePlugin extends Plugin {
             
             // 只在内容真正改变时才发送事务
             if (newHtml === previousHtml) {
-                if (DEBUG) debugLog(`[Block/${reason}] No changes for block`, blockId);
+                debugLog(`[Block/${reason}] No changes for block`, blockId);
                 return true;
             }
 
-            if (DEBUG) debugLog(`[Block/${reason}] Saving block`, blockId);
+            debugLog(`[Block/${reason}] Saving block`, blockId);
             
             const doOperations: IOperation[] = [{
                 action: "update",
@@ -350,7 +433,7 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     private handleGlobalPointerDown = (e: PointerEvent) => {
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
-        if (!callout) return;
+        if (!callout || isCalloutSettingsPreview(callout)) return;
         const rect = callout.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
@@ -370,7 +453,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
 
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
-        if (!callout) return;
+        if (!callout || isCalloutSettingsPreview(callout)) return;
 
         const rect = callout.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
@@ -446,7 +529,6 @@ export default class CalloutEnhancePlugin extends Plugin {
 
 
     async onload() {
-        setDebugEnabled(DEBUG);
         if ((window as any)[STARTUP_FLAG]) return;
         (window as any)[STARTUP_FLAG] = true;
 
@@ -508,6 +590,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     async onunload() {
+        this.clearAppearancePreview();
         this.cleanupHandlers.forEach((fn) => fn());
         this.cleanupHandlers = [];
         this.observer?.disconnect();

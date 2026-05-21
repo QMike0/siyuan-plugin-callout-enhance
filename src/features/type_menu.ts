@@ -7,7 +7,7 @@
  */
 import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
-import { CalloutTypeItem, renderCalloutIconSpan } from "../utils/callout_types";
+import { CalloutTypeItem, getCalloutPreviewTitle, renderCalloutIconSpan } from "../utils/callout_types";
 import { debugLog } from "../utils/logger";
 
 export type TypeMenuPluginLike = PluginWithGetEditor & {
@@ -49,9 +49,9 @@ function renderCalloutTypeMenu(plugin: TypeMenuPluginLike) {
         first.style.display = "flex";
         first.style.alignItems = "center";
         first.style.gap = "4px";
-        const iconEl = renderCalloutIconSpan(item.icon || item.keyword, "b3-list-item__graphic callout-enhance-menu-icon", item.keyword, {
+        const iconEl = renderCalloutIconSpan(item.icon || item.label, "b3-list-item__graphic callout-enhance-menu-icon", item.label, {
             preferEditorIcon: true,
-            subtype: item.keyword,
+            subtype: item.label,
             size: "var(--callout-enhance-menu-icon-size)",
         });
         iconEl.style.display = "inline-flex";
@@ -60,13 +60,13 @@ function renderCalloutTypeMenu(plugin: TypeMenuPluginLike) {
         const text = document.createElement("span");
         text.className = "b3-list-item__text";
         text.style.fontSize = "15px";
-        text.textContent = item.label;
+        text.textContent = getCalloutPreviewTitle(item);
         first.append(iconEl, text);
         btn.appendChild(first);
         btn.onclick = async (e) => {
             e.stopPropagation();
             plugin.calloutTypeMenuIndex = index;
-            await applyCalloutType(plugin, item.keyword);
+            await applyCalloutType(plugin, item.label);
         };
         plugin.calloutTypeMenuElement!.appendChild(btn);
     });
@@ -166,7 +166,7 @@ export function handleCalloutTypeKeydown(plugin: TypeMenuPluginLike, e: Keyboard
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        void applyCalloutType(plugin, calloutTypes[plugin.calloutTypeMenuIndex >= 0 ? plugin.calloutTypeMenuIndex : 0]?.keyword ?? "");
+        void applyCalloutType(plugin, calloutTypes[plugin.calloutTypeMenuIndex >= 0 ? plugin.calloutTypeMenuIndex : 0]?.label ?? "");
     } else if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();

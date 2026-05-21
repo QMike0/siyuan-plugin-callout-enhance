@@ -5,6 +5,7 @@
     "strict": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "outDir": "./dist",
     "types": ["siyuan"]

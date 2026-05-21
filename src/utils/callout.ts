@@ -7,6 +7,10 @@
  */
 import { focusNewBlockEditableStart } from "./dom";
 
+export function isCalloutSettingsPreview(element: HTMLElement | null | undefined) {
+    return !!element?.classList?.contains("callout-enhance-setting-preview");
+}
+
 export function createEmptyParagraphElement(getNewNodeId: () => string, id?: string) {
     const element = document.createElement("div");
     element.setAttribute("data-node-id", id || getNewNodeId());

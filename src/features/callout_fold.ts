@@ -192,6 +192,28 @@ async function animateBodyHeight(block: HTMLElement, fold: boolean): Promise<boo
     return completed;
 }
 
+export function getCalloutHeaderHitMetrics(block: HTMLElement) {
+    const styles = window.getComputedStyle(block);
+    const shellPaddingTop = parseFloat(styles.getPropertyValue("--callout-shell-padding-top")) || 10;
+    const titleRowHeight = parseFloat(styles.getPropertyValue("--callout-header-height")) || 28;
+    const headerHeight = shellPaddingTop + titleRowHeight + 8;
+    const foldVisible = styles.getPropertyValue("--callout-fold-after-display").trim() !== "none";
+    const foldButtonWidth = foldVisible
+        ? (parseFloat(styles.getPropertyValue("--callout-fold-hit-width")) || 40)
+        : 0;
+    return { headerHeight, foldButtonWidth };
+}
+
+export async function setPreviewFoldState(block: HTMLElement | null, fold: boolean) {
+    if (!block) return false;
+    try {
+        return await animateBodyHeight(block, fold);
+    } catch (err) {
+        errorLog("[ERROR] Preview fold failed:", err);
+        return false;
+    }
+}
+
 export async function setFoldState(plugin: CalloutFoldPluginLike, block: HTMLElement | null, fold: boolean) {
     if (!block || !block.dataset.nodeId) return false;
     const blockId = block.dataset.nodeId;
