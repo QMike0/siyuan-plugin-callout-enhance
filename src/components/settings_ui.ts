@@ -1,3 +1,5 @@
+import { Dialog } from "siyuan";
+
 export const PREVIEW_HELP_TOOLTIP = "Default-theme preview only. See the editor for theme-specific results.";
 
 export const LABEL_HELP_TOOLTIP = "Unique type ID written to [!LABEL] and used for styling. Must not duplicate another type (case-insensitive).";
@@ -22,4 +24,59 @@ export function createHelpIcon(tooltip: string, extraClass = "") {
 
 export function createPreviewHelpIcon(extraClass = "") {
     return createHelpIcon(PREVIEW_HELP_TOOLTIP, extraClass);
+}
+
+export type ConfirmDialogOptions = {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    width?: string;
+    onConfirm: () => void;
+};
+
+export function openConfirmDialog(options: ConfirmDialogOptions) {
+    const {
+        title,
+        message,
+        confirmLabel = "Confirm",
+        cancelLabel = "Cancel",
+        width = window.innerWidth < 768 ? "88vw" : "360px",
+        onConfirm,
+    } = options;
+
+    const dialog = new Dialog({
+        title,
+        width,
+        content: `<div class="callout-enhance-confirm-body"></div>`,
+    });
+
+    const body = dialog.element.querySelector(".callout-enhance-confirm-body") as HTMLElement | null;
+    if (!body) return dialog;
+
+    const messageEl = document.createElement("div");
+    messageEl.className = "b3-label__text callout-enhance-confirm-body__message";
+    messageEl.textContent = message;
+
+    const footer = document.createElement("div");
+    footer.className = "b3-dialog__action callout-enhance-dialog-footer";
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.className = "b3-button b3-button--text";
+    confirmBtn.type = "button";
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.addEventListener("click", () => {
+        onConfirm();
+        dialog.destroy();
+    });
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "b3-button b3-button--cancel";
+    cancelBtn.type = "button";
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.addEventListener("click", () => dialog.destroy());
+
+    footer.append(confirmBtn, cancelBtn);
+    body.append(messageEl, footer);
+    return dialog;
 }

@@ -8,6 +8,7 @@ import { showMessage } from "siyuan";
 import { getBlockquoteElement } from "../utils/dom";
 import { PluginWithGetEditor } from "../core/api";
 import { CalloutTypeItem, calloutMatchesFilter, getCalloutPreviewTitle, renderCalloutIconSpan } from "../utils/callout_types";
+import { focusMenuListItem } from "../utils/menu_scroll";
 import { errorLog } from "../utils/logger";
 
 interface CompletionTypeProvider {
@@ -169,8 +170,19 @@ function renderCompletionMenu(plugin: CompletionMenuPluginLike) {
     });
     plugin.completionMenuElement.classList.remove("fn__none");
     if (plugin.completionIndex === -1) plugin.completionIndex = 0;
-    const activeButton = plugin.completionMenuElement.querySelector(".b3-list-item--focus") as HTMLButtonElement | null;
-    activeButton?.scrollIntoView({ block: "nearest" });
+    focusCompletionMenuItem(plugin, plugin.completionIndex);
+}
+
+function focusCompletionMenuItem(plugin: CompletionMenuPluginLike, index: number) {
+    if (!plugin.completionMenuElement || plugin.completionFiltered.length === 0) return;
+    const normalizedIndex = (index + plugin.completionFiltered.length) % plugin.completionFiltered.length;
+    plugin.completionIndex = normalizedIndex;
+    const items = plugin.completionMenuElement.querySelectorAll(".b3-list-item");
+    if (items.length !== plugin.completionFiltered.length) {
+        renderCompletionMenu(plugin);
+        return;
+    }
+    focusMenuListItem(plugin.completionMenuElement, normalizedIndex);
 }
 
 function updateCompletionMenuPosition(plugin: CompletionMenuPluginLike, rect: DOMRect) {
@@ -310,20 +322,16 @@ export function handleCompletionKeydown(plugin: CompletionMenuPluginLike, e: Key
     if (!plugin.completionVisible || !plugin.completionMenuElement) return;
     if (e.key === "ArrowUp") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        plugin.completionIndex = (plugin.completionIndex - 1 + plugin.completionFiltered.length) % plugin.completionFiltered.length;
-        renderCompletionMenu(plugin);
+        focusCompletionMenuItem(plugin, plugin.completionIndex - 1);
     } else if (e.key === "ArrowDown") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        plugin.completionIndex = (plugin.completionIndex + 1) % plugin.completionFiltered.length;
-        renderCompletionMenu(plugin);
+        focusCompletionMenuItem(plugin, plugin.completionIndex + 1);
     } else if (e.key === "Home") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        plugin.completionIndex = 0;
-        renderCompletionMenu(plugin);
+        focusCompletionMenuItem(plugin, 0);
     } else if (e.key === "End") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        plugin.completionIndex = plugin.completionFiltered.length - 1;
-        renderCompletionMenu(plugin);
+        focusCompletionMenuItem(plugin, plugin.completionFiltered.length - 1);
     } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         applyCompletion(plugin);

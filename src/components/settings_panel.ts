@@ -1,4 +1,4 @@
-import { confirm, Dialog, showMessage } from "siyuan";
+import { Dialog, showMessage } from "siyuan";
 import { CalloutEnhanceSettings, CalloutAppearancePreset, DEFAULT_APPEARANCE_PRESET_ID, DEFAULT_APPEARANCE_PRESET_NAME, getDefaultAppearancePresetLayout, isDefaultAppearancePreset, makeAppearancePresetId, normalizeCalloutSettings } from "../utils/settings";
 import { CalloutTypeItem, calloutMatchesFilter, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
 import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
@@ -6,7 +6,7 @@ import { openIconPicker } from "./icon_picker";
 import { getCalloutHeaderHitMetrics, setPreviewFoldState } from "../features/callout_fold";
 import { renderLayoutSettingsPanel } from "./layout_settings_panel";
 import { renderAboutSettingsPanel } from "./about_settings_panel";
-import { createHelpIcon, createPreviewHelpIcon, KEYWORDS_HELP_TOOLTIP, LABEL_HELP_TOOLTIP } from "./settings_ui";
+import { createHelpIcon, createPreviewHelpIcon, KEYWORDS_HELP_TOOLTIP, LABEL_HELP_TOOLTIP, openConfirmDialog } from "./settings_ui";
 import { Plugin } from "siyuan";
 
 export type SettingsEditorPluginLike = Plugin & {
@@ -116,7 +116,7 @@ function openAppearanceUnsavedConfirm(options: AppearanceCloseConfirmOptions) {
     }
 
     const footer = document.createElement("div");
-    footer.className = "b3-dialog__action callout-enhance-appearance-close-body__actions";
+    footer.className = "b3-dialog__action callout-enhance-appearance-close-body__actions callout-enhance-dialog-footer";
 
     const saveBtn = document.createElement("button");
     saveBtn.className = "b3-button b3-button--text";
@@ -327,11 +327,12 @@ function isProtectedCalloutType(item: Pick<CalloutTypeItem, "label">) {
 }
 
 function confirmDeleteCalloutType(item: DraftItem, onConfirm: () => void) {
-    confirm(
-        "Delete callout type",
-        `Delete "${getCalloutPreviewTitle(item)}"? This action cannot be undone.`,
+    openConfirmDialog({
+        title: "Delete callout type",
+        message: `Delete "${getCalloutPreviewTitle(item)}"? This action cannot be undone.`,
+        confirmLabel: "Delete",
         onConfirm,
-    );
+    });
 }
 
 function createTextInput(value: string) {
@@ -706,7 +707,7 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
         showMessage("Settings saved");
     });
 
-    footer.append(cancel, confirm);
+    footer.append(confirm, cancel);
     body.append(settingsPanel, previewPanel, footer);
     updatePreview();
     return dialog;
@@ -752,10 +753,16 @@ function applyEditorCalloutStyleTokens(preview: HTMLElement, item: DraftItem) {
     const { probe, cleanup } = createEditorCalloutStyleProbe(item);
     try {
         const computed = getComputedStyle(probe);
+        const normalizeCssToken = (value: string) => value.replace(/\s+/g, " ").trim();
+        const probeSurfaceBackground = normalizeCssToken(computed.getPropertyValue("--callout-surface-background"));
+        const probeBodyBackground = normalizeCssToken(computed.getPropertyValue("--callout-body-background"));
         PREVIEW_STYLE_TOKENS.forEach((token) => {
             const value = computed.getPropertyValue(token).trim();
             if (value) preview.style.setProperty(token, value);
         });
+        if (probeSurfaceBackground && probeBodyBackground === probeSurfaceBackground) {
+            preview.style.setProperty("--callout-body-background", "var(--callout-surface-background)");
+        }
 
         PREVIEW_BLOCK_STYLE_PROPS.forEach((prop) => {
             const value = computed.getPropertyValue(prop).trim();
@@ -883,6 +890,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     const dialog = new Dialog({
         title: "Callout Enhance Settings",
         width: window.innerWidth < 768 ? "92vw" : "980px",
+        height: window.innerWidth < 768 ? "78vh" : "62vh",
         disableClose: true,
         content: `
             <div class="fn__flex callout-enhance-settings-shell">
@@ -894,6 +902,8 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             finalizeAppearanceOnClose();
         },
     });
+
+    dialog.element.querySelector(".b3-dialog__container")?.classList.add("callout-enhance-settings-dialog");
 
     dialog.element.querySelector(".b3-dialog__scrim")?.addEventListener("click", (event) => {
         event.preventDefault();
@@ -913,10 +923,79 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     let draft: DraftItem[] = normalizeCalloutSettings(plugin.settings).callouts.map((item) => ({ ...item }));
     let selectedIndex = 0;
     let mode: DetailView = "layout";
+    const DRAG_SCROLL_EDGE = 40;
+    const DRAG_SCROLL_MIN_STEP = 0.5;
+    const DRAG_SCROLL_MAX_STEP = 8;
+
     let draggingIndex = -1;
     let draggingKey = "";
     let dragChanged = false;
     let listSearchQuery = "";
+    let calloutListScrollTop = 0;
+    let scrollListToBottomOnRender = false;
+    let dragScrollSpeed = 0;
+    let dragScrollRafId = 0;
+
+    const stopDragAutoScroll = () => {
+        dragScrollSpeed = 0;
+        if (dragScrollRafId) {
+            cancelAnimationFrame(dragScrollRafId);
+            dragScrollRafId = 0;
+        }
+    };
+
+    const getDragScrollSpeed = (clientY: number, rect: DOMRect) => {
+        const topEdge = rect.top + DRAG_SCROLL_EDGE;
+        const bottomEdge = rect.bottom - DRAG_SCROLL_EDGE;
+        const stepRange = DRAG_SCROLL_MAX_STEP - DRAG_SCROLL_MIN_STEP;
+
+        if (clientY < topEdge) {
+            const depth = topEdge - clientY;
+            const ratio = Math.min(1, depth / DRAG_SCROLL_EDGE);
+            const step = DRAG_SCROLL_MIN_STEP + stepRange * ratio * ratio;
+            return -step;
+        }
+        if (clientY > bottomEdge) {
+            const depth = clientY - bottomEdge;
+            const ratio = Math.min(1, depth / DRAG_SCROLL_EDGE);
+            const step = DRAG_SCROLL_MIN_STEP + stepRange * ratio * ratio;
+            return step;
+        }
+        return 0;
+    };
+
+    const tickDragAutoScroll = () => {
+        if (dragScrollSpeed === 0 || draggingIndex < 0) {
+            dragScrollRafId = 0;
+            return;
+        }
+        const body = detail.querySelector(".callout-enhance-list-body") as HTMLElement | null;
+        if (body) {
+            body.scrollTop += dragScrollSpeed;
+            calloutListScrollTop = body.scrollTop;
+        }
+        dragScrollRafId = requestAnimationFrame(tickDragAutoScroll);
+    };
+
+    const updateDragAutoScroll = (clientY: number) => {
+        if (draggingIndex < 0) {
+            stopDragAutoScroll();
+            return;
+        }
+        const body = detail.querySelector(".callout-enhance-list-body") as HTMLElement | null;
+        if (!body) {
+            stopDragAutoScroll();
+            return;
+        }
+        dragScrollSpeed = getDragScrollSpeed(clientY, body.getBoundingClientRect());
+        if (dragScrollSpeed !== 0 && !dragScrollRafId) {
+            dragScrollRafId = requestAnimationFrame(tickDragAutoScroll);
+        } else if (dragScrollSpeed === 0 && dragScrollRafId) {
+            cancelAnimationFrame(dragScrollRafId);
+            dragScrollRafId = 0;
+        }
+    };
+    let appearanceFieldsScrollTop = 0;
     let layoutDraft = normalizeCalloutLayout(persistedSettings.layout);
     let appearancePresetsDraft: CalloutAppearancePreset[] = (persistedSettings.appearancePresets || [])
         .map((item) => ({ ...item, layout: normalizeCalloutLayout(item.layout) }));
@@ -1171,6 +1250,10 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             onChange: (next) => {
                 previewLayout(next);
             },
+            fieldsScrollTop: appearanceFieldsScrollTop,
+            onFieldsScroll: (scrollTop) => {
+                appearanceFieldsScrollTop = scrollTop;
+            },
             onPresetSelect: (presetId) => {
                 const preset = appearancePresetsDraft.find((item) => item.id === presetId);
                 if (!preset) return;
@@ -1229,6 +1312,10 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                 renderLayout();
                 void persistAppearance();
             },
+            onPresetRevert: () => {
+                previewLayout(getActivePresetSavedLayout());
+                renderLayout();
+            },
         });
     };
 
@@ -1278,7 +1365,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         next.splice(to, 0, picked);
         draft = next.map((item, index) => ({ ...item, order: index }));
         selectedIndex = to;
-        render();
+        renderList(true);
         void persistCalloutsOnly();
     };
 
@@ -1294,20 +1381,49 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         draggingKey = getItemKey(picked);
         dragChanged = true;
         selectedIndex = Math.max(0, draft.findIndex((item) => getItemKey(item) === selectedKey));
-        render();
+        renderList(true);
         animateListFrom(previousRects);
     };
 
     const finishDrag = () => {
+        stopDragAutoScroll();
         if (dragChanged) void persistCalloutsOnly();
         draggingIndex = -1;
         draggingKey = "";
         dragChanged = false;
-        render();
+        renderList(true);
+    };
+
+    const captureListScrollTop = () => {
+        const existingListBody = detail.querySelector(".callout-enhance-list-body") as HTMLElement | null;
+        if (existingListBody) {
+            calloutListScrollTop = existingListBody.scrollTop;
+        }
+    };
+
+    const getListBodyMaxScrollTop = (listBody: HTMLElement) => (
+        Math.max(0, listBody.scrollHeight - listBody.clientHeight)
+    );
+
+    const applyListScrollAfterRender = (listBody: HTMLElement, savedListScrollTop: number) => {
+        const targetScrollTop = scrollListToBottomOnRender
+            ? getListBodyMaxScrollTop(listBody)
+            : savedListScrollTop;
+        scrollListToBottomOnRender = false;
+        listBody.scrollTop = targetScrollTop;
+        calloutListScrollTop = targetScrollTop;
+        listBody.onscroll = () => {
+            calloutListScrollTop = listBody.scrollTop;
+        };
+        requestAnimationFrame(() => {
+            listBody.scrollTop = targetScrollTop;
+            calloutListScrollTop = targetScrollTop;
+        });
     };
 
     const renderList = (itemsOnly = false) => {
         if (!itemsOnly) {
+            captureListScrollTop();
             detail.innerHTML = "";
 
             const topBar = document.createElement("div");
@@ -1340,7 +1456,8 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                 render();
                 openEditDialog(draft[selectedIndex], (next) => {
                     draft[selectedIndex] = { ...next, order: selectedIndex };
-                    render();
+                    scrollListToBottomOnRender = true;
+                    renderList(true);
                     void persistCalloutsOnly();
                 }, {
                     isNew: true,
@@ -1359,12 +1476,20 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
             const listBody = document.createElement("div");
             listBody.className = "callout-enhance-list-body";
+            listBody.addEventListener("dragover", (e) => {
+                if (draggingIndex < 0) return;
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                updateDragAutoScroll(e.clientY);
+            });
             detail.appendChild(listBody);
         }
 
         const listBody = detail.querySelector(".callout-enhance-list-body") as HTMLElement | null;
         if (!listBody) return;
 
+        const savedListScrollTop = itemsOnly ? listBody.scrollTop : calloutListScrollTop;
+        calloutListScrollTop = savedListScrollTop;
         listBody.innerHTML = "";
 
         const filteredEntries = getFilteredDraftEntries();
@@ -1411,10 +1536,11 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             const editBtn = createIconButton("Edit", ICON_EDIT, "callout-enhance-icon-button--edit");
             editBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
+                captureListScrollTop();
                 openEditDialog(draft[index], (next) => {
                     draft[index] = { ...next, order: index };
                     selectedIndex = index;
-                    render();
+                    renderList(true);
                     void persistCalloutsOnly();
                 }, { existingCallouts: draft });
             });
@@ -1470,6 +1596,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                 e.preventDefault();
                 if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
                 if (draggingIndex < 0) return;
+                updateDragAutoScroll(e.clientY);
                 const rect = row.getBoundingClientRect();
                 const afterMiddle = e.clientY > rect.top + rect.height / 2;
                 let targetIndex = draggingIndex;
@@ -1508,6 +1635,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             empty.textContent = "No matching callout types.";
             listBody.appendChild(empty);
         }
+        applyListScrollAfterRender(listBody, savedListScrollTop);
     };
 
     const renderDetail = () => {
@@ -1629,9 +1757,14 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
         const editBtn = createIconButton("Open editor", ICON_EDIT, "callout-enhance-icon-button--edit");
         editBtn.addEventListener("click", () => {
+            captureListScrollTop();
             openEditDialog(item, (next) => {
                 draft[selectedIndex] = { ...next, order: selectedIndex };
-                render();
+                if (mode === "list") {
+                    renderList(true);
+                } else {
+                    render();
+                }
                 void persistCalloutsOnly();
             }, { existingCallouts: draft });
         });
@@ -1654,6 +1787,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     const render = () => {
         renderNav();
         detail.classList.toggle("callout-enhance-detail--layout", mode === "layout");
+        detail.classList.toggle("callout-enhance-detail--list", mode === "list");
         if (mode === "layout") renderLayout();
         else if (mode === "list") renderList();
         else if (mode === "about") renderAbout();
@@ -1663,7 +1797,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     render();
 
     const footer = document.createElement("div");
-    footer.className = "b3-dialog__action";
+    footer.className = "b3-dialog__action callout-enhance-dialog-footer";
 
     const cancel = createIconButton("Cancel", "Cancel");
     cancel.className = "b3-button b3-button--cancel";
@@ -1691,7 +1825,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         }
     });
 
-    footer.append(cancel, save);
+    footer.append(save, cancel);
     dialog.element.appendChild(footer);
     return dialog;
 }

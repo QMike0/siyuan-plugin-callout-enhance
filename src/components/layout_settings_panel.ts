@@ -1,4 +1,4 @@
-import { confirm, Dialog, showMessage } from "siyuan";
+import { Dialog, showMessage } from "siyuan";
 import {
     areCalloutLayoutsEqual,
     CALLOUT_LAYOUT_FIELD_GROUPS,
@@ -10,7 +10,7 @@ import {
     layoutFieldToInputValue,
     normalizeCalloutLayout,
 } from "../utils/callout_layout_vars";
-import { createPreviewHelpIcon } from "./settings_ui";
+import { createPreviewHelpIcon, openConfirmDialog } from "./settings_ui";
 import { CalloutTypeItem } from "../utils/callout_types";
 import { CalloutAppearancePreset, isDefaultAppearancePreset } from "../utils/settings";
 
@@ -26,6 +26,9 @@ export type LayoutSettingsPanelOptions = {
     onPresetSave: (name: string) => void;
     onPresetUpdate: (presetId: string, name: string) => void;
     onPresetDelete: (presetId: string) => void;
+    onPresetRevert: () => void;
+    fieldsScrollTop?: number;
+    onFieldsScroll?: (scrollTop: number) => void;
 };
 
 type AppearancePresetNameDialogOptions = {
@@ -44,6 +47,16 @@ function createPresetIconButton(label: string, symbol: string, extraClass = "") 
     btn.title = label;
     btn.setAttribute("aria-label", label);
     btn.innerHTML = `<svg class="b3-menu__icon" style="width:14px;height:14px;margin:0;"><use href="#${symbol}"></use></svg>`;
+    return btn;
+}
+
+function createPresetSvgIconButton(label: string, path: string, extraClass = "") {
+    const btn = document.createElement("button");
+    btn.className = `b3-button callout-enhance-icon-button ${extraClass}`.trim();
+    btn.type = "button";
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+    btn.innerHTML = `<svg class="b3-menu__icon" style="width:14px;height:14px;margin:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
     return btn;
 }
 
@@ -78,7 +91,7 @@ function openAppearancePresetNameDialog(options: AppearancePresetNameDialogOptio
     input.value = initialName;
 
     const footer = document.createElement("div");
-    footer.className = "b3-dialog__action";
+    footer.className = "b3-dialog__action callout-enhance-dialog-footer";
     footer.style.marginTop = "16px";
 
     const cancel = document.createElement("button");
@@ -102,7 +115,7 @@ function openAppearancePresetNameDialog(options: AppearancePresetNameDialogOptio
         dialog.destroy();
     });
 
-    footer.append(cancel, confirmBtn);
+    footer.append(confirmBtn, cancel);
     body.append(input, footer);
     input.focus();
     input.select();
@@ -280,10 +293,11 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     const presetActions = document.createElement("div");
     presetActions.className = "callout-enhance-layout-settings__preset-actions";
 
-    const savePresetBtn = document.createElement("button");
-    savePresetBtn.type = "button";
-    savePresetBtn.className = "b3-button b3-button--outline callout-enhance-layout-settings__preset-action-btn";
-    savePresetBtn.textContent = "Save";
+    const savePresetBtn = createPresetSvgIconButton(
+        "Save as new preset",
+        `<path d="M12 5v14"></path><path d="M5 12h14"></path>`,
+        "callout-enhance-layout-settings__preset-save",
+    );
     savePresetBtn.addEventListener("click", () => {
         openAppearancePresetSaveDialog(
             presets
@@ -311,14 +325,26 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     deletePresetBtn.addEventListener("click", () => {
         const preset = presets.find((item) => item.id === activePresetId);
         if (!preset || isDefaultAppearancePreset(preset.id) || deletePresetBtn.disabled) return;
-        confirm(
-            "Delete appearance configuration",
-            `Delete "${preset.name}"? This action cannot be undone.`,
-            () => onPresetDelete(preset.id),
-        );
+        openConfirmDialog({
+            title: "Delete appearance configuration",
+            message: `Delete "${preset.name}"? This action cannot be undone.`,
+            confirmLabel: "Delete",
+            width: window.innerWidth < 768 ? "88vw" : "360px",
+            onConfirm: () => onPresetDelete(preset.id),
+        });
     });
 
-    presetActions.append(savePresetBtn, updatePresetBtn, deletePresetBtn);
+    const revertPresetBtn = createPresetIconButton(
+        "Revert to saved preset",
+        "iconUndo",
+        "callout-enhance-layout-settings__preset-revert",
+    );
+    revertPresetBtn.addEventListener("click", () => {
+        if (revertPresetBtn.disabled) return;
+        options.onPresetRevert();
+    });
+
+    presetActions.append(updatePresetBtn, savePresetBtn, revertPresetBtn, deletePresetBtn);
 
     const refreshPresetActionStates = () => {
         const isDefault = isDefaultAppearancePreset(activePresetId);
@@ -327,7 +353,8 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
             ? true
             : areCalloutLayoutsEqual(layout, activePreset.layout);
 
-        setPresetActionDisabled(updatePresetBtn, isDefault || layoutMatchesPreset);
+        setPresetActionDisabled(updatePresetBtn, isDefault);
+        setPresetActionDisabled(revertPresetBtn, layoutMatchesPreset);
         setPresetActionDisabled(deletePresetBtn, isDefault);
     };
 
@@ -368,6 +395,10 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
 
     const fieldsScroll = document.createElement("div");
     fieldsScroll.className = "callout-enhance-layout-settings__fields-scroll";
+    fieldsScroll.scrollTop = options.fieldsScrollTop || 0;
+    fieldsScroll.addEventListener("scroll", () => {
+        options.onFieldsScroll?.(fieldsScroll.scrollTop);
+    });
 
     const fieldsHost = document.createElement("div");
     fieldsHost.className = "callout-enhance-layout-settings__fields";
@@ -432,4 +463,7 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     fieldsScroll.appendChild(fieldsHost);
     wrapper.append(sticky, fieldsScroll);
     host.appendChild(wrapper);
+    requestAnimationFrame(() => {
+        fieldsScroll.scrollTop = options.fieldsScrollTop || 0;
+    });
 }

@@ -41,7 +41,9 @@ export const DEFAULT_CALLOUT_LAYOUT: CalloutLayoutSettings = {
     "--callout-body-padding-x": "10px",
     "--callout-body-padding-bottom": "12px",
     "--callout-body-gap-top": "4px",
+    "--callout-body-background": "var(--callout-surface-background)",
     "--callout-border-radius": "6px",
+    "--callout-border-width": "0px",
     "--callout-fold-hit-width": "40px",
     "--callout-fold-icon-size": "1.25em",
     "--callout-fold-icon-right": "0.5em",
@@ -75,6 +77,7 @@ export const CALLOUT_LAYOUT_FIELDS: CalloutLayoutFieldDef[] = [
     { varName: "--callout-shell-padding-bottom", label: "Padding bottom", group: "Shell", kind: "length", defaultValue: "4px", unit: "px", step: 1, min: 0, max: 48 },
     { varName: "--callout-shell-padding-left", label: "Padding left", group: "Shell", kind: "length", defaultValue: "12px", unit: "px", step: 1, min: 0, max: 48 },
     { varName: "--callout-border-radius", label: "Border radius", group: "Shell", kind: "length", defaultValue: "6px", unit: "px", step: 1, min: 0, max: 24 },
+    { varName: "--callout-border-width", label: "Outer border width", group: "Shell", kind: "length", defaultValue: "0px", unit: "px", step: 1, min: 0, max: 8 },
 
     { varName: "--callout-title-font-size", label: "Font size", group: "Title", kind: "length", defaultValue: "12pt", unit: "pt", step: 0.5, min: 6, max: 36 },
     { varName: "--callout-title-font-weight", label: "Font weight", group: "Title", kind: "select", defaultValue: "bold", options: [
@@ -85,7 +88,7 @@ export const CALLOUT_LAYOUT_FIELDS: CalloutLayoutFieldDef[] = [
         { value: "700", label: "700" },
     ] },
     { varName: "--callout-title-line-height", label: "Line height", group: "Title", kind: "text", defaultValue: "1.2" },
-    { varName: "--callout-title-opacity", label: "Opacity", group: "Title", kind: "opacity", defaultValue: "1", step: 0.05, min: 0, max: 1 },
+    { varName: "--callout-title-opacity", label: "Font opacity", group: "Title", kind: "opacity", defaultValue: "1", step: 0.05, min: 0, max: 1 },
     { varName: "--callout-title-padding-right", label: "Padding right", group: "Title", kind: "length", defaultValue: "28px", unit: "px", step: 1, min: 0, max: 64 },
     { varName: "--callout-header-height", label: "Header height", group: "Title", kind: "length", defaultValue: "28px", unit: "px", step: 1, min: 16, max: 64 },
     { varName: "--callout-header-y-adjust", label: "Vertical adjust", group: "Title", kind: "length", defaultValue: "-4px", unit: "px", step: 1, min: -16, max: 16 },
@@ -103,6 +106,10 @@ export const CALLOUT_LAYOUT_FIELDS: CalloutLayoutFieldDef[] = [
     { varName: "--callout-body-padding-x", label: "Padding horizontal", group: "Body", kind: "length", defaultValue: "10px", unit: "px", step: 1, min: 0, max: 48 },
     { varName: "--callout-body-padding-bottom", label: "Padding bottom", group: "Body", kind: "length", defaultValue: "12px", unit: "px", step: 1, min: 0, max: 48 },
     { varName: "--callout-body-gap-top", label: "Gap below title", group: "Body", kind: "length", defaultValue: "4px", unit: "px", step: 1, min: 0, max: 32 },
+    { varName: "--callout-body-background", label: "Background", group: "Body", kind: "select", defaultValue: "var(--callout-surface-background)", options: [
+        { value: "var(--callout-surface-background)", label: "Tinted" },
+        { value: "transparent", label: "Transparent" },
+    ] },
 
     { varName: "--callout-fold-after-display", label: "Show fold control", group: "Fold", kind: "select", defaultValue: "block", options: [
         { value: "block", label: "Show" },

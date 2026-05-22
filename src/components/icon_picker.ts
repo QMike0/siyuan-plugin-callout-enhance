@@ -192,6 +192,12 @@ export function openIconPicker(opts: IconPickerOptions) {
                 selectedId = entry.id;
                 renderGrid();
             });
+
+            cell.addEventListener("dblclick", (e) => {
+                e.stopPropagation();
+                selectedId = entry.id;
+                confirmAndClose();
+            });
         });
     }
 

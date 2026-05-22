@@ -8,6 +8,7 @@
 import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
 import { CalloutTypeItem, getCalloutPreviewTitle, renderCalloutIconSpan } from "../utils/callout_types";
+import { focusMenuListItem } from "../utils/menu_scroll";
 import { debugLog } from "../utils/logger";
 
 export type TypeMenuPluginLike = PluginWithGetEditor & {
@@ -77,10 +78,11 @@ function focusCalloutTypeMenuItem(plugin: TypeMenuPluginLike, index: number) {
     if (!plugin.calloutTypeMenuElement || calloutTypes.length === 0) return;
     const normalizedIndex = (index + calloutTypes.length) % calloutTypes.length;
     plugin.calloutTypeMenuIndex = normalizedIndex;
-    renderCalloutTypeMenu(plugin);
-    const activeButton = plugin.calloutTypeMenuElement.querySelector(".b3-list-item--focus") as HTMLButtonElement | null;
-    activeButton?.focus();
-    activeButton?.scrollIntoView({ block: "nearest" });
+    const items = plugin.calloutTypeMenuElement.querySelectorAll(".b3-list-item");
+    if (items.length !== calloutTypes.length) {
+        renderCalloutTypeMenu(plugin);
+    }
+    focusMenuListItem(plugin.calloutTypeMenuElement, normalizedIndex);
 }
 
 export function showCalloutTypeMenu(plugin: TypeMenuPluginLike, block: HTMLElement, x: number, y: number) {
