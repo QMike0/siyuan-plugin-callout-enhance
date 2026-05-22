@@ -8,7 +8,7 @@
 import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
 import { CalloutTypeItem, getCalloutPreviewTitle, renderCalloutIconSpan } from "../utils/callout_types";
-import { focusMenuListItem } from "../utils/menu_scroll";
+import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { debugLog } from "../utils/logger";
 
 export type TypeMenuPluginLike = PluginWithGetEditor & {
@@ -22,9 +22,8 @@ export type TypeMenuPluginLike = PluginWithGetEditor & {
 export function ensureCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (plugin.calloutTypeMenuElement) return;
     plugin.calloutTypeMenuElement = document.createElement("div");
-    plugin.calloutTypeMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none";
+    plugin.calloutTypeMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none callout-enhance-callout-menu";
     plugin.calloutTypeMenuElement.tabIndex = -1;
-    plugin.calloutTypeMenuElement.style.cssText = "position:fixed; z-index:9999; min-width:160px; max-height:320px; overflow-y:auto; padding:6px; box-shadow: var(--b3-dialog-shadow);";
     document.body.appendChild(plugin.calloutTypeMenuElement);
 }
 
@@ -92,6 +91,7 @@ export function showCalloutTypeMenu(plugin: TypeMenuPluginLike, block: HTMLEleme
     plugin.calloutTypeMenuIndex = 0;
     renderCalloutTypeMenu(plugin);
     plugin.calloutTypeMenuElement.classList.remove("fn__none");
+    resetMenuScroll(plugin.calloutTypeMenuElement);
     setTimeout(() => {
         if (!plugin.calloutTypeMenuElement) return;
         const menuWidth = plugin.calloutTypeMenuElement.offsetWidth || 200;

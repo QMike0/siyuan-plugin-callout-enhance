@@ -21,6 +21,10 @@
     --callout-enhance-setting-row-margin-bottom: 8px;
     --callout-enhance-setting-action-gap: 2px;
     --callout-enhance-setting-edit-delete-gap: 0px;
+    --callout-enhance-menu-max-visible-items: 8;
+    /* SiYuan .b3-list-item: 28px min-height + 1px margin top/bottom */
+    --callout-enhance-menu-item-slot-height: 30px;
+    --callout-enhance-menu-padding-block: 12px;
 }
 
 .callout[data-type="NodeCallout"] {
@@ -832,6 +836,19 @@
     width: var(--callout-enhance-menu-icon-size);
     min-width: var(--callout-enhance-menu-icon-size);
     height: var(--callout-enhance-menu-icon-size);
+}
+
+.callout-enhance-callout-menu {
+    position: fixed;
+    z-index: 9999;
+    min-width: 160px;
+    max-height: calc(
+        var(--callout-enhance-menu-item-slot-height) * var(--callout-enhance-menu-max-visible-items)
+        /*+ var(--callout-enhance-menu-padding-block)*/
+    );
+    overflow-y: auto;
+    padding: 6px;
+    box-shadow: var(--b3-dialog-shadow);
 }
 
 .callout-enhance-setting-icon {

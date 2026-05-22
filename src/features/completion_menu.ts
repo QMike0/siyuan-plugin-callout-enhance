@@ -8,7 +8,7 @@ import { showMessage } from "siyuan";
 import { getBlockquoteElement } from "../utils/dom";
 import { PluginWithGetEditor } from "../core/api";
 import { CalloutTypeItem, calloutMatchesFilter, getCalloutPreviewTitle, renderCalloutIconSpan } from "../utils/callout_types";
-import { focusMenuListItem } from "../utils/menu_scroll";
+import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { errorLog } from "../utils/logger";
 
 interface CompletionTypeProvider {
@@ -118,8 +118,7 @@ function applyCompletionTransform(selectedType: string): boolean {
 export function ensureCompletionMenu(plugin: CompletionMenuPluginLike) {
     if (plugin.completionMenuElement) return;
     plugin.completionMenuElement = document.createElement("div");
-    plugin.completionMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none";
-    plugin.completionMenuElement.style.cssText = "position:fixed; z-index:9999; min-width:160px; max-height:320px; overflow-y:auto; padding:6px; box-shadow: var(--b3-dialog-shadow);";
+    plugin.completionMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none callout-enhance-callout-menu";
     document.body.appendChild(plugin.completionMenuElement);
 }
 
@@ -134,7 +133,7 @@ export function hideCompletionMenu(plugin: CompletionMenuPluginLike) {
     }
 }
 
-function renderCompletionMenu(plugin: CompletionMenuPluginLike) {
+function renderCompletionMenu(plugin: CompletionMenuPluginLike, resetScroll = false) {
     if (!plugin.completionMenuElement) return;
     plugin.completionMenuElement.innerHTML = "";
     plugin.completionFiltered.forEach((item, i) => {
@@ -170,6 +169,7 @@ function renderCompletionMenu(plugin: CompletionMenuPluginLike) {
     });
     plugin.completionMenuElement.classList.remove("fn__none");
     if (plugin.completionIndex === -1) plugin.completionIndex = 0;
+    if (resetScroll) resetMenuScroll(plugin.completionMenuElement);
     focusCompletionMenuItem(plugin, plugin.completionIndex);
 }
 
@@ -211,7 +211,7 @@ export function showCompletionMenu(plugin: CompletionMenuPluginLike, filterText:
     }
     plugin.completionVisible = true;
     plugin.completionIndex = 0;
-    renderCompletionMenu(plugin);
+    renderCompletionMenu(plugin, true);
     updateCompletionMenuPosition(plugin, rect);
 }
 
