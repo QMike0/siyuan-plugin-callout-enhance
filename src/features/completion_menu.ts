@@ -129,6 +129,7 @@ export function hideCompletionMenu(plugin: CompletionMenuPluginLike) {
     plugin.completionSession.quote = null;
     plugin.completionSession.start = -1;
     if (plugin.completionMenuElement) {
+        plugin.completionMenuElement.style.visibility = "";
         plugin.completionMenuElement.classList.add("fn__none");
     }
 }
@@ -167,10 +168,8 @@ function renderCompletionMenu(plugin: CompletionMenuPluginLike, resetScroll = fa
         };
         plugin.completionMenuElement!.appendChild(btn);
     });
-    plugin.completionMenuElement.classList.remove("fn__none");
     if (plugin.completionIndex === -1) plugin.completionIndex = 0;
     if (resetScroll) resetMenuScroll(plugin.completionMenuElement);
-    focusCompletionMenuItem(plugin, plugin.completionIndex);
 }
 
 function focusCompletionMenuItem(plugin: CompletionMenuPluginLike, index: number) {
@@ -180,7 +179,6 @@ function focusCompletionMenuItem(plugin: CompletionMenuPluginLike, index: number
     const items = plugin.completionMenuElement.querySelectorAll(".b3-list-item");
     if (items.length !== plugin.completionFiltered.length) {
         renderCompletionMenu(plugin);
-        return;
     }
     focusMenuListItem(plugin.completionMenuElement, normalizedIndex);
 }
@@ -212,7 +210,11 @@ export function showCompletionMenu(plugin: CompletionMenuPluginLike, filterText:
     plugin.completionVisible = true;
     plugin.completionIndex = 0;
     renderCompletionMenu(plugin, true);
+    plugin.completionMenuElement.style.visibility = "hidden";
+    plugin.completionMenuElement.classList.remove("fn__none");
     updateCompletionMenuPosition(plugin, rect);
+    focusCompletionMenuItem(plugin, plugin.completionIndex);
+    plugin.completionMenuElement.style.visibility = "";
 }
 
 export function applyCompletion(plugin: CompletionMenuPluginLike, index = plugin.completionIndex) {

@@ -29,6 +29,7 @@ export function ensureCalloutTypeMenu(plugin: TypeMenuPluginLike) {
 
 export function hideCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (plugin.calloutTypeMenuElement) {
+        plugin.calloutTypeMenuElement.style.visibility = "";
         plugin.calloutTypeMenuElement.classList.add("fn__none");
     }
     plugin.calloutTypeMenuActiveBlock = null;
@@ -84,33 +85,36 @@ function focusCalloutTypeMenuItem(plugin: TypeMenuPluginLike, index: number) {
     focusMenuListItem(plugin.calloutTypeMenuElement, normalizedIndex);
 }
 
+function positionCalloutTypeMenu(menu: HTMLElement, x: number, y: number) {
+    const menuWidth = menu.offsetWidth || 200;
+    const menuHeight = menu.offsetHeight || 300;
+    const padding = 8;
+    let top = y;
+    let left = x;
+    if (top + menuHeight + padding > window.innerHeight) {
+        top = Math.max(padding, window.innerHeight - menuHeight - padding);
+    }
+    if (top < padding) top = padding;
+    if (left + menuWidth + padding > window.innerWidth) {
+        left = Math.max(padding, window.innerWidth - menuWidth - padding);
+    }
+    if (left < padding) left = padding;
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+}
+
 export function showCalloutTypeMenu(plugin: TypeMenuPluginLike, block: HTMLElement, x: number, y: number) {
     ensureCalloutTypeMenu(plugin);
     if (!plugin.calloutTypeMenuElement) return;
     plugin.calloutTypeMenuActiveBlock = block;
     plugin.calloutTypeMenuIndex = 0;
     renderCalloutTypeMenu(plugin);
+    plugin.calloutTypeMenuElement.style.visibility = "hidden";
     plugin.calloutTypeMenuElement.classList.remove("fn__none");
     resetMenuScroll(plugin.calloutTypeMenuElement);
-    setTimeout(() => {
-        if (!plugin.calloutTypeMenuElement) return;
-        const menuWidth = plugin.calloutTypeMenuElement.offsetWidth || 200;
-        const menuHeight = plugin.calloutTypeMenuElement.offsetHeight || 300;
-        const padding = 8;
-        let top = y;
-        let left = x;
-        if (top + menuHeight + padding > window.innerHeight) {
-            top = Math.max(padding, window.innerHeight - menuHeight - padding);
-        }
-        if (top < padding) top = padding;
-        if (left + menuWidth + padding > window.innerWidth) {
-            left = Math.max(padding, window.innerWidth - menuWidth - padding);
-        }
-        if (left < padding) left = padding;
-        plugin.calloutTypeMenuElement.style.top = `${top}px`;
-        plugin.calloutTypeMenuElement.style.left = `${left}px`;
-        focusCalloutTypeMenuItem(plugin, 0);
-    }, 0);
+    positionCalloutTypeMenu(plugin.calloutTypeMenuElement, x, y);
+    focusCalloutTypeMenuItem(plugin, 0);
+    plugin.calloutTypeMenuElement.style.visibility = "";
 }
 
 export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: string) {
