@@ -9,7 +9,7 @@ import { setFoldState } from "./features/callout_fold";
 import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
 import { CalloutTypeItem, resolveCalloutIconMask } from "./utils/callout_types";
-import { CalloutEnhanceSettings, createDefaultCalloutSettings, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings } from "./utils/settings";
+import { CalloutEnhanceSettings, createDefaultCalloutSettings, getAllResolvedCalloutTypes, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings } from "./utils/settings";
 import { buildCalloutLayoutStylesheet, CalloutLayoutSettings, normalizeCalloutLayout } from "./utils/callout_layout_vars";
 import { handleCalloutTypeKeydown, hideCalloutTypeMenu, showCalloutTypeMenu } from "./features/type_menu";
 import { debugLog, errorLog, setDebugEnabled, warnLog } from "./utils/logger";
@@ -153,7 +153,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         const layoutCss = buildCalloutLayoutStylesheet(this.getEffectiveCalloutLayout());
         if (layoutCss) rules.push(layoutCss);
 
-        this.resolvedCalloutTypes.forEach((item) => {
+        getAllResolvedCalloutTypes(this.settings).forEach((item) => {
             const subtype = (item.label || item.id || "").trim();
             if (!subtype) return;
 

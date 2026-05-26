@@ -38,7 +38,6 @@ const TAB_LABELS: Record<GroupTab, string> = {
     host: "SiYuan",
 };
 
-const CELL_SIZE_PX = 36;
 const ICON_SIZE_PX = 20;
 const POPOVER_WIDTH_PX = 360;
 const POPOVER_MAX_HEIGHT_PX = 420;
@@ -177,7 +176,7 @@ export function openIconPicker(opts: IconPickerOptions) {
             cellsHtml.push(
                 `<button type="button" class="callout-enhance-icon-picker-cell${selectedClass}" data-symbol-id="${entry.id}" data-source="${sourceAttr}" title="${escapeHtml(entry.label)}\n${escapeHtml(entry.id)}" aria-label="${escapeHtml(entry.label)}">` +
                     renderSymbolUseHtml(entry.id, `${ICON_SIZE_PX}px`) +
-                    `</button>`,
+                    "</button>",
             );
         });
         grid.innerHTML = cellsHtml.join("");

@@ -18,14 +18,14 @@ function svgMask(paths: string) {
 }
 
 export const CALLOUT_ICON_MASKS: Record<string, string> = {
-    INFO: svgMask(`<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`),
-    NOTE: svgMask(`<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>`),
-    IMPORTANT: svgMask(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 8v4"/><path d="M12 16h.01"/>`),
-    QUOTE: svgMask(`<path d="M3 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h2c0 2-1 3-3 3"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h2c0 2-1 3-3 3"/>`),
-    TIP: svgMask(`<path d="M15 14c.2-1 .7-1.7 1.5-2.5A4.9 4.9 0 0 0 18 8 6 6 0 0 0 6 8c0 1.3.4 2.5 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>`),
-    WARNING: svgMask(`<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>`),
-    CAUTION: svgMask(`<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>`),
-    QUESTION: svgMask(`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>`),
+    INFO: svgMask("<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4\"/><path d=\"M12 8h.01\"/>"),
+    NOTE: svgMask("<path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z\"/>"),
+    IMPORTANT: svgMask("<path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/><path d=\"M12 8v4\"/><path d=\"M12 16h.01\"/>"),
+    QUOTE: svgMask("<path d=\"M3 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h2c0 2-1 3-3 3\"/><path d=\"M15 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h2c0 2-1 3-3 3\"/>"),
+    TIP: svgMask("<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5A4.9 4.9 0 0 0 18 8 6 6 0 0 0 6 8c0 1.3.4 2.5 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>"),
+    WARNING: svgMask("<path d=\"m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>"),
+    CAUTION: svgMask("<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 8v4\"/><path d=\"M12 16h.01\"/>"),
+    QUESTION: svgMask("<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"/><path d=\"M12 17h.01\"/>"),
 };
 
 export const DEFAULT_CALLOUT_ICON_MASK = CALLOUT_ICON_MASKS.NOTE;
@@ -67,6 +67,13 @@ export function getCalloutPreviewTitle(item: Pick<CalloutTypeItem, "label">) {
     return formatCalloutTitleFromLabel(item.label) || item.label;
 }
 
+/** Built-in SiYuan callout labels that cannot be renamed or deleted in settings. */
+export const PROTECTED_CALLOUT_LABELS = new Set(["NOTE", "IMPORTANT", "TIP", "WARNING", "CAUTION"]);
+
+export function isProtectedCalloutType(item: Pick<CalloutTypeItem, "label">) {
+    return PROTECTED_CALLOUT_LABELS.has((item.label || "").trim().toUpperCase());
+}
+
 export function calloutMatchesFilter(item: Pick<CalloutTypeItem, "label" | "keywords">, filterText: string) {
     const q = filterText.trim().toLowerCase();
     if (!q) return true;
@@ -78,7 +85,7 @@ export function getCalloutIconMask(label: string) {
     return CALLOUT_ICON_MASKS[(label || "").trim().toUpperCase()] || DEFAULT_CALLOUT_ICON_MASK;
 }
 
-export function resolveCalloutIconMask(iconOrLabel: string, fallbackLabel = "") {
+export function resolveCalloutIconMask(iconOrLabel: string, fallbackLabel = ""): string {
     const raw = (iconOrLabel || "").trim();
     if (raw.startsWith(SYMBOL_PREFIX)) {
         const symbolId = raw.slice(SYMBOL_PREFIX.length).trim();

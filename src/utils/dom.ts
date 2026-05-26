@@ -32,7 +32,7 @@ export function closestTitleFromTarget(target: EventTarget | null) {
     if (!target) return null;
     const source = target instanceof Node && target.nodeType === Node.TEXT_NODE ? target.parentElement : target;
     const element = source instanceof Element ? source : null;
-    return element?.closest?.('.callout-title') as HTMLElement | null;
+    return element?.closest?.(".callout-title") as HTMLElement | null;
 }
 
 export function getCalloutFromEventTarget(target: EventTarget | null) {

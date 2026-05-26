@@ -1,6 +1,6 @@
 import { Dialog, showMessage } from "siyuan";
 import { CalloutEnhanceSettings, CalloutAppearancePreset, DEFAULT_APPEARANCE_PRESET_ID, DEFAULT_APPEARANCE_PRESET_NAME, getDefaultAppearancePresetLayout, isDefaultAppearancePreset, makeAppearancePresetId, normalizeCalloutSettings } from "../utils/settings";
-import { CalloutTypeItem, calloutMatchesFilter, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
+import { CalloutTypeItem, calloutMatchesFilter, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, isProtectedCalloutType, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
 import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
 import { openIconPicker } from "./icon_picker";
 import { getCalloutHeaderHitMetrics, setPreviewFoldState } from "../features/callout_fold";
@@ -20,7 +20,7 @@ export type SettingsEditorPluginLike = Plugin & {
 };
 
 type DraftItem = CalloutTypeItem;
-type DetailView = "list" | "edit" | "layout" | "about";
+type DetailView = "list" | "layout" | "about";
 type PreviewIconSource = "editor" | "draft";
 
 type PreviewOptions = {
@@ -35,8 +35,6 @@ type PreviewOptions = {
     bodyText?: string;
     initialFolded?: boolean;
 };
-
-const PROTECTED_CALLOUT_LABELS = new Set(["NOTE", "IMPORTANT", "TIP", "WARNING", "CAUTION"]);
 
 const PREVIEW_STYLE_TOKENS = [...CALLOUT_LAYOUT_CSS_VARS];
 const PREVIEW_BLOCK_STYLE_PROPS = [
@@ -198,8 +196,6 @@ const ICON_ADD = createSvgIcon(`<path d="M12 5v14"></path><path d="M5 12h14"></p
 const ICON_EDIT = createSiyuanSymbolIcon("iconEdit");
 const ICON_DELETE = createSiyuanSymbolIcon("iconTrashcan");
 const ICON_UNDO = createSiyuanSymbolIcon("iconUndo");
-const ICON_BACK = createSvgIcon(`<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>`);
-
 const LABEL_COLOR_VAR: Record<string, string> = {
     info: "--callout-color-info",
     note: "--callout-color-default",
@@ -320,10 +316,6 @@ function createEditResetButton(onClick: () => void) {
         onClick();
     });
     return btn;
-}
-
-function isProtectedCalloutType(item: Pick<CalloutTypeItem, "label">) {
-    return PROTECTED_CALLOUT_LABELS.has((item.label || "").trim().toUpperCase());
 }
 
 function confirmDeleteCalloutType(item: DraftItem, onConfirm: () => void) {
@@ -469,29 +461,6 @@ function updateIconPickerButton(btn: HTMLButtonElement, icon: string, label: str
     ));
 }
 
-function createField(label: string, control: HTMLElement, hint = "") {
-    const wrapper = document.createElement("label");
-    wrapper.className = "fn__flex-column";
-    wrapper.style.gap = "4px";
-
-    const title = document.createElement("div");
-    title.className = "b3-label__text";
-    title.style.fontSize = "12px";
-    title.style.opacity = "0.8";
-    title.textContent = label;
-
-    wrapper.append(title, control);
-    if (hint) {
-        const hintEl = document.createElement("div");
-        hintEl.className = "b3-label__text callout-enhance-field-hint";
-        hintEl.style.fontSize = "11px";
-        hintEl.style.opacity = "0.65";
-        hintEl.textContent = hint;
-        wrapper.insertBefore(hintEl, control);
-    }
-    return wrapper;
-}
-
 function createEditRow(label: string, control: HTMLElement, stretchControl = true, helpTooltip = "") {
     const row = document.createElement("div");
     row.className = "callout-enhance-edit-row";
@@ -550,9 +519,16 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
     settingsPanel.style.gap = "12px";
     settingsPanel.style.padding = "2px 2px 0 2px";
 
+    const labelLocked = !options.isNew && isProtectedCalloutType(item);
     const labelInput = createTextInput(item.label);
     labelInput.placeholder = "Unique tag (e.g. NOTE, TIP)";
-    labelInput.title = "Written to [!LABEL] and data-subtype; controls callout title capitalization in the editor";
+    labelInput.title = labelLocked
+        ? "Built-in callout types cannot be renamed."
+        : "Written to [!LABEL] and data-subtype; controls callout title capitalization in the editor";
+    if (labelLocked) {
+        labelInput.readOnly = true;
+        labelInput.classList.add("callout-enhance-edit-row__input--protected");
+    }
     const labelField = createLabelEditControl(labelInput);
     const keywordsInput = createKeywordsInput(item.keywords);
     const colorField = createColorInput(item.color, item.label);
@@ -637,9 +613,11 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
         );
     };
 
-    labelInput.addEventListener("blur", () => syncLabelToKeywordsIfEmpty(labelInput, keywordsInput));
+    if (!labelLocked) {
+        labelInput.addEventListener("blur", () => syncLabelToKeywordsIfEmpty(labelInput, keywordsInput));
+        labelInput.addEventListener("input", () => labelField.clearError());
+    }
     keywordsInput.addEventListener("blur", () => syncKeywordsToLabelIfEmpty(labelInput, keywordsInput));
-    labelInput.addEventListener("input", () => labelField.clearError());
     [labelInput, keywordsInput, colorInput, iconValueInput].forEach((input) => input.addEventListener("input", updatePreview));
     iconPreview.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -676,29 +654,34 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
     confirm.textContent = "Confirm";
     confirm.style.minWidth = "76px";
     confirm.addEventListener("click", () => {
-        applyCrossFieldFill(labelInput, keywordsInput);
-        if (!labelInput.value.trim()) {
+        const savedLabel = labelLocked ? item.label : labelInput.value;
+        if (!labelLocked) {
+            applyCrossFieldFill(labelInput, keywordsInput);
+        }
+        if (!savedLabel.trim()) {
             labelField.showError("A label is required. Please enter a label before saving.");
-            labelInput.focus();
+            if (!labelLocked) labelInput.focus();
             return;
         }
-        const duplicate = findCalloutWithDuplicateLabel(
-            labelInput.value,
-            item.id,
-            options.existingCallouts ?? [],
-        );
-        if (duplicate) {
-            const entered = normalizeCalloutLabel(labelInput.value);
-            labelField.showError(`Label "${entered}" already exists. Please choose a different name.`);
-            labelInput.focus();
-            labelInput.select();
-            return;
+        if (!labelLocked) {
+            const duplicate = findCalloutWithDuplicateLabel(
+                savedLabel,
+                item.id,
+                options.existingCallouts ?? [],
+            );
+            if (duplicate) {
+                const entered = normalizeCalloutLabel(savedLabel);
+                labelField.showError(`Label "${entered}" already exists. Please choose a different name.`);
+                labelInput.focus();
+                labelInput.select();
+                return;
+            }
         }
         labelField.clearError();
         committed = true;
         onSave({
             ...item,
-            label: labelInput.value,
+            label: savedLabel,
             keywords: readKeywordsInput(keywordsInput),
             icon: iconValueInput.value,
             color: colorInput.value,
@@ -755,11 +738,15 @@ function applyEditorCalloutStyleTokens(preview: HTMLElement, item: DraftItem) {
         const computed = getComputedStyle(probe);
         const normalizeCssToken = (value: string) => value.replace(/\s+/g, " ").trim();
         const probeSurfaceBackground = normalizeCssToken(computed.getPropertyValue("--callout-surface-background"));
+        const probeHeaderBackground = normalizeCssToken(computed.getPropertyValue("--callout-header-background"));
         const probeBodyBackground = normalizeCssToken(computed.getPropertyValue("--callout-body-background"));
         PREVIEW_STYLE_TOKENS.forEach((token) => {
             const value = computed.getPropertyValue(token).trim();
             if (value) preview.style.setProperty(token, value);
         });
+        if (probeSurfaceBackground && probeHeaderBackground === probeSurfaceBackground) {
+            preview.style.setProperty("--callout-header-background", "var(--callout-surface-background)");
+        }
         if (probeSurfaceBackground && probeBodyBackground === probeSurfaceBackground) {
             preview.style.setProperty("--callout-body-background", "var(--callout-surface-background)");
         }
@@ -1348,7 +1335,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             mode = "layout";
             render();
         });
-        createNavItem("Callout Types", "iconCallout", mode === "list" || mode === "edit", () => {
+        createNavItem("Callout Types", "iconCallout", mode === "list", () => {
             mode = "list";
             render();
         });
@@ -1638,141 +1625,6 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         applyListScrollAfterRender(listBody, savedListScrollTop);
     };
 
-    const renderDetail = () => {
-        detail.innerHTML = "";
-        const item = draft[selectedIndex];
-        if (!item) {
-            renderList();
-            return;
-        }
-
-        const header = document.createElement("div");
-        header.className = "fn__flex";
-        header.style.alignItems = "center";
-        header.style.justifyContent = "space-between";
-        header.style.marginBottom = "12px";
-
-        const left = document.createElement("div");
-        left.className = "fn__flex";
-        left.style.alignItems = "center";
-        left.style.gap = "8px";
-        left.innerHTML = `<span style="width:24px;text-align:center;font-size:18px;">${item.icon || "◻"}</span><strong>${getCalloutPreviewTitle(item)}</strong>`;
-
-        const back = createIconButton("Back", ICON_BACK);
-        back.addEventListener("click", () => {
-            mode = "list";
-            render();
-        });
-
-        header.append(left, back);
-
-        const fields = document.createElement("div");
-        fields.className = "fn__flex-column";
-        fields.style.gap = "10px";
-
-        const labelInput = createTextInput(item.label);
-        labelInput.placeholder = "Unique tag (e.g. NOTE, TIP)";
-        const keywordsInput = createKeywordsInput(item.keywords);
-        const colorField = createColorInput(item.color, item.label);
-        const colorInput = colorField.text;
-        const iconInput = createTextInput(item.icon);
-        const iconControl = document.createElement("div");
-        iconControl.className = "fn__flex";
-        iconControl.style.alignItems = "center";
-        iconControl.style.gap = "8px";
-        const iconPreview = createIconPickerButton(item);
-        iconInput.classList.add("fn__none");
-        iconControl.append(iconPreview, iconInput);
-        const enabledInput = createCheckInput(item.enabled);
-
-        const update = () => {
-            draft[selectedIndex] = {
-                ...draft[selectedIndex],
-                label: labelInput.value,
-                keywords: readKeywordsInput(keywordsInput),
-                icon: iconInput.value,
-                color: colorInput.value,
-                enabled: enabledInput.checked,
-                order: selectedIndex,
-            };
-            void persistCalloutsOnly();
-        };
-        const updateIconPreview = () => {
-            updateIconPickerButton(
-                iconPreview,
-                iconInput.value || labelInput.value,
-                labelInput.value,
-                !iconInput.value?.trim(),
-            );
-        };
-
-        [labelInput, keywordsInput, iconInput, colorInput].forEach((el) => el.addEventListener("input", update));
-        [labelInput, iconInput].forEach((el) => el.addEventListener("input", updateIconPreview));
-        enabledInput.addEventListener("change", update);
-        iconPreview.addEventListener("click", (e) => {
-            e.stopPropagation();
-            openIconPicker({
-                anchor: iconPreview,
-                current: iconInput.value,
-                fallbackLabel: labelInput.value,
-                onPick: (value) => {
-                    iconInput.value = value;
-                    iconInput.dispatchEvent(new Event("input", { bubbles: true }));
-                },
-            });
-        });
-
-        fields.append(
-            createField("Label", labelInput, "Unique tag in [!LABEL] and styling"),
-            createField("Keywords", keywordsInput, "Search aliases for completion; comma-separated"),
-            createField("Icon", iconControl),
-            createField("Color", colorField.wrapper),
-            createField("Enabled", enabledInput),
-        );
-        updateIconPreview();
-
-        const actions = document.createElement("div");
-        actions.className = "fn__flex";
-        actions.style.gap = "8px";
-        actions.style.marginTop = "12px";
-
-        const deleteBtn = createIconButton("Delete", ICON_DELETE, "callout-enhance-icon-button--delete");
-        const protectedType = isProtectedCalloutType(item);
-        deleteBtn.disabled = protectedType;
-        if (protectedType) {
-            deleteBtn.classList.add("callout-enhance-icon-button--disabled");
-            deleteBtn.title = "Built-in SiYuan callout types cannot be deleted";
-            deleteBtn.setAttribute("aria-label", "Built-in SiYuan callout types cannot be deleted");
-        }
-        deleteBtn.addEventListener("click", () => {
-            if (protectedType) return;
-            confirmDeleteCalloutType(item, () => {
-                draft = draft.filter((_, i) => i !== selectedIndex).map((x, i) => ({ ...x, order: i }));
-                selectedIndex = Math.max(0, Math.min(selectedIndex, draft.length - 1));
-                mode = "list";
-                render();
-                void persistCalloutsOnly();
-            });
-        });
-
-        const editBtn = createIconButton("Open editor", ICON_EDIT, "callout-enhance-icon-button--edit");
-        editBtn.addEventListener("click", () => {
-            captureListScrollTop();
-            openEditDialog(item, (next) => {
-                draft[selectedIndex] = { ...next, order: selectedIndex };
-                if (mode === "list") {
-                    renderList(true);
-                } else {
-                    render();
-                }
-                void persistCalloutsOnly();
-            }, { existingCallouts: draft });
-        });
-
-        actions.append(editBtn, deleteBtn);
-        detail.append(header, fields, actions);
-    };
-
     const renderAbout = () => {
         detail.innerHTML = "";
         renderAboutSettingsPanel({
@@ -1791,7 +1643,6 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         if (mode === "layout") renderLayout();
         else if (mode === "list") renderList();
         else if (mode === "about") renderAbout();
-        else renderDetail();
     };
 
     render();

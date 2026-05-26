@@ -121,6 +121,10 @@ function animateBlockHeight(block: HTMLElement, height: number, durationMs: numb
     block.style.setProperty("height", `${height}px`, "important");
 }
 
+function forceReflow(block: HTMLElement) {
+    block.getBoundingClientRect();
+}
+
 function waitBlockTransitionEnd(block: HTMLElement, durationMs: number, state: FoldAnimationState, token: number): Promise<boolean> {
     return new Promise((resolve) => {
         if (durationMs <= 0) {
@@ -172,18 +176,18 @@ async function animateBodyHeight(block: HTMLElement, fold: boolean): Promise<boo
     if (fold) {
         const spacing = readChildSpacing(children);
         keepChildrenVisible(children, spacing);
-        block.offsetHeight;
+        forceReflow(block);
 
         block.setAttribute("fold", "1");
         preventFlexShrink(block, children);
         keepChildrenVisible(children, spacing);
         animateBlockHeight(block, getFoldCollapsedTargetHeight(block), durationMs, easing);
     } else {
-        block.offsetHeight;
+        forceReflow(block);
         block.removeAttribute("fold");
         clearChildOverrides(children);
         preventFlexShrink(block, children);
-        block.offsetHeight;
+        forceReflow(block);
         animateBlockHeight(block, block.scrollHeight, durationMs, easing);
     }
 

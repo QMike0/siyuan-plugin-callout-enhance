@@ -7,7 +7,8 @@
  */
 import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
-import { CalloutTypeItem, getCalloutPreviewTitle, renderCalloutIconSpan } from "../utils/callout_types";
+import { CalloutTypeItem } from "../utils/callout_types";
+import { renderCalloutMenuItem } from "../utils/menu_render";
 import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { debugLog } from "../utils/logger";
 
@@ -41,34 +42,14 @@ function renderCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     plugin.calloutTypeMenuElement.innerHTML = "";
     const calloutTypes = plugin.getCalloutTypes?.() ?? [];
     calloutTypes.forEach((item, index) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.tabIndex = -1;
-        btn.className = `b3-list-item b3-list-item--two ${index === plugin.calloutTypeMenuIndex ? "b3-list-item--focus" : ""}`;
-        const first = document.createElement("div");
-        first.className = "b3-list-item__first";
-        first.style.display = "flex";
-        first.style.alignItems = "center";
-        first.style.gap = "4px";
-        const iconEl = renderCalloutIconSpan(item.icon || item.label, "b3-list-item__graphic callout-enhance-menu-icon", item.label, {
-            preferEditorIcon: true,
-            subtype: item.label,
-            size: "var(--callout-enhance-menu-icon-size)",
+        const btn = renderCalloutMenuItem(item, {
+            focused: index === plugin.calloutTypeMenuIndex,
+            activateEvent: "click",
+            onActivate: async () => {
+                plugin.calloutTypeMenuIndex = index;
+                await applyCalloutType(plugin, item.label);
+            },
         });
-        iconEl.style.display = "inline-flex";
-        iconEl.style.alignItems = "center";
-        iconEl.style.justifyContent = "center";
-        const text = document.createElement("span");
-        text.className = "b3-list-item__text";
-        text.style.fontSize = "15px";
-        text.textContent = getCalloutPreviewTitle(item);
-        first.append(iconEl, text);
-        btn.appendChild(first);
-        btn.onclick = async (e) => {
-            e.stopPropagation();
-            plugin.calloutTypeMenuIndex = index;
-            await applyCalloutType(plugin, item.label);
-        };
         plugin.calloutTypeMenuElement!.appendChild(btn);
     });
 }

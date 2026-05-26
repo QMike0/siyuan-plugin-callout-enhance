@@ -68,6 +68,7 @@
     --callout-body-padding-x: 10px;
     --callout-body-padding-bottom: 12px;
     --callout-body-gap-top: 4px;
+    --callout-header-background: var(--callout-surface-background);
     --callout-body-background: var(--callout-surface-background);
 
     /* --- 圆角（思源 native 仅 accent ::before 使用 var(--b3-border-radius)） --- */
@@ -429,8 +430,8 @@
         --callout-header-background-height: calc(var(--callout-shell-padding-top) + var(--callout-header-height) + var(--callout-shell-padding-bottom));
         --callout-composite-background: linear-gradient(
             to bottom,
-            var(--callout-surface-background) 0,
-            var(--callout-surface-background) var(--callout-header-background-height),
+            var(--callout-header-background) 0,
+            var(--callout-header-background) var(--callout-header-background-height),
             var(--callout-body-background) var(--callout-header-background-height),
             var(--callout-body-background) 100%
         );
@@ -957,6 +958,12 @@
 
 .callout-enhance-edit-row__input--error {
     border-color: var(--b3-theme-error-lighter, var(--b3-theme-error));
+}
+
+.callout-enhance-edit-row__input--protected,
+.callout-enhance-edit-row__field .b3-text-field.callout-enhance-edit-row__input--protected {
+    cursor: not-allowed;
+    opacity: 0.72;
 }
 
 .callout-enhance-color-picker {

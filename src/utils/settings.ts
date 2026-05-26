@@ -227,9 +227,14 @@ export function normalizeCalloutSettings(raw?: Partial<CalloutEnhanceSettings> |
     };
 }
 
+/** All configured callout types (including disabled) for rendering existing blocks. */
+export function getAllResolvedCalloutTypes(settings?: Partial<CalloutEnhanceSettings> | null): CalloutTypeItem[] {
+    return normalizeCalloutSettings(settings).callouts;
+}
+
+/** Enabled callout types only — for type menu, completion menu, and new insertions. */
 export function getResolvedCalloutTypes(settings?: Partial<CalloutEnhanceSettings> | null): CalloutTypeItem[] {
-    const normalized = normalizeCalloutSettings(settings);
-    return normalized.callouts.filter((item) => item.enabled);
+    return getAllResolvedCalloutTypes(settings).filter((item) => item.enabled);
 }
 
 export function getDefaultCalloutSettings() {

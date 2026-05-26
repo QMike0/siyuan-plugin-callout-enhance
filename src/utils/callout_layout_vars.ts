@@ -33,6 +33,7 @@ export const DEFAULT_CALLOUT_LAYOUT: CalloutLayoutSettings = {
     "--callout-title-line-height": "1.2",
     "--callout-title-opacity": "1",
     "--callout-title-padding-right": "28px",
+    "--callout-header-background": "var(--callout-surface-background)",
     "--callout-icon-size": "16px",
     "--callout-icon-left": "20px",
     "--callout-icon-title-gap": "2px",
@@ -66,8 +67,8 @@ export const CALLOUT_TITLE_COMPUTED_PROPS = [
 export const CALLOUT_LAYOUT_FIELD_GROUPS = [
     "Shell",
     "Title",
-    "Icon & accent",
     "Body",
+    "Icon & accent",
     "Fold",
 ] as const;
 
@@ -93,6 +94,10 @@ export const CALLOUT_LAYOUT_FIELDS: CalloutLayoutFieldDef[] = [
     { varName: "--callout-header-height", label: "Header height", group: "Title", kind: "length", defaultValue: "28px", unit: "px", step: 1, min: 16, max: 64 },
     { varName: "--callout-header-y-adjust", label: "Vertical adjust", group: "Title", kind: "length", defaultValue: "-4px", unit: "px", step: 1, min: -16, max: 16 },
     { varName: "--callout-header-width-offset", label: "Header offset", group: "Title", kind: "length", defaultValue: "2px", unit: "px", step: 1, min: -16, max: 32 },
+    { varName: "--callout-header-background", label: "Header background", group: "Title", kind: "select", defaultValue: "var(--callout-surface-background)", options: [
+        { value: "var(--callout-surface-background)", label: "Tinted" },
+        { value: "transparent", label: "Transparent" },
+    ] },
 
     { varName: "--callout-icon-size", label: "Icon size", group: "Icon & accent", kind: "length", defaultValue: "16px", unit: "px", step: 1, min: 8, max: 32 },
     { varName: "--callout-icon-left", label: "Icon left", group: "Icon & accent", kind: "length", defaultValue: "20px", unit: "px", step: 1, min: 0, max: 64 },

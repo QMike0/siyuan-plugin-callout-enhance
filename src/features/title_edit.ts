@@ -5,12 +5,11 @@
  * interaction handlers used by `index.ts`.
  */
 import { showMessage, IOperation } from "siyuan";
-import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "../utils/dom";
-import { ensureEmptyBodyPlaceholderForCallout, createEmptyParagraphElement, getCalloutBodyContainer, hasCalloutBody, getCalloutBodyLineCount } from "../utils/callout";
+import { closestTitleFromTarget, focusNewBlockEditableStart, placeCaretAtEnd } from "../utils/dom";
+import { ensureEmptyBodyPlaceholderForCallout, createEmptyParagraphElement, getCalloutBodyContainer } from "../utils/callout";
 import { normalizeCalloutTitleText } from "../utils/text";
 import { createTransaction, getCurrentProtyle, getNewNodeId, getSiyuanLute, getFirstBlockInnerHTMLFromMd, PluginWithGetEditor } from "../core/api";
 import { debugLog, warnLog, errorLog } from "../utils/logger";
-import { setFoldState } from "./callout_fold";
 
 export type TitleEditPluginLike = PluginWithGetEditor & {
     titleEditSnapshots: WeakMap<HTMLElement, string>;

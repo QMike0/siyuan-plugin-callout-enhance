@@ -1,11 +1,11 @@
 /**
  * SiYuan runtime/API adapters.
  *
- * This module centralizes access to editor/protyle/runtime APIs so higher-level
- * feature logic can stay stable when host API details evolve.
+ * Centralizes editor/protyle access so feature modules match the classic
+ * plugin-sample pattern (protyle.getInstance().transaction).
  */
 import { getAllEditor, IOperation } from "siyuan";
-import { debugLog, warnLog } from "../utils/logger";
+import { warnLog } from "../utils/logger";
 
 export type PluginWithGetEditor = object & {
     getEditor?: () => { protyle?: ProtyleLike | null } | null;
@@ -50,7 +50,6 @@ export function getNewNodeId() {
     if (typeof lute?.NewNodeID === "function") {
         return lute.NewNodeID();
     }
-    // Transaction insert requires a valid SiYuan node id. Random fallback ids may be rejected by kernel.
     return "";
 }
 
@@ -74,12 +73,15 @@ export function getEditorInstance(plugin: PluginWithGetEditor): { protyle?: Prot
     }
 }
 
-export function getCurrentProtyle(plugin: PluginWithGetEditor, block?: HTMLElement | null, sourceNode?: Node | null): ProtyleLike | null {
+export function getCurrentProtyle(
+    plugin: PluginWithGetEditor,
+    block?: HTMLElement | null,
+    sourceNode?: Node | null,
+): ProtyleLike | null {
     const source = sourceNode || block || null;
     try {
         const editors = getAllEditor?.() || [];
 
-        // Prefer resolving by the actual event/source node to avoid using a stale or inactive editor instance.
         if (source) {
             for (const item of editors) {
                 const protyle = item?.protyle;
@@ -87,16 +89,10 @@ export function getCurrentProtyle(plugin: PluginWithGetEditor, block?: HTMLEleme
                     return protyle;
                 }
             }
-        }
 
-        // If DOM has nearest protyle container, map it back to the editor list.
-        if (source) {
             const sourceEl = (source.nodeType === Node.TEXT_NODE ? source.parentElement : source as HTMLElement) as HTMLElement | null;
             const closestProtyle = sourceEl?.closest?.(".protyle") as (HTMLElement & { protyle?: ProtyleLike }) | null;
             if (closestProtyle?.protyle?.getInstance) {
-                if (!isSourceInsideProtyle(closestProtyle.protyle, source)) {
-                    warnLog("[WARN] Protyle resolved from closest DOM node, but source is not inside its known elements", describeSourceNode(source));
-                }
                 return closestProtyle.protyle;
             }
             if (closestProtyle) {
@@ -106,11 +102,10 @@ export function getCurrentProtyle(plugin: PluginWithGetEditor, block?: HTMLEleme
                         return protyle;
                     }
                 }
-                debugLog("[API] Closest .protyle DOM found but no matching editor instance", describeSourceNode(source));
             }
         }
-    } catch (err) {
-        warnLog("[WARN] Failed to resolve current protyle from source; falling back to current editor", describeSourceNode(source), err);
+    } catch {
+        // fall through
     }
 
     const editor = getEditorInstance(plugin);
@@ -126,7 +121,12 @@ export function getCurrentProtyle(plugin: PluginWithGetEditor, block?: HTMLEleme
     return null;
 }
 
-export function createTransaction(protyle: ProtyleLike | null | undefined, doOperations: IOperation[], undoOperations?: IOperation[]) {
+/** Classic plugin-sample transaction path via protyle.getInstance().transaction */
+export function createTransaction(
+    protyle: ProtyleLike | null | undefined,
+    doOperations: IOperation[],
+    undoOperations?: IOperation[],
+): boolean {
     const instance = protyle?.getInstance?.();
     if (instance?.transaction) {
         instance.transaction(doOperations, undoOperations);

@@ -77,7 +77,7 @@ function openAppearancePresetNameDialog(options: AppearancePresetNameDialogOptio
     const dialog = new Dialog({
         title,
         width: window.innerWidth < 768 ? "88vw" : "320px",
-        content: `<div class="callout-enhance-preset-save-body"></div>`,
+        content: "<div class=\"callout-enhance-preset-save-body\"></div>",
     });
 
     const body = dialog.element.querySelector(".callout-enhance-preset-save-body") as HTMLElement | null;
@@ -295,7 +295,7 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
 
     const savePresetBtn = createPresetSvgIconButton(
         "Save as new preset",
-        `<path d="M12 5v14"></path><path d="M5 12h14"></path>`,
+        "<path d=\"M12 5v14\"></path><path d=\"M5 12h14\"></path>",
         "callout-enhance-layout-settings__preset-save",
     );
     savePresetBtn.addEventListener("click", () => {

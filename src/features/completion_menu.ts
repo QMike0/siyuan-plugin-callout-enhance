@@ -7,7 +7,8 @@
 import { showMessage } from "siyuan";
 import { getBlockquoteElement } from "../utils/dom";
 import { PluginWithGetEditor } from "../core/api";
-import { CalloutTypeItem, calloutMatchesFilter, getCalloutPreviewTitle, renderCalloutIconSpan } from "../utils/callout_types";
+import { CalloutTypeItem, calloutMatchesFilter } from "../utils/callout_types";
+import { renderCalloutMenuItem } from "../utils/menu_render";
 import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { errorLog } from "../utils/logger";
 
@@ -138,34 +139,13 @@ function renderCompletionMenu(plugin: CompletionMenuPluginLike, resetScroll = fa
     if (!plugin.completionMenuElement) return;
     plugin.completionMenuElement.innerHTML = "";
     plugin.completionFiltered.forEach((item, i) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.tabIndex = -1;
-        btn.className = `b3-list-item b3-list-item--two ${i === plugin.completionIndex ? "b3-list-item--focus" : ""}`;
-        const first = document.createElement("div");
-        first.className = "b3-list-item__first";
-        first.style.display = "flex";
-        first.style.alignItems = "center";
-        first.style.gap = "4px";
-        const iconEl = renderCalloutIconSpan(item.icon || item.label, "b3-list-item__graphic callout-enhance-menu-icon", item.label, {
-            preferEditorIcon: true,
-            subtype: item.label,
-            size: "var(--callout-enhance-menu-icon-size)",
+        const btn = renderCalloutMenuItem(item, {
+            focused: i === plugin.completionIndex,
+            activateEvent: "mousedown",
+            onActivate: () => {
+                applyCompletion(plugin, i);
+            },
         });
-        iconEl.style.display = "inline-flex";
-        iconEl.style.alignItems = "center";
-        iconEl.style.justifyContent = "center";
-        const text = document.createElement("span");
-        text.className = "b3-list-item__text";
-        text.style.fontSize = "15px";
-        text.textContent = getCalloutPreviewTitle(item);
-        first.append(iconEl, text);
-        btn.appendChild(first);
-        btn.onmousedown = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            applyCompletion(plugin, i);
-        };
         plugin.completionMenuElement!.appendChild(btn);
     });
     if (plugin.completionIndex === -1) plugin.completionIndex = 0;

@@ -7,7 +7,8 @@
 export function normalizeCalloutTitleText(text: string) {
     return (text || "")
         .replace(/\u00A0/g, " ")
-        .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+        .replace(/[\u200B\u200C\uFEFF]/g, "")
+        .replace(/\u200D/g, "")
         .replace(/\s+/g, " ")
         .trim();
 }

@@ -48,7 +48,7 @@ export function openConfirmDialog(options: ConfirmDialogOptions) {
     const dialog = new Dialog({
         title,
         width,
-        content: `<div class="callout-enhance-confirm-body"></div>`,
+        content: "<div class=\"callout-enhance-confirm-body\"></div>",
     });
 
     const body = dialog.element.querySelector(".callout-enhance-confirm-body") as HTMLElement | null;
