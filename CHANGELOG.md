@@ -1,3 +1,20 @@
+## v0.2.2 2026-05-28
+
+- 🇨🇳 简化折叠/展开的debug日志
+- 🇨🇳 导出的图片/PDF/HTML中隐藏折叠/展开按钮
+- 🇨🇳 增加测试清单TESTITME.md
+- 🇨🇳 参考Obsidian callout配色进行修改
+- 🇨🇳 增加插件设置；实现对整体外观自定义、callout类型条目的增加、删除、禁用、排序和样式编辑的设置
+- 🇨🇳 补全菜单&类型菜单支持数字/中文搜索；优化补全菜单&类型菜单的初次显示与滚动体验
+- 🇨🇳 优化细节
+- 🇺🇸 Simplify the debug logs for collapsing/expanding
+- 🇺🇸 Hide collapse/expand buttons in exported images/PDF/HTML
+- 🇺🇸 Add test checklist TESTITME.md
+- 🇺🇸 Modify by referencing Obsidian callout color scheme
+- 🇺🇸 Add plugin settings; implement customization of overall appearance, and settings for adding, deleting, disabling, sorting, and style editing of callout type entries
+- 🇺🇸 Support numeric/Chinese search in completion menu & type menu; optimize the initial display and scrolling experience of the completion menu & type menu
+- 🇺🇸 Optimize details
+
 ## v0.2.1 2026-05-17
 
 - 🇨🇳 修复callout标题区域能通过快捷键等方式唤出工具栏的问题
