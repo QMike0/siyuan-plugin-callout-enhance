@@ -7,7 +7,7 @@ export const LABEL_HELP_TOOLTIP = "Unique type ID written to [!LABEL] and used f
 
 export const KEYWORDS_HELP_TOOLTIP = "Aliases for search and completion only; not written to the document. Separate multiple entries with commas or semicolons.";
 
-export const HISTORICAL_LABEL_HELP_TOOLTIP = "Past labels kept after a rename. Used for styling and settings search only; not used for completion or written to new blocks.";
+export const PAST_LABEL_HELP_TOOLTIP = "Past labels kept after a rename. Used for styling and settings search only; not used for completion or written to new blocks.";
 
 export function formatTombstoneReclaimConfirmMessage(options: {
     reclaimedLabel: string;
@@ -22,6 +22,10 @@ export function formatTombstoneReclaimConfirmMessage(options: {
 }
 
 export const CLEANUP_CONFIRM_MESSAGE = "This may take a long time. Save all open documents first (unsaved editor buffers are not in the database and will be skipped). Current Callout Types edits in this dialog are included. Keep SiYuan and this settings window open until cleanup finishes.";
+
+export const CLEANUP_ABORT_CONFIRM_MESSAGE = "Blocks already updated will stay changed. Past labels and tombstones in settings are not cleared until cleanup finishes successfully. Temporarily opened notebooks will be closed.";
+
+export const SETTINGS_CLOSE_DURING_CLEANUP_MESSAGE = `Cleanup is still running. Closing this settings window will stop cleanup. ${CLEANUP_ABORT_CONFIRM_MESSAGE}`;
 
 export function formatCleanupResultMessage(result: CleanupResult) {
     const status = result.aborted ? "Cleanup stopped." : "Cleanup finished.";

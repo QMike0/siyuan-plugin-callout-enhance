@@ -109,14 +109,14 @@ function buildPhaseAMigrations(settings: CalloutEnhanceSettings): SubtypeMigrati
         const toKey = canonicalCalloutKey(toLabel);
         if (!toKey) continue;
 
-        for (const historical of item.historicalLabels || []) {
-            const fromKey = canonicalCalloutKey(historical);
+        for (const pastLabel of item.pastLabels || []) {
+            const fromKey = canonicalCalloutKey(pastLabel);
             if (!fromKey || fromKey === toKey || seen.has(fromKey)) continue;
             seen.add(fromKey);
             migrations.push({
                 phase: "a",
                 fromKey,
-                fromLabel: normalizeCalloutLabel(historical),
+                fromLabel: normalizeCalloutLabel(pastLabel),
                 toLabel,
             });
         }
@@ -398,7 +398,7 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
         await saveSettings({
             callouts: latest.callouts.map((item) => ({
                 ...item,
-                historicalLabels: [],
+                pastLabels: [],
             })),
             calloutTombstone: [],
         });

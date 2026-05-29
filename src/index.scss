@@ -966,7 +966,7 @@
     opacity: 0.72;
 }
 
-.callout-enhance-historical-labels {
+.callout-enhance-past-labels {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
@@ -976,12 +976,12 @@
     min-width: 0;
 }
 
-.callout-enhance-historical-labels__empty {
+.callout-enhance-past-labels__empty {
     opacity: 0.55;
     line-height: 1.4;
 }
 
-.callout-enhance-historical-labels__token {
+.callout-enhance-past-labels__token {
     display: inline-flex;
     align-items: center;
     padding: 2px 8px;
@@ -1591,7 +1591,7 @@
 
 .callout-enhance-about__row--cleanup {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
     padding: 10px 0 4px;

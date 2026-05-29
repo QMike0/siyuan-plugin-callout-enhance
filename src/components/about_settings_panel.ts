@@ -11,7 +11,7 @@ export type AboutSettingsPanelOptions = {
 const LICENSE_NAME = "MIT License";
 const LICENSE_URL = "https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/LICENSE";
 
-const CLEANUP_DESCRIPTION = "Merge callouts left on old labels after renames, map orphaned subtypes from deleted types to NOTE, and clear tombstones and historical labels. Recommended after many renames or deletions.";
+const CLEANUP_DESCRIPTION = "Merge callouts left on old labels after renames, map orphaned subtypes from deleted types to NOTE, and clear tombstones and past labels. Recommended after many renames or deletions.";
 
 function createAboutInlineRow(label: string, value: string | HTMLElement) {
     const row = document.createElement("div");

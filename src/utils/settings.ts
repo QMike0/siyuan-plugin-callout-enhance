@@ -1,5 +1,5 @@
 import {
-    appendHistoricalLabel,
+    appendPastLabel,
     CalloutTypeItem,
     canonicalCalloutKey,
     dedupeCalloutKeysCI,
@@ -9,8 +9,8 @@ import {
     isProtectedCalloutType,
     normalizeCalloutKeywords,
     normalizeCalloutLabel,
-    normalizeHistoricalLabels,
-    removeHistoricalLabelCI,
+    normalizePastLabels,
+    removePastLabelCI,
 } from "./callout_types";
 import { CalloutLayoutSettings, normalizeCalloutLayout } from "./callout_layout_vars";
 
@@ -25,7 +25,7 @@ export type CalloutAppearancePreset = {
 export type CalloutEnhanceSettings = {
     schemaVersion: number;
     callouts: CalloutTypeSettings[];
-    /** Labels from deleted types (and their historical labels); blocks keep old data-subtype. */
+    /** Labels from deleted types (and their past labels); blocks keep old data-subtype. */
     calloutTombstone?: string[];
     layout?: CalloutLayoutSettings;
     appearancePresets?: CalloutAppearancePreset[];
@@ -35,7 +35,7 @@ export type CalloutEnhanceSettings = {
 
 export const SETTINGS_SCHEMA_VERSION = 6;
 
-export type CalloutOccupancySource = "label" | "historical" | "tombstone";
+export type CalloutOccupancySource = "label" | "past" | "tombstone";
 
 export type CalloutOccupancyEntry = {
     source: CalloutOccupancySource;
@@ -132,8 +132,9 @@ function migrateLegacyCalloutFields(
         };
     }
 
+    const { keyword: _legacyKeyword, ...rest } = source;
     return {
-        ...source,
+        ...rest,
         label: oldDisplay || defaultItem?.label || "",
         keywords: normalizeCalloutKeywords(undefined, oldDisplay || defaultItem?.keywords?.[0] || ""),
     };
@@ -157,14 +158,14 @@ function normalizeType(
         id: (source.id || makeId(label, index)).trim(),
         label,
         keywords,
-        historicalLabels: normalizeHistoricalLabels(source.historicalLabels, label),
+        pastLabels: normalizePastLabels(source.pastLabels, label),
         icon,
         color,
         order: Number.isFinite(Number(source.order)) ? Number(source.order) : index,
         enabled: source.enabled !== false,
     };
     if (isProtectedCalloutType(draft)) {
-        draft.historicalLabels = [];
+        draft.pastLabels = [];
     }
     return draft;
 }
@@ -182,10 +183,10 @@ export function buildOccupancyMap(settings?: Partial<CalloutEnhanceSettings> | n
         if (labelKey) {
             map.set(labelKey, { source: "label", calloutId: item.id });
         }
-        for (const historical of item.historicalLabels) {
-            const historicalKey = canonicalCalloutKey(historical);
-            if (!historicalKey || map.has(historicalKey)) continue;
-            map.set(historicalKey, { source: "historical", calloutId: item.id });
+        for (const pastLabel of item.pastLabels) {
+            const pastKey = canonicalCalloutKey(pastLabel);
+            if (!pastKey || map.has(pastKey)) continue;
+            map.set(pastKey, { source: "past", calloutId: item.id });
         }
     }
 
@@ -209,7 +210,7 @@ export function resolveCalloutTypeBySubtype(
         if (canonicalCalloutKey(item.label) === key) return item;
     }
     for (const item of getAllResolvedCalloutTypes(settings)) {
-        if (item.historicalLabels.some((historical) => canonicalCalloutKey(historical) === key)) {
+        if (item.pastLabels.some((pastLabel) => canonicalCalloutKey(pastLabel) === key)) {
             return item;
         }
     }
@@ -221,12 +222,12 @@ function formatOccupancyConflictMessage(conflict: CalloutLabelOccupancyConflict,
     if (conflict.source === "tombstone") {
         return `Label "${entered}" was used by a deleted callout type. Run "Clean up legacy data" in About, or choose a different name.`;
     }
-    if (conflict.source === "historical") {
+    if (conflict.source === "past") {
         const owner = conflict.ownerLabel?.trim();
         const ownerName = owner
             ? (formatCalloutTitleFromLabel(owner) || owner)
             : "another type";
-        return `Label "${entered}" conflicts with type "${ownerName}" (historical label "${conflict.existingLabel}").`;
+        return `Label "${entered}" conflicts with type "${ownerName}" (past label "${conflict.existingLabel}").`;
     }
     const owner = conflict.ownerLabel?.trim() || conflict.existingLabel;
     return `Label "${entered}" already exists on type "${formatCalloutTitleFromLabel(owner) || owner}". Please choose a different name.`;
@@ -252,8 +253,8 @@ export function validateLabelOccupancy(
     let existingLabel = label;
     if (entry.source === "label" && owner) {
         existingLabel = owner.label || existingLabel;
-    } else if (entry.source === "historical" && owner) {
-        existingLabel = owner.historicalLabels.find((item) => equalsCalloutKeyCI(item, label)) || label;
+    } else if (entry.source === "past" && owner) {
+        existingLabel = owner.pastLabels.find((item) => equalsCalloutKeyCI(item, label)) || label;
     } else if (entry.source === "tombstone") {
         existingLabel = (normalized.calloutTombstone || []).find((item) => equalsCalloutKeyCI(item, label)) || label;
     }
@@ -273,11 +274,11 @@ export function formatLabelOccupancyError(conflict: CalloutLabelOccupancyConflic
 
 /** Labels to record in the tombstone when a type is deleted (not keywords). */
 export function collectTombstoneLabelsFromType(
-    item: Pick<CalloutTypeItem, "label" | "historicalLabels">,
+    item: Pick<CalloutTypeItem, "label" | "pastLabels">,
 ): string[] {
     return dedupeCalloutKeysCI([
         item.label,
-        ...(item.historicalLabels || []),
+        ...(item.pastLabels || []),
     ].filter(Boolean));
 }
 
@@ -292,7 +293,7 @@ export function removeCalloutTombstoneKeys(existing: string[] | undefined, label
     return (existing || []).filter((label) => !removeKeys.has(canonicalCalloutKey(label)));
 }
 
-/** Apply label rename rules on confirm (historical append/remove; built-in unchanged). */
+/** Apply label rename rules on confirm (past label append/remove; built-in unchanged). */
 export function applyCalloutLabelConfirm(
     item: CalloutTypeItem,
     savedLabelRaw: string,
@@ -300,18 +301,18 @@ export function applyCalloutLabelConfirm(
 ): CalloutTypeItem {
     const savedLabel = normalizeCalloutLabel(savedLabelRaw);
     const oldLabel = item.label;
-    let historical = [...(item.historicalLabels || [])];
+    let pastLabels = [...(item.pastLabels || [])];
 
     if (!labelLocked && oldLabel && !equalsCalloutKeyCI(oldLabel, savedLabel)) {
-        historical = appendHistoricalLabel(historical, oldLabel);
+        pastLabels = appendPastLabel(pastLabels, oldLabel);
     }
-    historical = removeHistoricalLabelCI(historical, savedLabel);
-    historical = normalizeHistoricalLabels(historical, savedLabel);
+    pastLabels = removePastLabelCI(pastLabels, savedLabel);
+    pastLabels = normalizePastLabels(pastLabels, savedLabel);
 
     return {
         ...item,
         label: savedLabel,
-        historicalLabels: labelLocked ? [] : historical,
+        pastLabels: labelLocked ? [] : pastLabels,
     };
 }
 

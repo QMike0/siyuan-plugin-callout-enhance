@@ -150,8 +150,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         return countCalloutsBySubtypes(subtypes);
     }
 
-    /** Count blocks for one type's label + historical labels. */
-    countCalloutsForTypeItem(item: Pick<CalloutTypeItem, "label" | "historicalLabels">) {
+    /** Count blocks for one type's label + past labels. */
+    countCalloutsForTypeItem(item: Pick<CalloutTypeItem, "label" | "pastLabels">) {
         return countCalloutsForTypeItem(item);
     }
 
@@ -170,13 +170,16 @@ export default class CalloutEnhancePlugin extends Plugin {
     async runCalloutCleanup(
         options: Pick<RunCleanupOptions, "signal" | "onProgress" | "getSettings" | "saveSettings"> & {
             signal?: AbortSignal;
+            /** When provided (with `signal`), `abortCalloutCleanup()` aborts this controller. */
+            abortController?: AbortController;
         },
     ): Promise<CleanupResult> {
-        const controller = options.signal ? null : new AbortController();
-        if (controller) {
-            this.calloutCleanupAbort = controller;
-        }
-        const signal = options.signal || controller!.signal;
+        const ownController = options.signal || options.abortController
+            ? null
+            : new AbortController();
+        const controller = options.abortController ?? ownController;
+        this.calloutCleanupAbort = controller;
+        const signal = options.signal ?? controller!.signal;
         const getSettings = options.getSettings ?? (() => normalizeCalloutSettings(this.settings));
         const saveSettings = options.saveSettings ?? ((partial) => this.setSettings(partial));
         try {

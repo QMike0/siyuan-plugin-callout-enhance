@@ -7,14 +7,14 @@ export type CalloutTypeItem = {
     /** Search / completion aliases only; matching uses label + keywords, not callout title. */
     keywords: string[];
     /** Past labels after rename; used for style resolution and settings search, not completion. */
-    historicalLabels: string[];
+    pastLabels: string[];
     icon: string;
     color: string;
     order: number;
     enabled: boolean;
 };
 
-/** Case-insensitive key for label / historical / tombstone occupancy. */
+/** Case-insensitive key for label / past label / tombstone occupancy. */
 export function canonicalCalloutKey(value: string) {
     return normalizeCalloutLabel(value).toUpperCase();
 }
@@ -40,27 +40,27 @@ export function dedupeCalloutKeysCI(values: string[]) {
     return result;
 }
 
-export function appendHistoricalLabel(list: string[], label: string) {
+export function appendPastLabel(list: string[], label: string) {
     const trimmed = normalizeCalloutLabel(label);
     if (!trimmed) return [...list];
     return dedupeCalloutKeysCI([...list, trimmed]);
 }
 
-export function removeHistoricalLabelCI(list: string[], label: string) {
+export function removePastLabelCI(list: string[], label: string) {
     const key = canonicalCalloutKey(label);
     if (!key) return [...list];
     return list.filter((item) => canonicalCalloutKey(item) !== key);
 }
 
-export function normalizeHistoricalLabels(raw: string[] | undefined, currentLabel = "") {
+export function normalizePastLabels(raw: string[] | undefined, currentLabel = "") {
     const deduped = dedupeCalloutKeysCI(Array.isArray(raw) ? raw : []);
     const labelKey = canonicalCalloutKey(currentLabel);
     if (!labelKey) return deduped;
     return deduped.filter((item) => canonicalCalloutKey(item) !== labelKey);
 }
 
-/** Subtypes that share one type's dynamic CSS (label + historical); order: label first. */
-export function getCalloutStyleSubtypes(item: Pick<CalloutTypeItem, "label" | "historicalLabels">) {
+/** Subtypes that share one type's dynamic CSS (label + past labels); order: label first. */
+export function getCalloutStyleSubtypes(item: Pick<CalloutTypeItem, "label" | "pastLabels">) {
     const seen = new Set<string>();
     const subtypes: string[] = [];
     const add = (value: string) => {
@@ -72,7 +72,7 @@ export function getCalloutStyleSubtypes(item: Pick<CalloutTypeItem, "label" | "h
         subtypes.push(trimmed);
     };
     add(item.label);
-    for (const historical of item.historicalLabels || []) add(historical);
+    for (const pastLabel of item.pastLabels || []) add(pastLabel);
     return subtypes;
 }
 
@@ -145,15 +145,15 @@ export function calloutMatchesFilter(item: Pick<CalloutTypeItem, "label" | "keyw
     return (item.keywords || []).some((keyword) => keyword.toLowerCase().includes(q));
 }
 
-/** Settings list search: label + keywords + historical labels (case-insensitive). */
+/** Settings list search: label + keywords + past labels (case-insensitive). */
 export function calloutMatchesListSearch(
-    item: Pick<CalloutTypeItem, "label" | "keywords" | "historicalLabels">,
+    item: Pick<CalloutTypeItem, "label" | "keywords" | "pastLabels">,
     filterText: string,
 ) {
     const q = filterText.trim().toLowerCase();
     if (!q) return true;
     if (calloutMatchesFilter(item, filterText)) return true;
-    return (item.historicalLabels || []).some((label) => label.toLowerCase().includes(q));
+    return (item.pastLabels || []).some((label) => label.toLowerCase().includes(q));
 }
 
 export function getCalloutIconMask(label: string) {
@@ -279,12 +279,12 @@ export function renderCalloutIconSpan(iconOrLabel: string, className = "", fallb
 }
 
 export const DEFAULT_CALLOUT_TYPES: CalloutTypeItem[] = [
-    { id: "info", label: "Info", keywords: ["Info"], historicalLabels: [], icon: getCalloutIconMask("Info"), color: "", order: 0, enabled: true },
-    { id: "note", label: "NOTE", keywords: ["Note"], historicalLabels: [], icon: getCalloutIconMask("NOTE"), color: "", order: 1, enabled: true },
-    { id: "important", label: "IMPORTANT", keywords: ["Important"], historicalLabels: [], icon: getCalloutIconMask("IMPORTANT"), color: "", order: 2, enabled: true },
-    { id: "quote", label: "Quote", keywords: ["Quote"], historicalLabels: [], icon: getCalloutIconMask("Quote"), color: "", order: 3, enabled: true },
-    { id: "tip", label: "TIP", keywords: ["Tip"], historicalLabels: [], icon: getCalloutIconMask("TIP"), color: "", order: 4, enabled: true },
-    { id: "warning", label: "WARNING", keywords: ["Warning"], historicalLabels: [], icon: getCalloutIconMask("WARNING"), color: "", order: 5, enabled: true },
-    { id: "caution", label: "CAUTION", keywords: ["Caution"], historicalLabels: [], icon: getCalloutIconMask("CAUTION"), color: "", order: 6, enabled: true },
-    { id: "question", label: "Question", keywords: ["Question"], historicalLabels: [], icon: getCalloutIconMask("Question"), color: "", order: 7, enabled: true },
+    { id: "info", label: "Info", keywords: ["Info"], pastLabels: [], icon: getCalloutIconMask("Info"), color: "", order: 0, enabled: true },
+    { id: "note", label: "NOTE", keywords: ["Note"], pastLabels: [], icon: getCalloutIconMask("NOTE"), color: "", order: 1, enabled: true },
+    { id: "important", label: "IMPORTANT", keywords: ["Important"], pastLabels: [], icon: getCalloutIconMask("IMPORTANT"), color: "", order: 2, enabled: true },
+    { id: "quote", label: "Quote", keywords: ["Quote"], pastLabels: [], icon: getCalloutIconMask("Quote"), color: "", order: 3, enabled: true },
+    { id: "tip", label: "TIP", keywords: ["Tip"], pastLabels: [], icon: getCalloutIconMask("TIP"), color: "", order: 4, enabled: true },
+    { id: "warning", label: "WARNING", keywords: ["Warning"], pastLabels: [], icon: getCalloutIconMask("WARNING"), color: "", order: 5, enabled: true },
+    { id: "caution", label: "CAUTION", keywords: ["Caution"], pastLabels: [], icon: getCalloutIconMask("CAUTION"), color: "", order: 6, enabled: true },
+    { id: "question", label: "Question", keywords: ["Question"], pastLabels: [], icon: getCalloutIconMask("Question"), color: "", order: 7, enabled: true },
 ];

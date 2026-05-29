@@ -47,9 +47,9 @@ After nesting:
 
 Open **Settings → Callout Types** to add, disable, reorder, or edit custom types. Built-in SiYuan types (NOTE, TIP, etc.) cannot be renamed or deleted.
 
-- **Rename label**: Existing blocks keep their old `data-subtype` until you run cleanup; the plugin still applies your style via *historical labels* (not used in completion).
+- **Rename label**: Existing blocks keep their old `data-subtype` until you run cleanup; the plugin still applies your style via *past labels* (not used in completion).
 - **Delete type**: Blocks keep the old subtype but lose custom styling; the label is recorded in a *tombstone* list so you cannot accidentally reuse it without confirmation.
-- **Clean up legacy data** (Settings → About): Merges historical subtypes to each type’s current label, maps orphaned tombstone subtypes to NOTE, then clears historical labels and the tombstone. Save all open documents first; keep SiYuan and the settings window open until it finishes.
+- **Clean up legacy data** (Settings → About → Purge): Merges past-label subtypes to each type’s current label, maps orphaned tombstone subtypes to NOTE, then clears past labels and the tombstone. Save all open documents first; keep SiYuan and the settings window open until it finishes.
 
 ## Changelog
 

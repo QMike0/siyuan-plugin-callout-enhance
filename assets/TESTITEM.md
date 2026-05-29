@@ -145,17 +145,17 @@
 ## 9. Type rename / delete / cleanup (v0.2.3+)
 
 - Rename (before cleanup):
-  - After changing the label in settings, historical labels appear in the list; blocks with the old subtype still use plugin styling
-  - The completion menu does not list historical names; the type menu writes the current label
+  - After changing the label in settings, past labels appear in the list; blocks with the old subtype still use plugin styling
+  - The completion menu does not list past label names; the type menu writes the current label
 - Delete:
   - The confirm dialog shows an “at least N blocks” count (open/indexed notebooks)
   - After confirm, the type is removed; blocks fall back to the default SiYuan callout style with the same subtype
   - Creating the same label again triggers the tombstone prompt with “Save and apply style”
 - Cleanup (About → Clean up legacy data):
   - Prompts to save open documents; read-only workspace should be rejected
-  - Phase A: merge historical subtypes to each type’s current label (`data-subtype` and `[!LABEL]`)
+  - Phase A: merge past-label subtypes to each type’s current label (`data-subtype` and `[!LABEL]`)
   - Phase B: merge tombstone orphans to NOTE
-  - Historical labels and tombstone are cleared when done; cancel or closing settings should abort
+  - Past labels and tombstone are cleared when done; cancel or closing settings should abort
   - Unsaved Callout Types edits in the settings dialog should be included in cleanup
 - Closed notebooks:
   - If legacy blocks exist only in closed notebooks, cleanup should open them temporarily and close them afterward

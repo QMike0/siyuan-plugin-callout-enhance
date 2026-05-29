@@ -16,8 +16,8 @@
     "zh_CN": "Callout 增强"
   },
   "description": {
-    "default": "Enhance callout styles and editing: types, rename/historical labels, tombstone on delete, legacy cleanup, completion and type menus.",
-    "zh_CN": "增强 callout 样式与编辑：类型管理、重命名/historical、删除墓碑、历史数据清理、补全与类型菜单等。"
+    "default": "Enhance callout styles and editing: types, rename/past labels, tombstone on delete, legacy cleanup, completion and type menus.",
+    "zh_CN": "增强 callout 样式与编辑：类型管理、重命名/past label、删除墓碑、历史数据清理、补全与类型菜单等。"
   },
   "readme": {
     "default": "README.md",

@@ -145,17 +145,17 @@
 ## 9. 类型重命名 / 删除 / 清理（v0.2.3+）
 
 - 重命名（未清理）：
-  - 设置中修改 label 并确认后，列表出现 historical label；旧 subtype 的块仍显示插件样式
-  - 补全菜单不出现 historical 名称；类型菜单写入的是当前 label
+  - 设置中修改 label 并确认后，列表出现 past label；旧 subtype 的块仍显示插件样式
+  - 补全菜单不出现 past label 名称；类型菜单写入的是当前 label
 - 删除：
   - 删除前弹窗显示「至少 N 个」计数（已打开/已索引笔记本）
   - 确认后类型从列表移除；对应块变为思源默认 callout 样式，subtype 不变
   - 再次新建同名 label 时提示墓碑并可选「保存并应用样式」
 - 清理（关于 → 清理历史数据）：
   - 清理前提示保存已打开文档；只读工作区应拒绝
-  - 阶段 A：historical 块 subtype / `[!LABEL]` 合并为当前 label
+  - 阶段 A：past label 块 subtype / `[!LABEL]` 合并为当前 label
   - 阶段 B：墓碑孤儿合并为 NOTE
-  - 结束后 historical 与墓碑为空；可取消或关闭设置窗中断
+  - 结束后 past label 与墓碑为空；可取消或关闭设置窗中断
   - 设置窗内未保存的类型列表修改应参与清理（先合并草稿再迁移）
 - 关闭笔记本场景：
   - 存在仅关闭笔记本中的旧 subtype 时，清理会临时打开笔记本并在结束后关闭

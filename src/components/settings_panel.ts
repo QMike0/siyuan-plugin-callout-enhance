@@ -22,12 +22,14 @@ import { getCalloutHeaderHitMetrics, setPreviewFoldState } from "../features/cal
 import { renderLayoutSettingsPanel } from "./layout_settings_panel";
 import { renderAboutSettingsPanel } from "./about_settings_panel";
 import {
+    CLEANUP_ABORT_CONFIRM_MESSAGE,
     CLEANUP_CONFIRM_MESSAGE,
+    SETTINGS_CLOSE_DURING_CLEANUP_MESSAGE,
     createHelpIcon,
     createPreviewHelpIcon,
     formatDeleteCalloutTypeMessage,
     formatTombstoneReclaimConfirmMessage,
-    HISTORICAL_LABEL_HELP_TOOLTIP,
+    PAST_LABEL_HELP_TOOLTIP,
     KEYWORDS_HELP_TOOLTIP,
     LABEL_HELP_TOOLTIP,
     openCleanupProgressDialog,
@@ -45,12 +47,13 @@ export type SettingsEditorPluginLike = Plugin & {
     clearAppearancePreview: () => void;
     reloadAppearanceFromDisk: () => Promise<void>;
     restoreAppearanceState: (settings: Pick<CalloutEnhanceSettings, "layout" | "appearancePresets" | "activeAppearancePresetId">) => void;
-    countCalloutsForTypeItem?: (item: Pick<CalloutTypeItem, "label" | "historicalLabels">) => Promise<number>;
+    countCalloutsForTypeItem?: (item: Pick<CalloutTypeItem, "label" | "pastLabels">) => Promise<number>;
     isWorkspaceReadOnly?: () => boolean;
     isEditorReadOnly?: () => boolean;
     abortCalloutCleanup?: () => void;
     runCalloutCleanup?: (options: {
         signal?: AbortSignal;
+        abortController?: AbortController;
         onProgress: (progress: CleanupProgress) => void;
         getSettings?: () => CalloutEnhanceSettings;
         saveSettings?: (settings: Partial<CalloutEnhanceSettings>) => Promise<void>;
@@ -347,19 +350,19 @@ function createEditResetButton(onClick: () => void) {
     return btn;
 }
 
-function createHistoricalLabelsField(labels: string[]) {
+function createPastLabelsField(labels: string[]) {
     const wrapper = document.createElement("div");
-    wrapper.className = "callout-enhance-historical-labels";
+    wrapper.className = "callout-enhance-past-labels";
     if (!labels.length) {
         const empty = document.createElement("div");
-        empty.className = "callout-enhance-historical-labels__empty b3-label__text";
+        empty.className = "callout-enhance-past-labels__empty b3-label__text";
         empty.textContent = "—";
         wrapper.append(empty);
         return wrapper;
     }
     for (const label of labels) {
         const token = document.createElement("span");
-        token.className = "callout-enhance-historical-labels__token";
+        token.className = "callout-enhance-past-labels__token";
         token.textContent = label;
         wrapper.append(token);
     }
@@ -631,10 +634,10 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
     if (!isProtectedCalloutType(item)) {
         settingsPanel.append(
             createEditRow(
-                "Historical label",
-                createHistoricalLabelsField(item.historicalLabels || []),
+                "Past label",
+                createPastLabelsField(item.pastLabels || []),
                 true,
-                HISTORICAL_LABEL_HELP_TOOLTIP,
+                PAST_LABEL_HELP_TOOLTIP,
             ),
         );
     }
@@ -760,7 +763,7 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
         const reclaimedLabel = normalizeCalloutLabel(savedLabel);
         const count = await options.settingsContext?.countCalloutsForTypeItem?.({
             label: reclaimedLabel,
-            historicalLabels: [],
+            pastLabels: [],
         }) ?? 0;
         const newTypeTitle = getCalloutPreviewTitle({
             ...item,
@@ -1238,8 +1241,52 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         return true;
     };
 
+    const waitCleanupNotRunning = async () => {
+        while (cleanupRunning) {
+            await new Promise<void>((resolve) => {
+                window.setTimeout(resolve, 50);
+            });
+        }
+    };
+
+    const confirmAndAbortRunningCleanup = (options: {
+        title: string;
+        message: string;
+        confirmLabel: string;
+        cancelLabel?: string;
+    }): Promise<boolean> => {
+        if (!cleanupRunning) {
+            return Promise.resolve(true);
+        }
+        return new Promise<boolean>((resolve) => {
+            openConfirmDialog({
+                title: options.title,
+                message: options.message,
+                confirmLabel: options.confirmLabel,
+                cancelLabel: options.cancelLabel ?? "Continue",
+                width: window.innerWidth < 768 ? "92vw" : "420px",
+                onConfirm: () => resolve(true),
+                onCancel: () => resolve(false),
+            });
+        }).then(async (confirmed) => {
+            if (!confirmed) return false;
+            plugin.abortCalloutCleanup?.();
+            await waitCleanupNotRunning();
+            return true;
+        });
+    };
+
     const requestCloseSettings = async (afterAppearanceCommit?: () => Promise<void>) => {
         if (appearanceClosePromptOpen) return false;
+
+        if (!(await confirmAndAbortRunningCleanup({
+            title: "Close settings during cleanup?",
+            message: SETTINGS_CLOSE_DURING_CLEANUP_MESSAGE,
+            confirmLabel: "Stop cleanup and close",
+            cancelLabel: "Stay",
+        }))) {
+            return false;
+        }
 
         const preset = getActiveAppearancePreset();
         const presetName = preset?.name || DEFAULT_APPEARANCE_PRESET_NAME;
@@ -1454,7 +1501,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             id: "note",
             label: "NOTE",
             keywords: ["Note"],
-            historicalLabels: [],
+            pastLabels: [],
             icon: "",
             color: "",
             order: 0,
@@ -1563,7 +1610,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
             const searchInput = createTextInput(listSearchQuery);
             searchInput.className = "b3-text-field callout-enhance-list-search";
-            searchInput.placeholder = "Search label, keywords, or historical";
+            searchInput.placeholder = "Search label, keywords, or past";
             searchInput.addEventListener("input", () => {
                 listSearchQuery = searchInput.value;
                 renderList(true);
@@ -1575,7 +1622,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                     id: `callout-${Date.now()}`,
                     label: "",
                     keywords: [],
-                    historicalLabels: [],
+                    pastLabels: [],
                     icon: "",
                     color: getNewCalloutDefaultColor(),
                     enabled: true,
@@ -1786,9 +1833,17 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         if (mode === "about") renderAbout();
 
         const controller = new AbortController();
+        const requestAbortCleanup = () => {
+            void confirmAndAbortRunningCleanup({
+                title: "Stop cleanup?",
+                message: CLEANUP_ABORT_CONFIRM_MESSAGE,
+                confirmLabel: "Stop cleanup",
+                cancelLabel: "Continue",
+            });
+        };
         const progressDialog = openCleanupProgressDialog({
             signal: controller.signal,
-            onCancel: () => plugin.abortCalloutCleanup?.(),
+            onCancel: requestAbortCleanup,
         });
 
         const getCleanupSettings = () => normalizeCalloutSettings({
@@ -1805,6 +1860,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         try {
             const result = await plugin.runCalloutCleanup({
                 signal: controller.signal,
+                abortController: controller,
                 onProgress: (progress) => progressDialog.update(progress),
                 getSettings: getCleanupSettings,
                 saveSettings: async (partial) => {

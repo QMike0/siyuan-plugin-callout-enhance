@@ -149,7 +149,7 @@ export async function countCalloutsBySubtypes(subtypes: string[]) {
     }
 }
 
-export function countCalloutsForTypeItem(item: Pick<CalloutTypeItem, "label" | "historicalLabels">) {
+export function countCalloutsForTypeItem(item: Pick<CalloutTypeItem, "label" | "pastLabels">) {
     return countCalloutsBySubtypes(getCalloutStyleSubtypes(item));
 }
 
