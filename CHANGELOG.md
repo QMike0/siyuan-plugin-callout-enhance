@@ -1,3 +1,12 @@
+## v0.2.3 2026-05-28
+
+- 🇨🇳 Callout 类型支持重命名（historical label 保留旧样式解析）、删除（墓碑占用）与「关于 → 清理历史数据」全库合并
+- 🇨🇳 设置：historical 只读展示、墓碑二次确认、删除前 SQL 计数提示；清理使用设置窗内未保存的类型草稿
+- 🇨🇳 清理顺序：先 historical→当前 label，再墓碑孤儿→NOTE；支持取消、只读工作区拒绝、保存文档提示
+- 🇺🇸 Callout types: rename with historical labels, delete with tombstone occupancy, and About → clean up legacy data
+- 🇺🇸 Settings: read-only historical row, tombstone reclaim confirm, delete counts; cleanup respects unsaved type draft in the dialog
+- 🇺🇸 Cleanup order: historical→label first, then tombstone orphans→NOTE; cancel, read-only guard, save-documents hint
+
 ## v0.2.2 2026-05-28
 
 - 🇨🇳 简化折叠/展开的debug日志

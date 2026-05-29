@@ -2,7 +2,7 @@
   "name": "siyuan-plugin-callout-enhance",
   "author": "QMike0",
   "url": "https://github.com/QMike0/siyuan-plugin-callout-enhance",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "minAppVersion": "3.6.0",
   "backends": [
     "all"
@@ -16,8 +16,8 @@
     "zh_CN": "Callout 增强"
   },
   "description": {
-    "default": "Optimize the callout block style and provide features such as quick title editing, collapse/expand, completion menu, type menu, etc.",
-    "zh_CN": "优化callout块样式，并提供标题快速编辑、折叠/展开、补全菜单、类型菜单等功能。"
+    "default": "Enhance callout styles and editing: types, rename/historical labels, tombstone on delete, legacy cleanup, completion and type menus.",
+    "zh_CN": "增强 callout 样式与编辑：类型管理、重命名/historical、删除墓碑、历史数据清理、补全与类型菜单等。"
   },
   "readme": {
     "default": "README.md",

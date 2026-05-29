@@ -1,12 +1,40 @@
 import { Dialog, showMessage } from "siyuan";
-import { CalloutEnhanceSettings, CalloutAppearancePreset, DEFAULT_APPEARANCE_PRESET_ID, DEFAULT_APPEARANCE_PRESET_NAME, getDefaultAppearancePresetLayout, isDefaultAppearancePreset, makeAppearancePresetId, normalizeCalloutSettings } from "../utils/settings";
-import { CalloutTypeItem, calloutMatchesFilter, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, isProtectedCalloutType, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
+import {
+    applyCalloutLabelConfirm,
+    CalloutEnhanceSettings,
+    CalloutAppearancePreset,
+    collectTombstoneLabelsFromType,
+    DEFAULT_APPEARANCE_PRESET_ID,
+    DEFAULT_APPEARANCE_PRESET_NAME,
+    formatLabelOccupancyError,
+    getDefaultAppearancePresetLayout,
+    isDefaultAppearancePreset,
+    makeAppearancePresetId,
+    mergeCalloutTombstone,
+    normalizeCalloutSettings,
+    removeCalloutTombstoneKeys,
+    validateLabelOccupancy,
+} from "../utils/settings";
+import { CalloutTypeItem, calloutMatchesListSearch, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, isProtectedCalloutType, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
 import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
 import { openIconPicker } from "./icon_picker";
 import { getCalloutHeaderHitMetrics, setPreviewFoldState } from "../features/callout_fold";
 import { renderLayoutSettingsPanel } from "./layout_settings_panel";
 import { renderAboutSettingsPanel } from "./about_settings_panel";
-import { createHelpIcon, createPreviewHelpIcon, KEYWORDS_HELP_TOOLTIP, LABEL_HELP_TOOLTIP, openConfirmDialog } from "./settings_ui";
+import {
+    CLEANUP_CONFIRM_MESSAGE,
+    createHelpIcon,
+    createPreviewHelpIcon,
+    formatDeleteCalloutTypeMessage,
+    formatTombstoneReclaimConfirmMessage,
+    HISTORICAL_LABEL_HELP_TOOLTIP,
+    KEYWORDS_HELP_TOOLTIP,
+    LABEL_HELP_TOOLTIP,
+    openCleanupProgressDialog,
+    openConfirmDialog,
+} from "./settings_ui";
+import { ClApiError } from "../core/cl_api";
+import type { CleanupProgress, CleanupResult } from "../utils/migration";
 import { Plugin } from "siyuan";
 
 export type SettingsEditorPluginLike = Plugin & {
@@ -17,6 +45,16 @@ export type SettingsEditorPluginLike = Plugin & {
     clearAppearancePreview: () => void;
     reloadAppearanceFromDisk: () => Promise<void>;
     restoreAppearanceState: (settings: Pick<CalloutEnhanceSettings, "layout" | "appearancePresets" | "activeAppearancePresetId">) => void;
+    countCalloutsForTypeItem?: (item: Pick<CalloutTypeItem, "label" | "historicalLabels">) => Promise<number>;
+    isWorkspaceReadOnly?: () => boolean;
+    isEditorReadOnly?: () => boolean;
+    abortCalloutCleanup?: () => void;
+    runCalloutCleanup?: (options: {
+        signal?: AbortSignal;
+        onProgress: (progress: CleanupProgress) => void;
+        getSettings?: () => CalloutEnhanceSettings;
+        saveSettings?: (settings: Partial<CalloutEnhanceSettings>) => Promise<void>;
+    }) => Promise<CleanupResult>;
 };
 
 type DraftItem = CalloutTypeItem;
@@ -275,15 +313,6 @@ function applyCrossFieldFill(labelInput: HTMLInputElement, keywordsInput: HTMLIn
     syncKeywordsToLabelIfEmpty(labelInput, keywordsInput);
 }
 
-function findCalloutWithDuplicateLabel(label: string, excludeId: string, callouts: DraftItem[]) {
-    const normalized = normalizeCalloutLabel(label).toLowerCase();
-    if (!normalized) return undefined;
-    return callouts.find((entry) => {
-        if (entry.id === excludeId) return false;
-        return normalizeCalloutLabel(entry.label).toLowerCase() === normalized;
-    });
-}
-
 function createLabelEditControl(input: HTMLInputElement) {
     const wrapper = document.createElement("div");
     wrapper.className = "callout-enhance-edit-row__field";
@@ -318,12 +347,44 @@ function createEditResetButton(onClick: () => void) {
     return btn;
 }
 
-function confirmDeleteCalloutType(item: DraftItem, onConfirm: () => void) {
+function createHistoricalLabelsField(labels: string[]) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "callout-enhance-historical-labels";
+    if (!labels.length) {
+        const empty = document.createElement("div");
+        empty.className = "callout-enhance-historical-labels__empty b3-label__text";
+        empty.textContent = "—";
+        wrapper.append(empty);
+        return wrapper;
+    }
+    for (const label of labels) {
+        const token = document.createElement("span");
+        token.className = "callout-enhance-historical-labels__token";
+        token.textContent = label;
+        wrapper.append(token);
+    }
+    return wrapper;
+}
+
+async function confirmDeleteCalloutType(
+    item: DraftItem,
+    plugin: SettingsEditorPluginLike,
+    getTombstone: () => string[],
+    setTombstone: (next: string[]) => void,
+    onConfirm: () => void,
+) {
+    const count = await plugin.countCalloutsForTypeItem?.(item) ?? 0;
     openConfirmDialog({
         title: "Delete callout type",
-        message: `Delete "${getCalloutPreviewTitle(item)}"? This action cannot be undone.`,
+        message: formatDeleteCalloutTypeMessage({
+            title: getCalloutPreviewTitle(item),
+            count,
+        }),
         confirmLabel: "Delete",
-        onConfirm,
+        onConfirm: () => {
+            setTombstone(mergeCalloutTombstone(getTombstone(), collectTombstoneLabelsFromType(item)));
+            onConfirm();
+        },
     });
 }
 
@@ -490,10 +551,17 @@ function createEditRow(label: string, control: HTMLElement, stretchControl = tru
     return row;
 }
 
+type EditDialogSettingsContext = {
+    getTombstone: () => string[];
+    setTombstone: (next: string[]) => void;
+    countCalloutsForTypeItem?: SettingsEditorPluginLike["countCalloutsForTypeItem"];
+};
+
 type EditDialogOptions = {
     isNew?: boolean;
     onDiscardNew?: () => void;
     existingCallouts?: DraftItem[];
+    settingsContext?: EditDialogSettingsContext;
 };
 
 function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, options: EditDialogOptions = {}) {
@@ -559,6 +627,18 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
     settingsPanel.append(
         createEditRow("Label", labelField.wrapper, true, LABEL_HELP_TOOLTIP),
         createEditRow("Keywords", keywordsInput, true, KEYWORDS_HELP_TOOLTIP),
+    );
+    if (!isProtectedCalloutType(item)) {
+        settingsPanel.append(
+            createEditRow(
+                "Historical label",
+                createHistoricalLabelsField(item.historicalLabels || []),
+                true,
+                HISTORICAL_LABEL_HELP_TOOLTIP,
+            ),
+        );
+    }
+    settingsPanel.append(
         createEditRow("Main color", colorField.wrapper),
         createEditRow("Icon", iconControl, false),
     );
@@ -653,8 +733,59 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
     confirm.type = "button";
     confirm.textContent = "Confirm";
     confirm.style.minWidth = "76px";
+    const buildOccupancySettings = (tombstone: string[]): Partial<CalloutEnhanceSettings> => ({
+        callouts: options.existingCallouts ?? [],
+        calloutTombstone: tombstone,
+    });
+
+    const commitSave = (tombstone?: string[]) => {
+        if (tombstone !== undefined) {
+            options.settingsContext?.setTombstone(tombstone);
+        }
+        const nextItem = applyCalloutLabelConfirm(item, savedLabelForCommit(), labelLocked);
+        committed = true;
+        onSave({
+            ...nextItem,
+            keywords: readKeywordsInput(keywordsInput),
+            icon: iconValueInput.value,
+            color: colorInput.value,
+        });
+        dialog.destroy();
+        showMessage("Settings saved");
+    };
+
+    const savedLabelForCommit = () => (labelLocked ? item.label : labelInput.value);
+
+    const promptTombstoneReclaim = async (savedLabel: string) => {
+        const reclaimedLabel = normalizeCalloutLabel(savedLabel);
+        const count = await options.settingsContext?.countCalloutsForTypeItem?.({
+            label: reclaimedLabel,
+            historicalLabels: [],
+        }) ?? 0;
+        const newTypeTitle = getCalloutPreviewTitle({
+            ...item,
+            label: reclaimedLabel,
+        });
+        openConfirmDialog({
+            title: "Reclaim deleted label",
+            message: formatTombstoneReclaimConfirmMessage({
+                reclaimedLabel,
+                newTypeTitle,
+                count,
+            }),
+            confirmLabel: "Save and apply style",
+            cancelLabel: "Back to edit",
+            width: window.innerWidth < 768 ? "92vw" : "440px",
+            onConfirm: () => {
+                const currentTombstone = options.settingsContext?.getTombstone() ?? [];
+                const nextTombstone = removeCalloutTombstoneKeys(currentTombstone, [reclaimedLabel]);
+                commitSave(nextTombstone);
+            },
+        });
+    };
+
     confirm.addEventListener("click", () => {
-        const savedLabel = labelLocked ? item.label : labelInput.value;
+        const savedLabel = savedLabelForCommit();
         if (!labelLocked) {
             applyCrossFieldFill(labelInput, keywordsInput);
         }
@@ -664,30 +795,25 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
             return;
         }
         if (!labelLocked) {
-            const duplicate = findCalloutWithDuplicateLabel(
+            const tombstone = options.settingsContext?.getTombstone() ?? [];
+            const conflict = validateLabelOccupancy(
                 savedLabel,
                 item.id,
-                options.existingCallouts ?? [],
+                buildOccupancySettings(tombstone),
             );
-            if (duplicate) {
-                const entered = normalizeCalloutLabel(savedLabel);
-                labelField.showError(`Label "${entered}" already exists. Please choose a different name.`);
+            if (conflict) {
+                if (conflict.source === "tombstone") {
+                    void promptTombstoneReclaim(savedLabel);
+                    return;
+                }
+                labelField.showError(formatLabelOccupancyError(conflict, savedLabel));
                 labelInput.focus();
                 labelInput.select();
                 return;
             }
         }
         labelField.clearError();
-        committed = true;
-        onSave({
-            ...item,
-            label: savedLabel,
-            keywords: readKeywordsInput(keywordsInput),
-            icon: iconValueInput.value,
-            color: colorInput.value,
-        });
-        dialog.destroy();
-        showMessage("Settings saved");
+        commitSave();
     });
 
     footer.append(confirm, cancel);
@@ -886,6 +1012,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             </div>
         `,
         destroyCallback: () => {
+            plugin.abortCalloutCleanup?.();
             finalizeAppearanceOnClose();
         },
     });
@@ -908,6 +1035,15 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     if (!nav || !detail) return dialog;
 
     let draft: DraftItem[] = normalizeCalloutSettings(plugin.settings).callouts.map((item) => ({ ...item }));
+    let tombstoneDraft = [...(persistedSettings.calloutTombstone || [])];
+    let cleanupRunning = false;
+    const editDialogSettingsContext: EditDialogSettingsContext = {
+        getTombstone: () => tombstoneDraft,
+        setTombstone: (next) => {
+            tombstoneDraft = next;
+        },
+        countCalloutsForTypeItem: plugin.countCalloutsForTypeItem,
+    };
     let selectedIndex = 0;
     let mode: DetailView = "layout";
     const DRAG_SCROLL_EDGE = 40;
@@ -1173,16 +1309,21 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         const next = normalizeCalloutSettings({
             schemaVersion: plugin.settings.schemaVersion,
             callouts: draft,
+            calloutTombstone: tombstoneDraft,
             layout: layoutDraft,
             appearancePresets: appearancePresetsDraft,
             activeAppearancePresetId,
         });
-        await plugin.setSettings({ callouts: next.callouts });
+        tombstoneDraft = [...(next.calloutTombstone || [])];
+        await plugin.setSettings({
+            callouts: next.callouts,
+            calloutTombstone: next.calloutTombstone,
+        });
     };
 
     const getItemKey = (item: DraftItem) => item.id || item.label || item.keywords?.[0] || "";
 
-    const matchesListSearch = (item: DraftItem, query: string) => calloutMatchesFilter(item, query);
+    const matchesListSearch = (item: DraftItem, query: string) => calloutMatchesListSearch(item, query);
 
     const getFilteredDraftEntries = () => draft
         .map((item, index) => ({ item, index }))
@@ -1313,6 +1454,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             id: "note",
             label: "NOTE",
             keywords: ["Note"],
+            historicalLabels: [],
             icon: "",
             color: "",
             order: 0,
@@ -1421,7 +1563,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
             const searchInput = createTextInput(listSearchQuery);
             searchInput.className = "b3-text-field callout-enhance-list-search";
-            searchInput.placeholder = "Search label or keywords";
+            searchInput.placeholder = "Search label, keywords, or historical";
             searchInput.addEventListener("input", () => {
                 listSearchQuery = searchInput.value;
                 renderList(true);
@@ -1433,6 +1575,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                     id: `callout-${Date.now()}`,
                     label: "",
                     keywords: [],
+                    historicalLabels: [],
                     icon: "",
                     color: getNewCalloutDefaultColor(),
                     enabled: true,
@@ -1449,6 +1592,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                 }, {
                     isNew: true,
                     existingCallouts: draft,
+                    settingsContext: editDialogSettingsContext,
                     onDiscardNew: () => {
                         draft.splice(selectedIndex, 1);
                         selectedIndex = Math.max(0, Math.min(selectedIndex, draft.length - 1));
@@ -1529,7 +1673,10 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                     selectedIndex = index;
                     renderList(true);
                     void persistCalloutsOnly();
-                }, { existingCallouts: draft });
+                }, {
+                    existingCallouts: draft,
+                    settingsContext: editDialogSettingsContext,
+                });
             });
 
             const deleteBtn = createIconButton("Delete", ICON_DELETE, "callout-enhance-icon-button--delete");
@@ -1543,12 +1690,20 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             deleteBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 if (protectedType) return;
-                confirmDeleteCalloutType(item, () => {
-                    draft = draft.filter((_, i) => i !== index).map((x, i) => ({ ...x, order: i }));
-                    selectedIndex = Math.max(0, Math.min(selectedIndex, draft.length - 1));
-                    render();
-                    void persistCalloutsOnly();
-                });
+                void confirmDeleteCalloutType(
+                    item,
+                    plugin,
+                    () => tombstoneDraft,
+                    (next) => {
+                        tombstoneDraft = next;
+                    },
+                    () => {
+                        draft = draft.filter((_, i) => i !== index).map((x, i) => ({ ...x, order: i }));
+                        selectedIndex = Math.max(0, Math.min(selectedIndex, draft.length - 1));
+                        render();
+                        void persistCalloutsOnly();
+                    },
+                );
             });
 
             const editDeleteGroup = document.createElement("div");
@@ -1625,6 +1780,75 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         applyListScrollAfterRender(listBody, savedListScrollTop);
     };
 
+    const runCleanupFlow = async () => {
+        if (cleanupRunning || !plugin.runCalloutCleanup) return;
+        cleanupRunning = true;
+        if (mode === "about") renderAbout();
+
+        const controller = new AbortController();
+        const progressDialog = openCleanupProgressDialog({
+            signal: controller.signal,
+            onCancel: () => plugin.abortCalloutCleanup?.(),
+        });
+
+        const getCleanupSettings = () => normalizeCalloutSettings({
+            ...plugin.settings,
+            callouts: draft,
+            calloutTombstone: tombstoneDraft,
+        });
+        const syncDraftFromPluginSettings = () => {
+            const synced = normalizeCalloutSettings(plugin.settings);
+            draft = synced.callouts.map((item) => ({ ...item }));
+            tombstoneDraft = [...(synced.calloutTombstone || [])];
+        };
+
+        try {
+            const result = await plugin.runCalloutCleanup({
+                signal: controller.signal,
+                onProgress: (progress) => progressDialog.update(progress),
+                getSettings: getCleanupSettings,
+                saveSettings: async (partial) => {
+                    await plugin.setSettings(partial);
+                    syncDraftFromPluginSettings();
+                },
+            });
+            progressDialog.showResult(result);
+            syncDraftFromPluginSettings();
+            if (mode === "list") renderList(true);
+        } catch (error) {
+            if (!(controller.signal.aborted)) {
+                const message = error instanceof ClApiError
+                    ? error.message
+                    : "Cleanup failed. Check the console for details.";
+                showMessage(message);
+            }
+            progressDialog.close();
+        } finally {
+            cleanupRunning = false;
+            if (mode === "about") renderAbout();
+        }
+    };
+
+    const requestCleanup = () => {
+        if (cleanupRunning) return;
+        if (plugin.isWorkspaceReadOnly?.()) {
+            showMessage("Workspace is read-only. Cleanup cannot update blocks.");
+            return;
+        }
+        const editorNote = plugin.isEditorReadOnly?.()
+            ? " Editor lock does not block cleanup."
+            : "";
+        openConfirmDialog({
+            title: "Clean up legacy data",
+            message: `${CLEANUP_CONFIRM_MESSAGE}${editorNote}`,
+            confirmLabel: "Start cleanup",
+            width: window.innerWidth < 768 ? "92vw" : "440px",
+            onConfirm: () => {
+                void runCleanupFlow();
+            },
+        });
+    };
+
     const renderAbout = () => {
         detail.innerHTML = "";
         renderAboutSettingsPanel({
@@ -1633,6 +1857,8 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             onDebugLogChange: (enabled) => {
                 void plugin.setSettings({ debugLogEnabled: enabled });
             },
+            cleanupRunning,
+            onCleanupClick: requestCleanup,
         });
     };
 

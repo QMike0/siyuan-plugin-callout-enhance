@@ -966,6 +966,34 @@
     opacity: 0.72;
 }
 
+.callout-enhance-historical-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    min-height: 28px;
+    flex: 1;
+    min-width: 0;
+}
+
+.callout-enhance-historical-labels__empty {
+    opacity: 0.55;
+    line-height: 1.4;
+}
+
+.callout-enhance-historical-labels__token {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--b3-border-radius);
+    background: var(--b3-theme-surface-lighter, var(--b3-theme-background));
+    border: 1px solid var(--b3-border-color);
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--b3-theme-on-surface);
+    font-family: var(--b3-font-family-code);
+}
+
 .callout-enhance-color-picker {
     width: var(--callout-enhance-color-picker-size);
     height: var(--callout-enhance-color-picker-size);
@@ -1559,6 +1587,65 @@
 
 .callout-enhance-about__row {
     margin: 0;
+}
+
+.callout-enhance-about__row--cleanup {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0 4px;
+    border-top: 1px solid var(--b3-border-color);
+    margin-top: 4px;
+}
+
+.callout-enhance-about__cleanup-btn {
+    flex-shrink: 0;
+    min-width: 88px;
+    border: 1px solid var(--b3-border-color);
+    box-sizing: border-box;
+}
+
+.callout-enhance-cleanup-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 14px 4px;
+    box-sizing: border-box;
+}
+
+.callout-enhance-cleanup-progress__message {
+    line-height: 1.45;
+    min-height: 2.9em;
+}
+
+.callout-enhance-cleanup-progress__track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--b3-border-color);
+    overflow: hidden;
+}
+
+.callout-enhance-cleanup-progress__track--indeterminate .callout-enhance-cleanup-progress__bar {
+    width: 35% !important;
+    animation: callout-enhance-cleanup-indeterminate 1.2s ease-in-out infinite;
+}
+
+.callout-enhance-cleanup-progress__bar {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--b3-theme-primary);
+    width: 0;
+    transition: width 0.2s ease;
+}
+
+@keyframes callout-enhance-cleanup-indeterminate {
+    0% {
+        transform: translateX(-120%);
+    }
+    100% {
+        transform: translateX(320%);
+    }
 }
 
 .callout-enhance-about__row--switch {

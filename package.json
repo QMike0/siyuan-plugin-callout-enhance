@@ -1,6 +1,6 @@
 {
   "name": "siyuan-plugin-callout-enhance",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "SiYuan plugin for enhancing callout title Enter and completion behavior.",
   "main": "index.js",
   "scripts": {

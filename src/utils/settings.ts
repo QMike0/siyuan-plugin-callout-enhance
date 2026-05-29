@@ -1,9 +1,16 @@
 import {
+    appendHistoricalLabel,
     CalloutTypeItem,
+    canonicalCalloutKey,
+    dedupeCalloutKeysCI,
     DEFAULT_CALLOUT_TYPES,
+    equalsCalloutKeyCI,
     formatCalloutTitleFromLabel,
+    isProtectedCalloutType,
     normalizeCalloutKeywords,
     normalizeCalloutLabel,
+    normalizeHistoricalLabels,
+    removeHistoricalLabelCI,
 } from "./callout_types";
 import { CalloutLayoutSettings, normalizeCalloutLayout } from "./callout_layout_vars";
 
@@ -18,13 +25,31 @@ export type CalloutAppearancePreset = {
 export type CalloutEnhanceSettings = {
     schemaVersion: number;
     callouts: CalloutTypeSettings[];
+    /** Labels from deleted types (and their historical labels); blocks keep old data-subtype. */
+    calloutTombstone?: string[];
     layout?: CalloutLayoutSettings;
     appearancePresets?: CalloutAppearancePreset[];
     activeAppearancePresetId?: string;
     debugLogEnabled?: boolean;
 };
 
-export const SETTINGS_SCHEMA_VERSION = 5;
+export const SETTINGS_SCHEMA_VERSION = 6;
+
+export type CalloutOccupancySource = "label" | "historical" | "tombstone";
+
+export type CalloutOccupancyEntry = {
+    source: CalloutOccupancySource;
+    calloutId?: string;
+};
+
+export type CalloutLabelOccupancyConflict = {
+    key: string;
+    source: CalloutOccupancySource;
+    calloutId?: string;
+    existingLabel: string;
+    /** Current label of the conflicting callout type entry (when known). */
+    ownerLabel?: string;
+};
 export const DEFAULT_APPEARANCE_PRESET_ID = "default";
 export const DEFAULT_APPEARANCE_PRESET_NAME = "Default";
 
@@ -128,14 +153,165 @@ function normalizeType(
     );
     const icon = (source.icon || defaultItem?.icon || "").trim();
     const color = normalizeColor(source.color || defaultItem?.color || "");
-    return {
+    const draft: CalloutTypeSettings = {
         id: (source.id || makeId(label, index)).trim(),
         label,
         keywords,
+        historicalLabels: normalizeHistoricalLabels(source.historicalLabels, label),
         icon,
         color,
         order: Number.isFinite(Number(source.order)) ? Number(source.order) : index,
         enabled: source.enabled !== false,
+    };
+    if (isProtectedCalloutType(draft)) {
+        draft.historicalLabels = [];
+    }
+    return draft;
+}
+
+function normalizeCalloutTombstone(raw: string[] | undefined) {
+    return dedupeCalloutKeysCI(Array.isArray(raw) ? raw : []);
+}
+
+export function buildOccupancyMap(settings?: Partial<CalloutEnhanceSettings> | null) {
+    const normalized = normalizeCalloutSettings(settings);
+    const map = new Map<string, CalloutOccupancyEntry>();
+
+    for (const item of normalized.callouts) {
+        const labelKey = canonicalCalloutKey(item.label);
+        if (labelKey) {
+            map.set(labelKey, { source: "label", calloutId: item.id });
+        }
+        for (const historical of item.historicalLabels) {
+            const historicalKey = canonicalCalloutKey(historical);
+            if (!historicalKey || map.has(historicalKey)) continue;
+            map.set(historicalKey, { source: "historical", calloutId: item.id });
+        }
+    }
+
+    for (const tombstoneLabel of normalized.calloutTombstone || []) {
+        const tombstoneKey = canonicalCalloutKey(tombstoneLabel);
+        if (!tombstoneKey || map.has(tombstoneKey)) continue;
+        map.set(tombstoneKey, { source: "tombstone" });
+    }
+
+    return map;
+}
+
+export function resolveCalloutTypeBySubtype(
+    settings: Partial<CalloutEnhanceSettings> | null | undefined,
+    subtype: string,
+): CalloutTypeItem | undefined {
+    const key = canonicalCalloutKey(subtype);
+    if (!key) return undefined;
+
+    for (const item of getAllResolvedCalloutTypes(settings)) {
+        if (canonicalCalloutKey(item.label) === key) return item;
+    }
+    for (const item of getAllResolvedCalloutTypes(settings)) {
+        if (item.historicalLabels.some((historical) => canonicalCalloutKey(historical) === key)) {
+            return item;
+        }
+    }
+    return undefined;
+}
+
+function formatOccupancyConflictMessage(conflict: CalloutLabelOccupancyConflict, enteredLabel: string) {
+    const entered = normalizeCalloutLabel(enteredLabel);
+    if (conflict.source === "tombstone") {
+        return `Label "${entered}" was used by a deleted callout type. Run "Clean up legacy data" in About, or choose a different name.`;
+    }
+    if (conflict.source === "historical") {
+        const owner = conflict.ownerLabel?.trim();
+        const ownerName = owner
+            ? (formatCalloutTitleFromLabel(owner) || owner)
+            : "another type";
+        return `Label "${entered}" conflicts with type "${ownerName}" (historical label "${conflict.existingLabel}").`;
+    }
+    const owner = conflict.ownerLabel?.trim() || conflict.existingLabel;
+    return `Label "${entered}" already exists on type "${formatCalloutTitleFromLabel(owner) || owner}". Please choose a different name.`;
+}
+
+export function validateLabelOccupancy(
+    label: string,
+    selfId: string,
+    settings?: Partial<CalloutEnhanceSettings> | null,
+): CalloutLabelOccupancyConflict | null {
+    const key = canonicalCalloutKey(label);
+    if (!key) return null;
+
+    const map = buildOccupancyMap(settings);
+    const entry = map.get(key);
+    if (!entry) return null;
+    if (entry.calloutId && entry.calloutId === selfId) return null;
+
+    const normalized = normalizeCalloutSettings(settings);
+    const owner = entry.calloutId
+        ? normalized.callouts.find((item) => item.id === entry.calloutId)
+        : undefined;
+    let existingLabel = label;
+    if (entry.source === "label" && owner) {
+        existingLabel = owner.label || existingLabel;
+    } else if (entry.source === "historical" && owner) {
+        existingLabel = owner.historicalLabels.find((item) => equalsCalloutKeyCI(item, label)) || label;
+    } else if (entry.source === "tombstone") {
+        existingLabel = (normalized.calloutTombstone || []).find((item) => equalsCalloutKeyCI(item, label)) || label;
+    }
+
+    return {
+        key,
+        source: entry.source,
+        calloutId: entry.calloutId,
+        existingLabel,
+        ownerLabel: owner?.label,
+    };
+}
+
+export function formatLabelOccupancyError(conflict: CalloutLabelOccupancyConflict, enteredLabel: string) {
+    return formatOccupancyConflictMessage(conflict, enteredLabel);
+}
+
+/** Labels to record in the tombstone when a type is deleted (not keywords). */
+export function collectTombstoneLabelsFromType(
+    item: Pick<CalloutTypeItem, "label" | "historicalLabels">,
+): string[] {
+    return dedupeCalloutKeysCI([
+        item.label,
+        ...(item.historicalLabels || []),
+    ].filter(Boolean));
+}
+
+export function mergeCalloutTombstone(existing: string[] | undefined, labels: string[]): string[] {
+    return dedupeCalloutKeysCI([...(existing || []), ...labels]);
+}
+
+export function removeCalloutTombstoneKeys(existing: string[] | undefined, labels: string[]): string[] {
+    const removeKeys = new Set(
+        labels.map((label) => canonicalCalloutKey(label)).filter(Boolean),
+    );
+    return (existing || []).filter((label) => !removeKeys.has(canonicalCalloutKey(label)));
+}
+
+/** Apply label rename rules on confirm (historical append/remove; built-in unchanged). */
+export function applyCalloutLabelConfirm(
+    item: CalloutTypeItem,
+    savedLabelRaw: string,
+    labelLocked: boolean,
+): CalloutTypeItem {
+    const savedLabel = normalizeCalloutLabel(savedLabelRaw);
+    const oldLabel = item.label;
+    let historical = [...(item.historicalLabels || [])];
+
+    if (!labelLocked && oldLabel && !equalsCalloutKeyCI(oldLabel, savedLabel)) {
+        historical = appendHistoricalLabel(historical, oldLabel);
+    }
+    historical = removeHistoricalLabelCI(historical, savedLabel);
+    historical = normalizeHistoricalLabels(historical, savedLabel);
+
+    return {
+        ...item,
+        label: savedLabel,
+        historicalLabels: labelLocked ? [] : historical,
     };
 }
 
@@ -173,6 +349,7 @@ export function createDefaultCalloutSettings(): CalloutEnhanceSettings {
         layout,
         appearancePresets: ensureDefaultAppearancePreset([]),
         activeAppearancePresetId: DEFAULT_APPEARANCE_PRESET_ID,
+        calloutTombstone: [],
         debugLogEnabled: false,
     };
 }
@@ -210,6 +387,7 @@ export function normalizeCalloutSettings(raw?: Partial<CalloutEnhanceSettings> |
     return {
         schemaVersion: SETTINGS_SCHEMA_VERSION,
         callouts: normalized,
+        calloutTombstone: normalizeCalloutTombstone(raw?.calloutTombstone),
         layout,
         appearancePresets: presets.map((preset) => {
             if (preset.id === DEFAULT_APPEARANCE_PRESET_ID) {

@@ -4,10 +4,14 @@ export type AboutSettingsPanelOptions = {
     host: HTMLElement;
     debugLogEnabled: boolean;
     onDebugLogChange: (enabled: boolean) => void;
+    cleanupRunning?: boolean;
+    onCleanupClick?: () => void;
 };
 
 const LICENSE_NAME = "MIT License";
 const LICENSE_URL = "https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/LICENSE";
+
+const CLEANUP_DESCRIPTION = "Merge callouts left on old labels after renames, map orphaned subtypes from deleted types to NOTE, and clear tombstones and historical labels. Recommended after many renames or deletions.";
 
 function createAboutInlineRow(label: string, value: string | HTMLElement) {
     const row = document.createElement("div");
@@ -40,7 +44,7 @@ function createAboutLink(href: string, text: string) {
 }
 
 export function renderAboutSettingsPanel(options: AboutSettingsPanelOptions) {
-    const { host, debugLogEnabled, onDebugLogChange } = options;
+    const { host, debugLogEnabled, onDebugLogChange, cleanupRunning = false, onCleanupClick } = options;
     host.innerHTML = "";
 
     const wrapper = document.createElement("div");
@@ -59,6 +63,33 @@ export function renderAboutSettingsPanel(options: AboutSettingsPanelOptions) {
         createAboutInlineRow("Repository", createAboutLink(pluginMeta.url, pluginMeta.url)),
         createAboutInlineRow("License", createAboutLink(LICENSE_URL, LICENSE_NAME)),
     );
+
+    const cleanupRow = document.createElement("div");
+    cleanupRow.className = "callout-enhance-about__row callout-enhance-about__row--cleanup";
+
+    const cleanupLabelWrap = document.createElement("div");
+    cleanupLabelWrap.className = "callout-enhance-about__switch-label";
+
+    const cleanupLabel = document.createElement("div");
+    cleanupLabel.className = "b3-label__text";
+    cleanupLabel.textContent = "Clean up legacy data";
+
+    const cleanupHint = document.createElement("div");
+    cleanupHint.className = "callout-enhance-about__hint b3-label__text";
+    cleanupHint.textContent = CLEANUP_DESCRIPTION;
+
+    cleanupLabelWrap.append(cleanupLabel, cleanupHint);
+
+    const cleanupBtn = document.createElement("button");
+    cleanupBtn.type = "button";
+    cleanupBtn.className = "b3-button b3-button--text callout-enhance-about__cleanup-btn";
+    cleanupBtn.textContent = "Purge";
+    cleanupBtn.disabled = cleanupRunning || !onCleanupClick;
+    if (onCleanupClick) {
+        cleanupBtn.addEventListener("click", () => onCleanupClick());
+    }
+
+    cleanupRow.append(cleanupLabelWrap, cleanupBtn);
 
     const debugRow = document.createElement("div");
     debugRow.className = "callout-enhance-about__row callout-enhance-about__row--switch";
@@ -86,6 +117,6 @@ export function renderAboutSettingsPanel(options: AboutSettingsPanelOptions) {
 
     debugRow.append(debugLabelWrap, debugSwitch);
 
-    wrapper.append(heading, info, debugRow);
+    wrapper.append(heading, info, cleanupRow, debugRow);
     host.appendChild(wrapper);
 }

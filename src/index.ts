@@ -4,16 +4,23 @@ import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEvent
 import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, isCalloutSettingsPreview } from "./utils/callout";
 import { getParentBlockLikeSiyuan } from "./utils/getBlock";
 import { createTransaction, getCurrentProtyle } from "./core/api";
+import {
+    countCalloutsBySubtypes,
+    countCalloutsForTypeItem,
+    isEditorReadOnly,
+    isWorkspaceReadOnly,
+} from "./core/cl_api";
 import { deleteCallout } from "./features/callout_delete";
 import { setFoldState } from "./features/callout_fold";
 import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
-import { CalloutTypeItem, resolveCalloutIconMask } from "./utils/callout_types";
+import { CalloutTypeItem, getCalloutStyleSubtypes, resolveCalloutIconMask } from "./utils/callout_types";
 import { CalloutEnhanceSettings, createDefaultCalloutSettings, getAllResolvedCalloutTypes, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings } from "./utils/settings";
 import { buildCalloutLayoutStylesheet, CalloutLayoutSettings, normalizeCalloutLayout } from "./utils/callout_layout_vars";
 import { handleCalloutTypeKeydown, hideCalloutTypeMenu, showCalloutTypeMenu } from "./features/type_menu";
 import { debugLog, errorLog, setDebugEnabled, warnLog } from "./utils/logger";
 import { openSettingsDialog } from "./components/settings_panel";
+import { runCleanup, type CleanupResult, type RunCleanupOptions } from "./utils/migration";
 import { registerPluginIcons } from "./utils/icons";
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 const STORAGE_NAME = "callout-enhance-settings";
@@ -37,6 +44,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     };
 
     private cleanupHandlers: Array<() => void> = [];
+    private calloutCleanupAbort: AbortController | null = null;
     settings: CalloutEnhanceSettings = createDefaultCalloutSettings();
     resolvedCalloutTypes: CalloutTypeItem[] = getResolvedCalloutTypes(this.settings);
     private appearancePreviewLayout: CalloutLayoutSettings | null = null;
@@ -137,6 +145,56 @@ export default class CalloutEnhancePlugin extends Plugin {
         return this.resolvedCalloutTypes;
     }
 
+    /** SQL count of callout blocks matching subtypes (case-insensitive); 0 if query fails. */
+    countCalloutsBySubtypes(subtypes: string[]) {
+        return countCalloutsBySubtypes(subtypes);
+    }
+
+    /** Count blocks for one type's label + historical labels. */
+    countCalloutsForTypeItem(item: Pick<CalloutTypeItem, "label" | "historicalLabels">) {
+        return countCalloutsForTypeItem(item);
+    }
+
+    isWorkspaceReadOnly() {
+        return isWorkspaceReadOnly();
+    }
+
+    isEditorReadOnly() {
+        return isEditorReadOnly();
+    }
+
+    abortCalloutCleanup() {
+        this.calloutCleanupAbort?.abort();
+    }
+
+    async runCalloutCleanup(
+        options: Pick<RunCleanupOptions, "signal" | "onProgress" | "getSettings" | "saveSettings"> & {
+            signal?: AbortSignal;
+        },
+    ): Promise<CleanupResult> {
+        const controller = options.signal ? null : new AbortController();
+        if (controller) {
+            this.calloutCleanupAbort = controller;
+        }
+        const signal = options.signal || controller!.signal;
+        const getSettings = options.getSettings ?? (() => normalizeCalloutSettings(this.settings));
+        const saveSettings = options.saveSettings ?? ((partial) => this.setSettings(partial));
+        try {
+            return await runCleanup({
+                settings: getSettings(),
+                getSettings,
+                saveSettings,
+                signal,
+                onProgress: options.onProgress,
+                onStylesUpdate: () => this.updateDynamicCalloutStyles(),
+            });
+        } finally {
+            if (this.calloutCleanupAbort === controller) {
+                this.calloutCleanupAbort = null;
+            }
+        }
+    }
+
     private getEffectiveCalloutLayout() {
         return normalizeCalloutLayout(this.appearancePreviewLayout || this.settings.layout);
     }
@@ -154,21 +212,22 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (layoutCss) rules.push(layoutCss);
 
         getAllResolvedCalloutTypes(this.settings).forEach((item) => {
-            const subtype = (item.label || item.id || "").trim();
-            if (!subtype) return;
+            const subtypes = getCalloutStyleSubtypes(item);
+            if (!subtypes.length) return;
 
-            const selector = `.callout[data-type="NodeCallout"][data-subtype="${escapeCssString(subtype)}" i]`;
-            const declarations: string[] = [];
             const color = safeCssValue(item.color);
-            if (color && (!window.CSS?.supports || CSS.supports("color", color))) {
-                declarations.push(`--local-color:${color}`);
-            }
-
+            const colorDecl = color && (!window.CSS?.supports || CSS.supports("color", color))
+                ? `--local-color:${color}`
+                : "";
             const mask = safeCssValue(resolveCalloutIconMask(item.icon || item.label, item.label));
-            if (declarations.length > 0) {
-                rules.push(`${selector}{${declarations.join(";")}}`);
+
+            for (const subtype of subtypes) {
+                const selector = `.callout[data-type="NodeCallout"][data-subtype="${escapeCssString(subtype)}" i]`;
+                if (colorDecl) {
+                    rules.push(`${selector}{${colorDecl}}`);
+                }
+                rules.push(`${selector}::before{-webkit-mask:${mask} center / cover no-repeat;mask:${mask} center / cover no-repeat}`);
             }
-            rules.push(`${selector}::before{-webkit-mask:${mask} center / cover no-repeat;mask:${mask} center / cover no-repeat}`);
         });
 
         style.textContent = rules.join("\n");
