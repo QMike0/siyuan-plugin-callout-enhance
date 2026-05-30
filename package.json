@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint . --fix --cache",
+    "predev": "node scripts/generate-callout-defaults.cjs",
     "dev": "webpack --mode development",
+    "prebuild": "node scripts/generate-callout-defaults.cjs",
     "build": "webpack --mode production"
   },
   "keywords": ["siyuan", "plugin", "callout"],
@@ -18,6 +20,7 @@
     "@typescript-eslint/parser": "8.40.0",
     "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.7.1",
+    "esbuild": "^0.19.12",
     "esbuild-loader": "^3.0.1",
     "eslint": "^9.33.0",
     "globals": "^16.3.0",

@@ -5,10 +5,19 @@ const {EsbuildPlugin} = require("esbuild-loader");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CopyPlugin = require("copy-webpack-plugin");
 const ZipPlugin = require("zip-webpack-plugin");
+const { generate: generateCalloutDefaults } = require("./scripts/generate-callout-defaults.cjs");
+
+class GenerateCalloutDefaultsPlugin {
+    apply(compiler) {
+        const run = () => generateCalloutDefaults();
+        compiler.hooks.beforeCompile.tap("GenerateCalloutDefaults", run);
+    }
+}
 
 module.exports = (env, argv) => {
     const isPro = argv.mode === "production";
     const plugins = [
+        new GenerateCalloutDefaultsPlugin(),
         new MiniCssExtractPlugin({
             filename: isPro ? "dist/index.css" : "index.css",
         }),

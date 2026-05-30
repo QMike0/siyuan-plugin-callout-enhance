@@ -14,29 +14,25 @@ import { deleteCallout } from "./features/callout_delete";
 import { setFoldState } from "./features/callout_fold";
 import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
-import { CalloutTypeItem, getCalloutStyleSubtypes, resolveCalloutIconMask } from "./utils/callout_types";
-import { CalloutEnhanceSettings, createDefaultCalloutSettings, getAllResolvedCalloutTypes, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings } from "./utils/settings";
-import { buildCalloutLayoutStylesheet, CalloutLayoutSettings, normalizeCalloutLayout } from "./utils/callout_layout_vars";
+import { CalloutTypeItem } from "./utils/callout_types";
+import { CalloutEnhanceSettings, createDefaultCalloutSettings, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings, prepareCalloutSettings, SETTINGS_SCHEMA_VERSION } from "./utils/settings";
+import { CalloutLayoutSettings, normalizeCalloutLayout } from "./utils/callout_layout_vars";
+import {
+    applyCalloutDynamicStylesheet,
+    buildCalloutDynamicStylesheet,
+    DYNAMIC_STYLE_ID,
+    removeCalloutDynamicStylesheet,
+    removeCalloutExportStylesheet,
+    syncCalloutExportStylesheet,
+} from "./utils/callout_dynamic_styles";
 import { handleCalloutTypeKeydown, hideCalloutTypeMenu, showCalloutTypeMenu } from "./features/type_menu";
 import { debugLog, errorLog, setDebugEnabled, warnLog } from "./utils/logger";
 import { openSettingsDialog } from "./components/settings_panel";
 import { runCleanup, type CleanupResult, type RunCleanupOptions } from "./utils/migration";
 import { registerPluginIcons } from "./utils/icons";
+
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 const STORAGE_NAME = "callout-enhance-settings";
-const DYNAMIC_STYLE_ID = "callout-enhance-dynamic-styles";
-
-function escapeCssString(value: string) {
-    return (value || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n|\r|\f/g, "");
-}
-
-function safeCssValue(value: string) {
-    const trimmed = (value || "").trim();
-    if (/^url\(/i.test(trimmed)) {
-        return trimmed.replace(/[{}\n\r\f]/g, "");
-    }
-    return trimmed.replace(/[;{}\n\r\f]/g, "");
-}
 
 export default class CalloutEnhancePlugin extends Plugin {
     declare data: {
@@ -203,37 +199,12 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     private updateDynamicCalloutStyles() {
-        let style = document.getElementById(DYNAMIC_STYLE_ID) as HTMLStyleElement | null;
-        if (!style) {
-            style = document.createElement("style");
-            style.id = DYNAMIC_STYLE_ID;
-            document.head.appendChild(style);
-        }
-
-        const rules: string[] = [];
-        const layoutCss = buildCalloutLayoutStylesheet(this.getEffectiveCalloutLayout());
-        if (layoutCss) rules.push(layoutCss);
-
-        getAllResolvedCalloutTypes(this.settings).forEach((item) => {
-            const subtypes = getCalloutStyleSubtypes(item);
-            if (!subtypes.length) return;
-
-            const color = safeCssValue(item.color);
-            const colorDecl = color && (!window.CSS?.supports || CSS.supports("color", color))
-                ? `--local-color:${color}`
-                : "";
-            const mask = safeCssValue(resolveCalloutIconMask(item.icon || item.label, item.label));
-
-            for (const subtype of subtypes) {
-                const selector = `.callout[data-type="NodeCallout"][data-subtype="${escapeCssString(subtype)}" i]`;
-                if (colorDecl) {
-                    rules.push(`${selector}{${colorDecl}}`);
-                }
-                rules.push(`${selector}::before{-webkit-mask:${mask} center / cover no-repeat;mask:${mask} center / cover no-repeat}`);
-            }
+        const css = buildCalloutDynamicStylesheet({
+            settings: this.settings,
+            layout: this.getEffectiveCalloutLayout(),
         });
-
-        style.textContent = rules.join("\n");
+        applyCalloutDynamicStylesheet(css, DYNAMIC_STYLE_ID);
+        syncCalloutExportStylesheet(css);
     }
 
     previewCalloutLayout(layout: Partial<CalloutLayoutSettings>) {
@@ -309,10 +280,15 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     private async loadSettings() {
         const saved = (await this.loadData(STORAGE_NAME)) as Partial<CalloutEnhanceSettings> | null;
-        this.settings = normalizeCalloutSettings(saved);
+        const { settings, migrated, fromVersion } = prepareCalloutSettings(saved);
+        this.settings = settings;
         this.resolvedCalloutTypes = getResolvedCalloutTypes(this.settings);
         setDebugEnabled(!!this.settings.debugLogEnabled);
         this.updateDynamicCalloutStyles();
+        if (migrated) {
+            debugLog(`[Settings] Migrated schema v${fromVersion} → v${SETTINGS_SCHEMA_VERSION}`);
+            await this.persistSettings();
+        }
     }
 
     private async persistSettings() {
@@ -596,6 +572,9 @@ export default class CalloutEnhancePlugin extends Plugin {
 
         registerPluginIcons(this);
 
+        // Phase A: inject defaults before async settings load to reduce first-paint flash.
+        this.updateDynamicCalloutStyles();
+
         await this.loadSettings();
         this.data = { settings: this.settings };
         (window as any).__calloutEnhancePlugin = this;
@@ -667,7 +646,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.calloutTypeMenuElement = null;
         this.completionMenuElement?.remove();
         this.completionMenuElement = null;
-        document.getElementById(DYNAMIC_STYLE_ID)?.remove();
+        removeCalloutDynamicStylesheet(DYNAMIC_STYLE_ID);
+        removeCalloutExportStylesheet();
         delete (window as any)[STARTUP_FLAG];
     }
 }

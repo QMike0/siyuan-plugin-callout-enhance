@@ -98,16 +98,8 @@
     --callout-color-question: #EC7500;
     --callout-color-info: #086ddd;
 
-    /* --- 图标 mask：与 icons.ts 中 iconCallout* 硬编码一致 --- */
-    --callout-icon-mask-note: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTEyIDIwaDkiLz48cGF0aCBkPSJNMTYuNSAzLjVhMi4xIDIuMSAwIDAgMSAzIDNMNyAxOWwtNCAxIDEtNFoiLz48L3N2Zz4=");
-    --callout-icon-mask-tip: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE1IDE0Yy4yLTEgLjctMS43IDEuNS0yLjVBNC45IDQuOSAwIDAgMCAxOCA4IDYgNiAwIDAgMCA2IDhjMCAxLjMuNCAyLjUgMS41IDMuNS43LjcgMS4zIDEuNSAxLjUgMi41Ii8+PHBhdGggZD0iTTkgMThoNiIvPjxwYXRoIGQ9Ik0xMCAyMmg0Ii8+PC9zdmc+");
-    --callout-icon-mask-important: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIxIDE1YTIgMiAwIDAgMS0yIDJIN2wtNCA0VjVhMiAyIDAgMCAxIDItMmgxNGEyIDIgMCAwIDEgMiAyeiIvPjxwYXRoIGQ9Ik0xMiA4djQiLz48cGF0aCBkPSJNMTIgMTZoLjAxIi8+PC9zdmc+");
-    --callout-icon-mask-warning: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0ibTIxLjczIDE4LTgtMTRhMiAyIDAgMCAwLTMuNDYgMGwtOCAxNEEyIDIgMCAwIDAgNCAyMWgxNmEyIDIgMCAwIDAgMS43My0zIi8+PHBhdGggZD0iTTEyIDl2NCIvPjxwYXRoIGQ9Ik0xMiAxN2guMDEiLz48L3N2Zz4=");
-    --callout-icon-mask-caution: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48cGF0aCBkPSJNMTIgOHY0Ii8+PHBhdGggZD0iTTEyIDE2aC4wMSIvPjwvc3ZnPg==");
-    --callout-icon-mask-quote: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTMgMjFjMyAwIDctMSA3LThWNWMwLTEuMjUtLjc1LTItMi0ySDRjLTEuMjUgMC0yIC43NS0yIDJ2NmMwIDEuMjUuNzUgMiAyIDJoMmMwIDItMSAzLTMgMyIvPjxwYXRoIGQ9Ik0xNSAyMWMzIDAgNy0xIDctOFY1YzAtMS4yNS0uNzUtMi0yLTJoLTRjLTEuMjUgMC0yIC43NS0yIDJ2NmMwIDEuMjUuNzUgMiAyIDJoMmMwIDItMSAzLTMgMyIvPjwvc3ZnPg==");
-    --callout-icon-mask-question: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48cGF0aCBkPSJNOS4wOSA5YTMgMyAwIDAgMSA1LjgzIDFjMCAyLTMgMy0zIDMiLz48cGF0aCBkPSJNMTIgMTdoLjAxIi8+PC9zdmc+");
-    --callout-icon-mask-info: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48cGF0aCBkPSJNMTIgMTZ2LTQiLz48cGF0aCBkPSJNMTIgOGguMDEiLz48L3N2Zz4=");
-    --callout-icon-mask-default: var(--callout-icon-mask-note);
+    /* --- 图标 mask fallback（未知 subtype；内置类型由 callout_defaults.css + runtime 覆盖） --- */
+    --callout-icon-mask-default: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTEyIDIwaDkiLz48cGF0aCBkPSJNMTYuNSAzLjVhMi4xIDIuMSAwIDAgMSAzIDNMNyAxOWwtNCAxIDEtNFoiLz48L3N2Zz4=");
 
     padding-top: var(--callout-shell-padding-top);
     padding-right: var(--callout-shell-padding-right);
@@ -453,10 +445,16 @@
             color: var(--b3-theme-on-background) !important;
         }
 
-        /* iconCalloutNote */
+        /* per-subtype color/icon from callout_defaults.css + runtime dynamic sheet */
         &::before {
-            mask: var(--callout-icon-mask-default);
+            -webkit-mask-image: var(--callout-icon-mask-default);
+            mask-image: var(--callout-icon-mask-default);
+            -webkit-mask-size: cover;
             mask-size: cover;
+            -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+            -webkit-mask-position: center;
+            mask-position: center;
         }
 
         /* 折叠箭头颜色 */
@@ -464,195 +462,6 @@
             background-color: color-mix(in srgb,
                     var(--local-color),
                     var(--callout-text-mix)) !important;
-        }
-    }
-
-    /* --- 原有类型 --- */
-    &[data-subtype="TIP"] {
-        --local-color: var(--callout-color-tip);
-
-        background: var(--callout-composite-background) !important;
-
-        &,
-        >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-
-        >.callout-info~*,
-        >.callout-info * {
-            color: var(--b3-theme-on-background) !important;
-        }
-
-        /* iconCalloutTip */
-        &::before {
-            mask: var(--callout-icon-mask-tip);
-            mask-size: cover;
-        }
-
-        &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-    }
-
-    &[data-subtype="IMPORTANT"] {
-        --local-color: var(--callout-color-important);
-
-        background: var(--callout-composite-background) !important;
-
-        &,
-        >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-
-        >.callout-info~*,
-        >.callout-info * {
-            color: var(--b3-theme-on-background) !important;
-        }
-
-        /* iconCalloutImportant */
-        &::before {
-            mask: var(--callout-icon-mask-important);
-            mask-size: cover;
-        }
-
-        &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-    }
-
-    &[data-subtype="WARNING"] {
-        --local-color: var(--callout-color-warning);
-
-        background: var(--callout-composite-background) !important;
-
-        &,
-        >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-
-        >.callout-info~*,
-        >.callout-info * {
-            color: var(--b3-theme-on-background) !important;
-        }
-
-        /* iconCalloutWarning */
-        &::before {
-            mask: var(--callout-icon-mask-warning);
-            mask-size: cover;
-        }
-
-        &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-    }
-
-    &[data-subtype="CAUTION"] {
-        --local-color: var(--callout-color-caution);
-
-        background: var(--callout-composite-background) !important;
-
-        &,
-        >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-
-        >.callout-info~*,
-        >.callout-info * {
-            color: var(--b3-theme-on-background) !important;
-        }
-
-        /* iconCalloutCaution */
-        &::before {
-            mask: var(--callout-icon-mask-caution);
-            mask-size: cover;
-        }
-
-        &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-    }
-
-    /* --- 新增类型: QUOTE (灰色) --- */
-    &[data-subtype="QUOTE" i] {
-        /* i 表示 "insensitive"（不区分大小写） */
-        --local-color: var(--callout-color-quote);
-        /* 自定义灰色 */
-
-        background: var(--callout-composite-background) !important;
-
-        &,
-        >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-
-        >.callout-info~*,
-        >.callout-info * {
-            color: var(--b3-theme-on-background) !important;
-        }
-
-        /* iconCalloutQuote */
-        &::before {
-            mask: var(--callout-icon-mask-quote);
-            mask-size: cover;
-        }
-
-        &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-    }
-
-    /* --- 新增类型: QUESTION (同WARNING样式) --- */
-    &[data-subtype="QUESTION" i] {
-        --local-color: var(--callout-color-question);
-
-        background: var(--callout-composite-background) !important;
-
-        &,
-        >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-
-        >.callout-info~*,
-        >.callout-info * {
-            color: var(--b3-theme-on-background) !important;
-        }
-
-        /* iconCalloutQuestion */
-        &::before {
-            mask: var(--callout-icon-mask-question);
-            mask-size: cover;
-        }
-
-        &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-    }
-
-    /* --- 新增类型: INFO (蓝色) --- */
-    &[data-subtype="INFO" i] {
-        --local-color: var(--callout-color-info);
-        /* 自定义蓝色 */
-
-        background: var(--callout-composite-background) !important;
-
-        &,
-        >.callout-info>.callout-title {
-            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
-        }
-
-        >.callout-info~*,
-        >.callout-info * {
-            color: var(--b3-theme-on-background) !important;
-        }
-
-        /* iconCalloutInfo */
-        &::before {
-            mask: var(--callout-icon-mask-info);
-            mask-size: cover;
-        }
-
-        &>.callout-info::after {
-            background-color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
         }
     }
 
@@ -672,6 +481,9 @@
     }
 
 }
+
+/* default per-subtype color/icon (buildCalloutDynamicStylesheet snapshot) */
+@import "./callout_defaults.css";
 
 .callout-enhance-preview-host {
     display: flex;

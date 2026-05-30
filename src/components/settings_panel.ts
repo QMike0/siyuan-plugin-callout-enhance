@@ -1,20 +1,28 @@
 import { Dialog, showMessage } from "siyuan";
 import {
-    applyCalloutLabelConfirm,
     CalloutEnhanceSettings,
     CalloutAppearancePreset,
-    collectTombstoneLabelsFromType,
     DEFAULT_APPEARANCE_PRESET_ID,
     DEFAULT_APPEARANCE_PRESET_NAME,
-    formatLabelOccupancyError,
     getDefaultAppearancePresetLayout,
     isDefaultAppearancePreset,
     makeAppearancePresetId,
-    mergeCalloutTombstone,
     normalizeCalloutSettings,
-    removeCalloutTombstoneKeys,
-    validateLabelOccupancy,
 } from "../utils/settings";
+import {
+    calloutTypesStateFromSettings,
+    createCalloutTypeDraft,
+    deleteCalloutTypeAtIndex,
+    finalizeCalloutTypeSave,
+    getCalloutTypeKey,
+    normalizeCalloutTypesSlice,
+    reclaimTombstoneLabel,
+    reorderCalloutTypes,
+    setCalloutTypeEnabled,
+    updateCalloutTypeAtIndex,
+} from "../utils/callout_type_crud";
+import { formatLabelOccupancyError, validateLabelOccupancy } from "../utils/callout_resolver";
+import { applyPreviewCalloutInlineStyle, BUILTIN_LABEL_COLOR_VAR } from "../utils/callout_dynamic_styles";
 import { CalloutTypeItem, calloutMatchesListSearch, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, isProtectedCalloutType, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
 import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
 import { openIconPicker } from "./icon_picker";
@@ -237,27 +245,6 @@ const ICON_ADD = createSvgIcon(`<path d="M12 5v14"></path><path d="M5 12h14"></p
 const ICON_EDIT = createSiyuanSymbolIcon("iconEdit");
 const ICON_DELETE = createSiyuanSymbolIcon("iconTrashcan");
 const ICON_UNDO = createSiyuanSymbolIcon("iconUndo");
-const LABEL_COLOR_VAR: Record<string, string> = {
-    info: "--callout-color-info",
-    note: "--callout-color-default",
-    tip: "--callout-color-tip",
-    quote: "--callout-color-quote",
-    question: "--callout-color-question",
-    important: "--callout-color-important",
-    warning: "--callout-color-warning",
-    caution: "--callout-color-caution",
-};
-
-const LABEL_ICON_VAR: Record<string, string> = {
-    info: "--callout-icon-mask-info",
-    note: "--callout-icon-mask-note",
-    tip: "--callout-icon-mask-tip",
-    quote: "--callout-icon-mask-quote",
-    question: "--callout-icon-mask-question",
-    important: "--callout-icon-mask-important",
-    warning: "--callout-icon-mask-warning",
-    caution: "--callout-icon-mask-caution",
-};
 
 let calloutCssVarProbe: HTMLElement | null = null;
 
@@ -278,14 +265,12 @@ function getCalloutCssVar(name: string) {
 
 function getDefaultColorForCalloutLabel(label: string) {
     const key = (label || "").trim().toLowerCase();
-    const varName = LABEL_COLOR_VAR[key] || "--callout-color-default";
+    const varName = BUILTIN_LABEL_COLOR_VAR[key] || "--callout-color-default";
     return colorToHex(getCalloutCssVar(varName));
 }
 
 function getDefaultIconForCalloutLabel(label: string) {
-    const key = (label || "").trim().toLowerCase();
-    const varName = LABEL_ICON_VAR[key] || "--callout-icon-mask-default";
-    return getCalloutCssVar(varName);
+    return resolveCalloutIconMask(label, label);
 }
 
 function getNewCalloutDefaultColor() {
@@ -372,8 +357,6 @@ function createPastLabelsField(labels: string[]) {
 async function confirmDeleteCalloutType(
     item: DraftItem,
     plugin: SettingsEditorPluginLike,
-    getTombstone: () => string[],
-    setTombstone: (next: string[]) => void,
     onConfirm: () => void,
 ) {
     const count = await plugin.countCalloutsForTypeItem?.(item) ?? 0;
@@ -385,7 +368,6 @@ async function confirmDeleteCalloutType(
         }),
         confirmLabel: "Delete",
         onConfirm: () => {
-            setTombstone(mergeCalloutTombstone(getTombstone(), collectTombstoneLabelsFromType(item)));
             onConfirm();
         },
     });
@@ -745,14 +727,17 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
         if (tombstone !== undefined) {
             options.settingsContext?.setTombstone(tombstone);
         }
-        const nextItem = applyCalloutLabelConfirm(item, savedLabelForCommit(), labelLocked);
         committed = true;
-        onSave({
-            ...nextItem,
-            keywords: readKeywordsInput(keywordsInput),
-            icon: iconValueInput.value,
-            color: colorInput.value,
-        });
+        onSave(finalizeCalloutTypeSave(
+            item,
+            {
+                keywords: readKeywordsInput(keywordsInput),
+                icon: iconValueInput.value,
+                color: colorInput.value,
+            },
+            savedLabelForCommit(),
+            labelLocked,
+        ));
         dialog.destroy();
         showMessage("Settings saved");
     };
@@ -781,8 +766,7 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
             width: window.innerWidth < 768 ? "92vw" : "440px",
             onConfirm: () => {
                 const currentTombstone = options.settingsContext?.getTombstone() ?? [];
-                const nextTombstone = removeCalloutTombstoneKeys(currentTombstone, [reclaimedLabel]);
-                commitSave(nextTombstone);
+                commitSave(reclaimTombstoneLabel(currentTombstone, reclaimedLabel));
             },
         });
     };
@@ -823,13 +807,6 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
     body.append(settingsPanel, previewPanel, footer);
     updatePreview();
     return dialog;
-}
-
-function getPreviewIconMask(item: DraftItem, source: PreviewIconSource) {
-    if (source === "draft" && item.icon?.trim()) {
-        return resolveCalloutIconMask(item.icon, item.label);
-    }
-    return getEditorCalloutIconMask(item.label, item.icon);
 }
 
 function createEditorCalloutStyleProbe(item: DraftItem) {
@@ -961,13 +938,10 @@ function createPreviewItem(item: DraftItem, options: PreviewOptions = {}) {
         preview.setAttribute("fold", "1");
     }
 
-    if (item.color?.trim()) {
-        preview.style.setProperty("--local-color", item.color.trim());
-    }
-    preview.style.setProperty(
-        "--callout-enhance-preview-icon-mask",
-        getPreviewIconMask(item, options.iconSource || "editor"),
-    );
+    applyPreviewCalloutInlineStyle(preview, item, {
+        source: options.iconSource || "editor",
+        editorMaskResolver: getEditorCalloutIconMask,
+    });
 
     const info = document.createElement("div");
     info.className = "callout-info";
@@ -1037,8 +1011,9 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     const detail = dialog.element.querySelector(".callout-enhance-detail") as HTMLElement | null;
     if (!nav || !detail) return dialog;
 
-    let draft: DraftItem[] = normalizeCalloutSettings(plugin.settings).callouts.map((item) => ({ ...item }));
-    let tombstoneDraft = [...(persistedSettings.calloutTombstone || [])];
+    const initialTypesState = calloutTypesStateFromSettings(persistedSettings);
+    let draft: DraftItem[] = initialTypesState.callouts;
+    let tombstoneDraft = initialTypesState.calloutTombstone;
     let cleanupRunning = false;
     const editDialogSettingsContext: EditDialogSettingsContext = {
         getTombstone: () => tombstoneDraft,
@@ -1353,22 +1328,23 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     };
 
     const persistCalloutsOnly = async () => {
-        const next = normalizeCalloutSettings({
-            schemaVersion: plugin.settings.schemaVersion,
-            callouts: draft,
-            calloutTombstone: tombstoneDraft,
-            layout: layoutDraft,
-            appearancePresets: appearancePresetsDraft,
-            activeAppearancePresetId,
-        });
-        tombstoneDraft = [...(next.calloutTombstone || [])];
+        const normalized = normalizeCalloutTypesSlice(
+            { callouts: draft, calloutTombstone: tombstoneDraft },
+            {
+                schemaVersion: plugin.settings.schemaVersion,
+                layout: layoutDraft,
+                appearancePresets: appearancePresetsDraft,
+                activeAppearancePresetId,
+            },
+        );
+        tombstoneDraft = normalized.calloutTombstone;
         await plugin.setSettings({
-            callouts: next.callouts,
-            calloutTombstone: next.calloutTombstone,
+            callouts: normalized.callouts,
+            calloutTombstone: normalized.calloutTombstone,
         });
     };
 
-    const getItemKey = (item: DraftItem) => item.id || item.label || item.keywords?.[0] || "";
+    const getItemKey = getCalloutTypeKey;
 
     const matchesListSearch = (item: DraftItem, query: string) => calloutMatchesListSearch(item, query);
 
@@ -1535,26 +1511,22 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     };
 
     const moveItem = (from: number, to: number) => {
-        if (from === to || from < 0 || to < 0 || from >= draft.length || to >= draft.length) return;
-        const next = [...draft];
-        const [picked] = next.splice(from, 1);
-        next.splice(to, 0, picked);
-        draft = next.map((item, index) => ({ ...item, order: index }));
+        const next = reorderCalloutTypes(draft, from, to);
+        if (!next) return;
+        draft = next;
         selectedIndex = to;
         renderList(true);
         void persistCalloutsOnly();
     };
 
     const moveItemDuringDrag = (from: number, to: number) => {
-        if (from === to || from < 0 || to < 0 || from >= draft.length || to >= draft.length) return;
+        const next = reorderCalloutTypes(draft, from, to);
+        if (!next) return;
         const selectedKey = getItemKey(draft[selectedIndex]);
         const previousRects = getListItemRects();
-        const next = [...draft];
-        const [picked] = next.splice(from, 1);
-        next.splice(to, 0, picked);
-        draft = next.map((item, index) => ({ ...item, order: index }));
+        draft = next;
         draggingIndex = to;
-        draggingKey = getItemKey(picked);
+        draggingKey = getItemKey(draft[to]);
         dragChanged = true;
         selectedIndex = Math.max(0, draft.findIndex((item) => getItemKey(item) === selectedKey));
         renderList(true);
@@ -1618,21 +1590,15 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
             const addBtn = createIconButton("Add", ICON_ADD);
             addBtn.addEventListener("click", () => {
-                const newItem: DraftItem = {
-                    id: `callout-${Date.now()}`,
-                    label: "",
-                    keywords: [],
-                    pastLabels: [],
-                    icon: "",
+                const created = createCalloutTypeDraft(draft, {
                     color: getNewCalloutDefaultColor(),
-                    enabled: true,
-                    order: draft.length,
-                };
-                draft.push(newItem);
-                selectedIndex = draft.length - 1;
+                });
+                draft = created.callouts;
+                selectedIndex = created.index;
                 render();
                 openEditDialog(draft[selectedIndex], (next) => {
-                    draft[selectedIndex] = { ...next, order: selectedIndex };
+                    const updated = updateCalloutTypeAtIndex(draft, selectedIndex, { ...next, order: selectedIndex });
+                    if (updated) draft = updated;
                     scrollListToBottomOnRender = true;
                     renderList(true);
                     void persistCalloutsOnly();
@@ -1706,7 +1672,8 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             enabled.style.margin = "0";
             enabled.addEventListener("click", (e) => e.stopPropagation());
             enabled.addEventListener("change", () => {
-                draft[index] = { ...draft[index], enabled: enabled.checked, order: index };
+                const next = setCalloutTypeEnabled(draft, index, enabled.checked);
+                if (next) draft = next;
                 selectedIndex = index;
                 void persistCalloutsOnly();
             });
@@ -1716,7 +1683,8 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                 e.stopPropagation();
                 captureListScrollTop();
                 openEditDialog(draft[index], (next) => {
-                    draft[index] = { ...next, order: index };
+                    const updated = updateCalloutTypeAtIndex(draft, index, { ...next, order: index });
+                    if (updated) draft = updated;
                     selectedIndex = index;
                     renderList(true);
                     void persistCalloutsOnly();
@@ -1740,12 +1708,14 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                 void confirmDeleteCalloutType(
                     item,
                     plugin,
-                    () => tombstoneDraft,
-                    (next) => {
-                        tombstoneDraft = next;
-                    },
                     () => {
-                        draft = draft.filter((_, i) => i !== index).map((x, i) => ({ ...x, order: i }));
+                        const result = deleteCalloutTypeAtIndex(
+                            { callouts: draft, calloutTombstone: tombstoneDraft },
+                            index,
+                        );
+                        if (!result) return;
+                        draft = result.callouts;
+                        tombstoneDraft = result.calloutTombstone;
                         selectedIndex = Math.max(0, Math.min(selectedIndex, draft.length - 1));
                         render();
                         void persistCalloutsOnly();
@@ -1852,9 +1822,9 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             calloutTombstone: tombstoneDraft,
         });
         const syncDraftFromPluginSettings = () => {
-            const synced = normalizeCalloutSettings(plugin.settings);
-            draft = synced.callouts.map((item) => ({ ...item }));
-            tombstoneDraft = [...(synced.calloutTombstone || [])];
+            const synced = calloutTypesStateFromSettings(plugin.settings);
+            draft = synced.callouts;
+            tombstoneDraft = synced.calloutTombstone;
         };
 
         try {
