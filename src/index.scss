@@ -61,7 +61,7 @@
     --callout-icon-before-margin-right: 8px;
     --callout-inline-icon-display: none; /* 思源原生 .callout-icon emoji */
 
-    /* --- 思源原生左侧色条：width 为 0 时隐藏；设为 4px 等可显示 inset 色条 --- */
+    /* --- 思源原生左侧色条：width 为 0 时隐藏；用 background 叠层（不用 inset box-shadow，避免 PDF printToPDF 上下伪边框） --- */
     --callout-left-accent-width: 0px;
 
     /* --- 正文区域间距 --- */
@@ -114,7 +114,7 @@
     border-color: var(--local-color, transparent) !important;
     border-radius: var(--callout-border-radius) !important;
     box-shadow: none !important;
-    /* 同时去除可能的阴影（部分主题有）；左侧色条在 subtype 规则中单独设置 inset shadow */
+    /* 同时去除可能的阴影（部分主题有）；左侧色条在 subtype 规则中用 background 叠层 */
     outline: none !important;
     /* 防止焦点时出现轮廓线 */
     position: relative;
@@ -259,7 +259,7 @@
         height: auto !important;
         overflow: visible !important;
         opacity: 1 !important;
-        background: var(--callout-composite-background) !important;
+        background: var(--callout-accent-layer, none), var(--callout-composite-background) !important;
     }
 
     /* 水平布局超级块中的Callout块限制在交叉轴上向起始位置对齐，防止被拉伸或居中 */
@@ -427,9 +427,9 @@
             var(--callout-body-background) var(--callout-header-background-height),
             var(--callout-body-background) 100%
         );
+        --callout-accent-layer: linear-gradient(to bottom, var(--local-color), var(--local-color)) 0 0 / var(--callout-left-accent-width) 100% no-repeat;
 
-        background: var(--callout-composite-background) !important;
-        box-shadow: inset var(--callout-left-accent-width) 0 0 0 var(--local-color) !important;
+        background: var(--callout-accent-layer), var(--callout-composite-background) !important;
 
         /* 标题颜色 */
         &,
