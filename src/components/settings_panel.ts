@@ -980,7 +980,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     const dialog = new Dialog({
         title: t("settingsTitle"),
         width: window.innerWidth < 768 ? "92vw" : "980px",
-        height: window.innerWidth < 768 ? "78vh" : "62vh",
+        height: window.innerWidth < 768 ? "90vh" : "76vh",
         disableClose: true,
         content: `
             <div class="fn__flex callout-enhance-settings-shell">
@@ -1923,32 +1923,5 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
     render();
 
-    const footer = document.createElement("div");
-    footer.className = "b3-dialog__action callout-enhance-dialog-footer";
-
-    const cancel = createIconButton(t("cancel"), t("cancel"));
-    cancel.className = "b3-button b3-button--cancel";
-    cancel.textContent = t("cancel");
-    cancel.addEventListener("click", () => {
-        void requestCloseSettings();
-    });
-
-    const save = createIconButton(t("save"), t("save"));
-    save.className = "b3-button b3-button--text";
-    save.textContent = t("save");
-    save.addEventListener("click", async () => {
-        try {
-            const closed = await requestCloseSettings(async () => {
-                await persistCalloutsOnly();
-                showMessage(t("settingsSaved"));
-            });
-            if (!closed) return;
-        } catch {
-            showMessage(t("settingsSaveFailed"));
-        }
-    });
-
-    footer.append(save, cancel);
-    dialog.element.appendChild(footer);
     return dialog;
 }
