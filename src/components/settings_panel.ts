@@ -32,12 +32,13 @@ import { renderAboutSettingsPanel } from "./about_settings_panel";
 import {
     createHelpIcon,
     createPreviewHelpIcon,
+    formatCleanupForceClearMessage,
     formatDeleteCalloutTypeMessage,
     formatTombstoneReclaimConfirmMessage,
     openCleanupProgressDialog,
     openConfirmDialog,
 } from "./settings_ui";
-import { ClApiError } from "../core/cl_api";
+import { ClApiError, type CalloutBlockCountResult } from "../core/cl_api";
 import type { CleanupProgress, CleanupResult } from "../utils/migration";
 import { Plugin } from "siyuan";
 import { t } from "../utils/i18n";
@@ -50,7 +51,7 @@ export type SettingsEditorPluginLike = Plugin & {
     clearAppearancePreview: () => void;
     reloadAppearanceFromDisk: () => Promise<void>;
     restoreAppearanceState: (settings: Pick<CalloutEnhanceSettings, "layout" | "appearancePresets" | "activeAppearancePresetId">) => void;
-    countCalloutsForTypeItem?: (item: Pick<CalloutTypeItem, "label" | "pastLabels">) => Promise<number>;
+    countCalloutsForTypeItem?: (item: Pick<CalloutTypeItem, "label" | "pastLabels">) => Promise<CalloutBlockCountResult>;
     isWorkspaceReadOnly?: () => boolean;
     isEditorReadOnly?: () => boolean;
     abortCalloutCleanup?: () => void;
@@ -60,7 +61,12 @@ export type SettingsEditorPluginLike = Plugin & {
         onProgress: (progress: CleanupProgress) => void;
         getSettings?: () => CalloutEnhanceSettings;
         saveSettings?: (settings: Partial<CalloutEnhanceSettings>) => Promise<void>;
+        forceClearMetadata?: boolean;
     }) => Promise<CleanupResult>;
+    clearLegacyCalloutMetadata?: (options?: {
+        getSettings?: () => CalloutEnhanceSettings;
+        saveSettings?: (settings: Partial<CalloutEnhanceSettings>) => Promise<void>;
+    }) => Promise<void>;
 };
 
 type DraftItem = CalloutTypeItem;
@@ -354,12 +360,13 @@ async function confirmDeleteCalloutType(
     plugin: SettingsEditorPluginLike,
     onConfirm: () => void,
 ) {
-    const count = await plugin.countCalloutsForTypeItem?.(item) ?? 0;
+    const countResult = await plugin.countCalloutsForTypeItem?.(item) ?? { ok: true as const, count: 0 };
     openConfirmDialog({
         title: t("deleteCalloutType"),
         message: formatDeleteCalloutTypeMessage({
             title: getCalloutPreviewTitle(item),
-            count,
+            countKnown: countResult.ok,
+            count: countResult.ok ? countResult.count : 0,
         }),
         confirmLabel: t("delete"),
         onConfirm: () => {
@@ -738,10 +745,10 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
 
     const promptTombstoneReclaim = async (savedLabel: string) => {
         const reclaimedLabel = normalizeCalloutLabel(savedLabel);
-        const count = await options.settingsContext?.countCalloutsForTypeItem?.({
+        const countResult = await options.settingsContext?.countCalloutsForTypeItem?.({
             label: reclaimedLabel,
             pastLabels: [],
-        }) ?? 0;
+        }) ?? { ok: true as const, count: 0 };
         const newTypeTitle = getCalloutPreviewTitle({
             ...item,
             label: reclaimedLabel,
@@ -751,7 +758,8 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
             message: formatTombstoneReclaimConfirmMessage({
                 reclaimedLabel,
                 newTypeTitle,
-                count,
+                countKnown: countResult.ok,
+                count: countResult.ok ? countResult.count : 0,
             }),
             confirmLabel: t("saveAndApplyStyle"),
             cancelLabel: t("backToEdit"),
@@ -1485,7 +1493,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         const createNavItem = (label: string, iconId: string, active: boolean, onClick: () => void) => {
             const item = document.createElement("div");
             item.className = `callout-enhance-nav-item${active ? " callout-enhance-nav-item--active" : ""}`;
-            item.innerHTML = `<svg class="callout-enhance-nav-item__icon"><use href="#${iconId}"></use></svg><span class="callout-enhance-nav-item__text">${label}</span>`;
+            item.innerHTML = `<svg class="callout-enhance-nav-item__icon"><use href="#${iconId}"></use></svg><span class="callout-enhance-nav-item__text b3-label__text">${label}</span>`;
             item.addEventListener("click", onClick);
             nav.appendChild(item);
         };
@@ -1808,6 +1816,28 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         const progressDialog = openCleanupProgressDialog({
             signal: controller.signal,
             onCancel: requestAbortCleanup,
+            onFinishedClose: (result) => {
+                if (result.aborted || result.metadataCleared || !plugin.clearLegacyCalloutMetadata) return;
+                openConfirmDialog({
+                    title: t("cleanupForceClearTitle"),
+                    message: formatCleanupForceClearMessage(result),
+                    confirmLabel: t("cleanupForceClearMetadata"),
+                    cancelLabel: t("close"),
+                    width: window.innerWidth < 768 ? "92vw" : "440px",
+                    onConfirm: () => {
+                        void plugin.clearLegacyCalloutMetadata?.({
+                            getSettings: getCleanupSettings,
+                            saveSettings: async (partial) => {
+                                await plugin.setSettings(partial);
+                                syncDraftFromPluginSettings();
+                            },
+                        }).then(() => {
+                            if (mode === "list") renderList(true);
+                            showMessage(t("cleanupMetadataForceCleared"));
+                        });
+                    },
+                });
+            },
         });
 
         const getCleanupSettings = () => normalizeCalloutSettings({

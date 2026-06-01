@@ -1,17 +1,35 @@
 import { Dialog } from "siyuan";
 import type { CleanupProgress, CleanupResult } from "../utils/migration";
 import { t } from "../utils/i18n";
+import { warnLog } from "../utils/logger";
 
 export function formatTombstoneReclaimConfirmMessage(options: {
     reclaimedLabel: string;
     newTypeTitle: string;
+    countKnown: boolean;
     count: number;
 }) {
-    const { reclaimedLabel, newTypeTitle, count } = options;
+    const { reclaimedLabel, newTypeTitle, countKnown, count } = options;
+    if (!countKnown) {
+        return t("tombstoneReclaimMessageCountUnknown", { reclaimedLabel, newTypeTitle });
+    }
     if (count > 0) {
         return t("tombstoneReclaimMessageWithCount", { count, reclaimedLabel, newTypeTitle });
     }
     return t("tombstoneReclaimMessage", { reclaimedLabel, newTypeTitle });
+}
+
+export function logCleanupErrorsToConsole(result: CleanupResult) {
+    if (!result.errors.length) return;
+    warnLog(`[Callout Enhance] Cleanup errors (${result.errors.length}):`);
+    for (const entry of result.errors) {
+        const mapping = entry.fromLabel && entry.toLabel
+            ? `${entry.fromLabel} -> ${entry.toLabel}`
+            : "";
+        const phase = entry.phase ? `phase ${entry.phase}` : "";
+        const context = [phase, mapping].filter(Boolean).join(", ");
+        warnLog(`  - ${entry.id}: ${entry.reason}${context ? ` (${context})` : ""}`);
+    }
 }
 
 export function formatCleanupResultMessage(result: CleanupResult) {
@@ -21,12 +39,32 @@ export function formatCleanupResultMessage(result: CleanupResult) {
         succeeded: result.succeeded,
         failed: result.failed,
     });
+    const parts = [`${status} ${summary}`];
+    if (!result.aborted && !result.metadataCleared) {
+        parts.push(result.metadataPartiallyCleared
+            ? t("cleanupMetadataPartiallyRetained")
+            : t("cleanupMetadataRetained"));
+    }
     if (!result.errors.length) {
-        return `${status} ${summary}`;
+        return parts.join(" ");
     }
     const detail = result.errors.slice(0, 3).map((entry) => `${entry.id}: ${entry.reason}`).join("; ");
     const more = result.errors.length > 3 ? t("cleanupErrorsMore", { count: result.errors.length - 3 }) : "";
-    return `${status} ${summary} ${detail}${more}`;
+    parts.push(`${detail}${more}`);
+    parts.push(t("cleanupErrorsConsoleHint"));
+    return parts.join(" ");
+}
+
+export function formatCleanupForceClearMessage(result: CleanupResult) {
+    const reasons: string[] = [];
+    if (result.failed > 0) {
+        reasons.push(t("cleanupForceClearReasonFailed", { count: result.failed }));
+    }
+    if (result.indexTimedOut) {
+        reasons.push(t("cleanupForceClearReasonIndexTimeout"));
+    }
+    const reasonText = reasons.join(t("cleanupForceClearReasonJoin"));
+    return t("cleanupForceClearMessage", { reasons: reasonText });
 }
 
 export type CleanupProgressDialogHandle = {
@@ -39,8 +77,9 @@ export type CleanupProgressDialogHandle = {
 export function openCleanupProgressDialog(options: {
     signal: AbortSignal;
     onCancel: () => void;
+    onFinishedClose?: (result: CleanupResult) => void;
 }): CleanupProgressDialogHandle {
-    const { signal, onCancel } = options;
+    const { signal, onCancel, onFinishedClose } = options;
 
     const dialog = new Dialog({
         title: t("cleanupProgressTitle"),
@@ -91,9 +130,12 @@ export function openCleanupProgressDialog(options: {
     };
 
     let finished = false;
+    let lastResult: CleanupResult | null = null;
     cancelBtn.addEventListener("click", () => {
         if (finished) {
+            const result = lastResult;
             dialog.destroy();
+            if (result) onFinishedClose?.(result);
             return;
         }
         onCancel();
@@ -101,6 +143,8 @@ export function openCleanupProgressDialog(options: {
 
     const showResult = (result: CleanupResult) => {
         finished = true;
+        lastResult = result;
+        logCleanupErrorsToConsole(result);
         progressTrack.classList.remove("callout-enhance-cleanup-progress__track--indeterminate");
         progressBar.style.width = result.aborted ? "" : "100%";
         messageEl.textContent = formatCleanupResultMessage(result);
@@ -122,8 +166,11 @@ export function openCleanupProgressDialog(options: {
     };
 }
 
-export function formatDeleteCalloutTypeMessage(options: { title: string; count: number }) {
-    const { title, count } = options;
+export function formatDeleteCalloutTypeMessage(options: { title: string; countKnown: boolean; count: number }) {
+    const { title, countKnown, count } = options;
+    if (!countKnown) {
+        return t("deleteCalloutTypeMessageCountUnknown", { title });
+    }
     if (count > 0) {
         return t("deleteCalloutTypeMessageWithCount", { count, title });
     }

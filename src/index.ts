@@ -7,6 +7,7 @@ import { createTransaction, getCurrentProtyle } from "./core/api";
 import {
     countCalloutsBySubtypes,
     countCalloutsForTypeItem,
+    type CalloutBlockCountResult,
     isEditorReadOnly,
     isWorkspaceReadOnly,
 } from "./core/cl_api";
@@ -28,7 +29,7 @@ import {
 import { handleCalloutTypeKeydown, hideCalloutTypeMenu, showCalloutTypeMenu } from "./features/type_menu";
 import { debugLog, errorLog, setDebugEnabled, warnLog } from "./utils/logger";
 import { openSettingsDialog } from "./components/settings_panel";
-import { runCleanup, type CleanupResult, type RunCleanupOptions } from "./utils/migration";
+import { runCleanup, clearLegacyCalloutMetadata, type CleanupResult, type RunCleanupOptions } from "./utils/migration";
 import { registerPluginIcons } from "./utils/icons";
 import { setPluginI18n, t } from "./utils/i18n";
 
@@ -142,13 +143,13 @@ export default class CalloutEnhancePlugin extends Plugin {
         return this.resolvedCalloutTypes;
     }
 
-    /** SQL count of callout blocks matching subtypes (case-insensitive); 0 if query fails. */
-    countCalloutsBySubtypes(subtypes: string[]) {
+    /** SQL count of callout blocks matching subtypes (case-insensitive). */
+    countCalloutsBySubtypes(subtypes: string[]): Promise<CalloutBlockCountResult> {
         return countCalloutsBySubtypes(subtypes);
     }
 
     /** Count blocks for one type's label + past labels. */
-    countCalloutsForTypeItem(item: Pick<CalloutTypeItem, "label" | "pastLabels">) {
+    countCalloutsForTypeItem(item: Pick<CalloutTypeItem, "label" | "pastLabels">): Promise<CalloutBlockCountResult> {
         return countCalloutsForTypeItem(item);
     }
 
@@ -165,7 +166,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     async runCalloutCleanup(
-        options: Pick<RunCleanupOptions, "signal" | "onProgress" | "getSettings" | "saveSettings"> & {
+        options: Pick<RunCleanupOptions, "signal" | "onProgress" | "getSettings" | "saveSettings" | "forceClearMetadata"> & {
             signal?: AbortSignal;
             /** When provided (with `signal`), `abortCalloutCleanup()` aborts this controller. */
             abortController?: AbortController;
@@ -187,12 +188,25 @@ export default class CalloutEnhancePlugin extends Plugin {
                 signal,
                 onProgress: options.onProgress,
                 onStylesUpdate: () => this.updateDynamicCalloutStyles(),
+                forceClearMetadata: options.forceClearMetadata,
             });
         } finally {
             if (this.calloutCleanupAbort === controller) {
                 this.calloutCleanupAbort = null;
             }
         }
+    }
+
+    async clearLegacyCalloutMetadata(
+        options: Pick<RunCleanupOptions, "getSettings" | "saveSettings"> = {},
+    ) {
+        const getSettings = options.getSettings ?? (() => normalizeCalloutSettings(this.settings));
+        const saveSettings = options.saveSettings ?? ((partial) => this.setSettings(partial));
+        await clearLegacyCalloutMetadata({
+            getSettings,
+            saveSettings,
+            onStylesUpdate: () => this.updateDynamicCalloutStyles(),
+        });
     }
 
     private getEffectiveCalloutLayout() {

@@ -15,7 +15,9 @@ import {
     canonicalCalloutKey,
     equalsCalloutKeyCI,
     normalizeCalloutLabel,
+    removePastLabelCI,
 } from "./callout_types";
+import { removeCalloutTombstoneKeys } from "./callout_type_crud";
 import {
     CalloutEnhanceSettings,
     normalizeCalloutSettings,
@@ -35,13 +37,46 @@ export type CleanupProgress = {
     indeterminate?: boolean;
 };
 
+export type CleanupError = {
+    id: string;
+    reason: string;
+    phase?: "a" | "b" | "index";
+    fromLabel?: string;
+    toLabel?: string;
+};
+
 export type CleanupResult = {
     processed: number;
     succeeded: number;
     failed: number;
     aborted: boolean;
-    errors: { id: string; reason: string }[];
+    /** True when any temporarily opened notebook failed to finish indexing in time. */
+    indexTimedOut: boolean;
+    /** True when no past labels or tombstones remain after this run. */
+    metadataCleared: boolean;
+    /** True when some legacy entries were removed but others remain. */
+    metadataPartiallyCleared: boolean;
+    errors: CleanupError[];
 };
+
+export type ClearLegacyCalloutMetadataOptions = {
+    getSettings: () => CalloutEnhanceSettings;
+    saveSettings: (settings: Partial<CalloutEnhanceSettings>) => Promise<void>;
+    onStylesUpdate?: () => void;
+};
+
+export async function clearLegacyCalloutMetadata(options: ClearLegacyCalloutMetadataOptions) {
+    const { getSettings, saveSettings, onStylesUpdate } = options;
+    const latest = normalizeCalloutSettings(getSettings());
+    await saveSettings({
+        callouts: latest.callouts.map((item) => ({
+            ...item,
+            pastLabels: [],
+        })),
+        calloutTombstone: [],
+    });
+    onStylesUpdate?.();
+}
 
 export type RunCleanupOptions = {
     settings: CalloutEnhanceSettings;
@@ -50,6 +85,8 @@ export type RunCleanupOptions = {
     signal: AbortSignal;
     onProgress: (progress: CleanupProgress) => void;
     onStylesUpdate?: () => void;
+    /** When true, clear all pastLabels/tombstone even if some blocks failed or indexing timed out. */
+    forceClearMetadata?: boolean;
 };
 
 type SubtypeMigration = {
@@ -57,6 +94,10 @@ type SubtypeMigration = {
     fromKey: string;
     fromLabel: string;
     toLabel: string;
+};
+
+type MappingMigrationOutcome = {
+    success: boolean;
 };
 
 function escapeSqlLiteral(value: string) {
@@ -97,6 +138,28 @@ function mapProgress(
         message,
         percent,
         indeterminate,
+    });
+}
+
+function pushCleanupError(
+    result: CleanupResult,
+    entry: CleanupError,
+) {
+    result.errors.push(entry);
+}
+
+function pushMigrationError(
+    result: CleanupResult,
+    migration: SubtypeMigration,
+    id: string,
+    reason: string,
+) {
+    pushCleanupError(result, {
+        id,
+        reason,
+        phase: migration.phase,
+        fromLabel: migration.fromLabel,
+        toLabel: migration.toLabel,
     });
 }
 
@@ -146,6 +209,51 @@ function buildPhaseBMigrations(settings: CalloutEnhanceSettings): SubtypeMigrati
     return migrations;
 }
 
+function collectReclaimedTombstoneLabels(settings: CalloutEnhanceSettings): string[] {
+    const normalized = normalizeCalloutSettings(settings);
+    return (normalized.calloutTombstone || []).filter((label) =>
+        resolveCalloutTypeBySubtype(normalized, label),
+    );
+}
+
+function applyPartialLegacyMetadataClear(
+    settings: CalloutEnhanceSettings,
+    successfulMigrations: SubtypeMigration[],
+    reclaimedTombstoneLabels: string[],
+) {
+    let callouts = settings.callouts.map((item) => ({
+        ...item,
+        pastLabels: [...(item.pastLabels || [])],
+    }));
+    let calloutTombstone = [...(settings.calloutTombstone || [])];
+
+    for (const migration of successfulMigrations) {
+        if (migration.phase === "a") {
+            const targetKey = canonicalCalloutKey(migration.toLabel);
+            callouts = callouts.map((item) => {
+                if (canonicalCalloutKey(item.label) !== targetKey) return item;
+                return {
+                    ...item,
+                    pastLabels: removePastLabelCI(item.pastLabels || [], migration.fromLabel),
+                };
+            });
+        } else {
+            calloutTombstone = removeCalloutTombstoneKeys(calloutTombstone, [migration.fromLabel]);
+        }
+    }
+
+    for (const label of reclaimedTombstoneLabels) {
+        calloutTombstone = removeCalloutTombstoneKeys(calloutTombstone, [label]);
+    }
+
+    return { callouts, calloutTombstone };
+}
+
+function hasLegacyMetadata(settings: Pick<CalloutEnhanceSettings, "callouts" | "calloutTombstone">) {
+    if ((settings.calloutTombstone || []).length > 0) return true;
+    return settings.callouts.some((item) => (item.pastLabels || []).length > 0);
+}
+
 async function listCalloutBlockIdsBySubtypeKey(subtypeKey: string, limit: number) {
     const stmt = `SELECT id FROM blocks WHERE type = 'callout' AND upper(subtype) = '${escapeSqlLiteral(subtypeKey)}' LIMIT ${limit}`;
     const rows = await querySQL(stmt);
@@ -154,26 +262,37 @@ async function listCalloutBlockIdsBySubtypeKey(subtypeKey: string, limit: number
         .filter((id) => !!id);
 }
 
-export function migrateCalloutBlockDom(domHtml: string, fromLabel: string, toLabel: string) {
+export type MigrateCalloutBlockDomResult = {
+    changed: boolean;
+    dom: string;
+    /** DOM already matches target subtype and markers; SQL index may still list the old subtype. */
+    alreadyAtTarget: boolean;
+};
+
+export function migrateCalloutBlockDom(
+    domHtml: string,
+    fromLabel: string,
+    toLabel: string,
+): MigrateCalloutBlockDomResult {
     const targetSubtype = normalizeCalloutLabel(toLabel).toUpperCase();
     const fromKey = canonicalCalloutKey(fromLabel);
     const targetKey = canonicalCalloutKey(targetSubtype);
     if (!targetKey) {
-        return { changed: false, dom: domHtml };
+        return { changed: false, dom: domHtml, alreadyAtTarget: false };
     }
 
     const template = document.createElement("template");
     template.innerHTML = domHtml.trim();
     const root = template.content.firstElementChild as HTMLElement | null;
     if (!root) {
-        return { changed: false, dom: domHtml };
+        return { changed: false, dom: domHtml, alreadyAtTarget: false };
     }
 
     const callout = root.dataset.type === "NodeCallout"
         ? root
         : root.querySelector<HTMLElement>('[data-type="NodeCallout"]');
     if (!callout) {
-        return { changed: false, dom: domHtml };
+        return { changed: false, dom: domHtml, alreadyAtTarget: false };
     }
 
     let changed = false;
@@ -208,9 +327,13 @@ export function migrateCalloutBlockDom(domHtml: string, fromLabel: string, toLab
     }
 
     if (!changed) {
-        return { changed: false, dom: domHtml };
+        const alreadyAtTarget = equalsCalloutKeyCI(
+            callout.getAttribute("data-subtype") || "",
+            targetSubtype,
+        );
+        return { changed: false, dom: domHtml, alreadyAtTarget };
     }
-    return { changed: true, dom: root.outerHTML };
+    return { changed: true, dom: root.outerHTML, alreadyAtTarget: false };
 }
 
 async function migrateSubtypeMapping(
@@ -218,9 +341,20 @@ async function migrateSubtypeMapping(
     signal: AbortSignal,
     result: CleanupResult,
     onBatchProgress: (processedInMapping: number, mappingTotal: number) => void,
-) {
-    const mappingTotal = await countCalloutsBySubtypes([migration.fromLabel]);
+): Promise<MappingMigrationOutcome> {
+    const countResult = await countCalloutsBySubtypes([migration.fromLabel]);
+    const mappingTotal = countResult.ok ? countResult.count : 0;
     let mappingProcessed = 0;
+    const mappingFailedIds = new Set<string>();
+    /** Blocks whose DOM is already at target; re-index was attempted but SQL may still list the old subtype. */
+    const sqlStaleResolvedIds = new Set<string>();
+
+    const recordMappingFailure = (blockId: string, reason: string) => {
+        if (mappingFailedIds.has(blockId)) return;
+        mappingFailedIds.add(blockId);
+        result.failed += 1;
+        pushMigrationError(result, migration, blockId, reason);
+    };
 
     while (true) {
         throwIfAborted(signal);
@@ -228,58 +362,116 @@ async function migrateSubtypeMapping(
         if (!blockIds.length) break;
 
         const updates: { id: string; data: string }[] = [];
+        const reindexOnly: { id: string; data: string }[] = [];
+        const stagnantIds: string[] = [];
+
         for (const blockId of blockIds) {
             throwIfAborted(signal);
             result.processed += 1;
             mappingProcessed += 1;
             try {
                 const dom = await getBlockDOM(blockId);
-                const { changed, dom: nextDom } = migrateCalloutBlockDom(
+                const { changed, dom: nextDom, alreadyAtTarget } = migrateCalloutBlockDom(
                     dom,
                     migration.fromLabel,
                     migration.toLabel,
                 );
-                if (!changed) continue;
-                updates.push({ id: blockId, data: nextDom });
+                if (changed) {
+                    updates.push({ id: blockId, data: nextDom });
+                    continue;
+                }
+                if (alreadyAtTarget) {
+                    if (sqlStaleResolvedIds.has(blockId)) {
+                        result.succeeded += 1;
+                        continue;
+                    }
+                    reindexOnly.push({ id: blockId, data: nextDom });
+                    continue;
+                }
+                stagnantIds.push(blockId);
             } catch (error) {
-                result.failed += 1;
-                result.errors.push({
-                    id: blockId,
-                    reason: error instanceof Error ? error.message : String(error),
-                });
+                recordMappingFailure(
+                    blockId,
+                    error instanceof Error ? error.message : String(error),
+                );
             }
         }
 
+        let madeProgress = false;
         if (updates.length) {
             try {
                 await batchUpdateBlock(updates);
                 await flushTransaction();
                 await sleep(FLUSH_DELAY_MS);
                 result.succeeded += updates.length;
+                madeProgress = true;
             } catch (error) {
                 const reason = error instanceof Error ? error.message : String(error);
                 for (const block of updates) {
-                    result.failed += 1;
-                    result.errors.push({ id: block.id, reason });
+                    recordMappingFailure(block.id, reason);
                 }
             }
         }
 
+        if (reindexOnly.length) {
+            try {
+                await batchUpdateBlock(reindexOnly);
+                await flushTransaction();
+                await sleep(FLUSH_DELAY_MS);
+                for (const block of reindexOnly) {
+                    sqlStaleResolvedIds.add(block.id);
+                    result.succeeded += 1;
+                }
+                madeProgress = true;
+            } catch (error) {
+                const reason = error instanceof Error ? error.message : String(error);
+                for (const block of reindexOnly) {
+                    recordMappingFailure(block.id, reason);
+                }
+            }
+        }
+
+        if (!madeProgress && stagnantIds.length) {
+            const stagnantReason = t("migrateStagnantReason");
+            for (const blockId of stagnantIds) {
+                recordMappingFailure(blockId, stagnantReason);
+            }
+            break;
+        }
+
+        if (!madeProgress && stagnantIds.length === 0) {
+            break;
+        }
+
         onBatchProgress(Math.min(mappingProcessed, mappingTotal), Math.max(mappingTotal, 1));
     }
+
+    return { success: mappingFailedIds.size === 0 };
 }
 
 export async function runCleanup(options: RunCleanupOptions): Promise<CleanupResult> {
-    const { signal, onProgress, getSettings, saveSettings, onStylesUpdate } = options;
+    const {
+        signal,
+        onProgress,
+        getSettings,
+        saveSettings,
+        onStylesUpdate,
+        forceClearMetadata = false,
+    } = options;
     const result: CleanupResult = {
         processed: 0,
         succeeded: 0,
         failed: 0,
         aborted: false,
+        indexTimedOut: false,
+        metadataCleared: false,
+        metadataPartiallyCleared: false,
         errors: [],
     };
 
     const openedForCleanup: string[] = [];
+    let indexTimedOut = false;
+    const successfulMigrations: SubtypeMigration[] = [];
 
     try {
         assertCleanupWritable();
@@ -322,9 +514,11 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
                 );
                 const indexed = await waitNotebookIndexed(notebookId);
                 if (indexed.timedOut) {
-                    result.errors.push({
+                    indexTimedOut = true;
+                    pushCleanupError(result, {
                         id: notebookId,
                         reason: t("migrateTimeoutReason"),
+                        phase: "index",
                     });
                 }
             }
@@ -337,7 +531,10 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
 
         let totalBlocks = 0;
         for (const migration of [...phaseA, ...phaseB]) {
-            totalBlocks += await countCalloutsBySubtypes([migration.fromLabel]);
+            const countResult = await countCalloutsBySubtypes([migration.fromLabel]);
+            if (countResult.ok) {
+                totalBlocks += countResult.count;
+            }
         }
         const reportMigrationProgress = (
             migration: SubtypeMigration,
@@ -364,19 +561,23 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
 
         for (const migration of phaseA) {
             throwIfAborted(signal);
-            const mappingTotal = await countCalloutsBySubtypes([migration.fromLabel]);
-            await migrateSubtypeMapping(migration, signal, result, (processedInMapping, perMappingTotal) => {
+            const countResult = await countCalloutsBySubtypes([migration.fromLabel]);
+            const mappingTotal = countResult.ok ? countResult.count : 0;
+            const outcome = await migrateSubtypeMapping(migration, signal, result, (processedInMapping, perMappingTotal) => {
                 reportMigrationProgress(migration, processedInMapping, perMappingTotal);
             });
+            if (outcome.success) successfulMigrations.push(migration);
             reportMigrationProgress(migration, mappingTotal, mappingTotal || 1);
         }
 
         for (const migration of phaseB) {
             throwIfAborted(signal);
-            const mappingTotal = await countCalloutsBySubtypes([migration.fromLabel]);
-            await migrateSubtypeMapping(migration, signal, result, (processedInMapping, perMappingTotal) => {
+            const countResult = await countCalloutsBySubtypes([migration.fromLabel]);
+            const mappingTotal = countResult.ok ? countResult.count : 0;
+            const outcome = await migrateSubtypeMapping(migration, signal, result, (processedInMapping, perMappingTotal) => {
                 reportMigrationProgress(migration, processedInMapping, perMappingTotal);
             });
+            if (outcome.success) successfulMigrations.push(migration);
             reportMigrationProgress(migration, mappingTotal, mappingTotal || 1);
         }
 
@@ -399,15 +600,30 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
         }
 
         mapProgress(onProgress, "save", 98, 100, 0.5, t("migrateSaving"));
-        const latest = normalizeCalloutSettings(getSettings());
-        await saveSettings({
-            callouts: latest.callouts.map((item) => ({
-                ...item,
-                pastLabels: [],
-            })),
-            calloutTombstone: [],
-        });
-        onStylesUpdate?.();
+        result.indexTimedOut = indexTimedOut;
+
+        if (forceClearMetadata) {
+            await clearLegacyCalloutMetadata({ getSettings, saveSettings, onStylesUpdate });
+            result.metadataCleared = true;
+        } else if (!indexTimedOut) {
+            const latest = normalizeCalloutSettings(getSettings());
+            const reclaimedTombstones = collectReclaimedTombstoneLabels(latest);
+            const partial = applyPartialLegacyMetadataClear(
+                latest,
+                successfulMigrations,
+                reclaimedTombstones,
+            );
+            const metadataChanged = successfulMigrations.length > 0 || reclaimedTombstones.length > 0;
+            if (metadataChanged) {
+                await saveSettings({
+                    callouts: partial.callouts,
+                    calloutTombstone: partial.calloutTombstone,
+                });
+                onStylesUpdate?.();
+            }
+            result.metadataCleared = !hasLegacyMetadata(partial);
+            result.metadataPartiallyCleared = metadataChanged && !result.metadataCleared;
+        }
 
         mapProgress(onProgress, "done", 100, 100, 1, t("migrateDone"));
         return result;

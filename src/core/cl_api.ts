@@ -131,21 +131,25 @@ function readSqlCount(rows: ClApiSqlRow[]) {
     return Number.isFinite(num) ? num : 0;
 }
 
+export type CalloutBlockCountResult =
+    | { ok: true; count: number }
+    | { ok: false };
+
 /** Count callout blocks whose subtype matches any key (case-insensitive). */
-export async function countCalloutsBySubtypes(subtypes: string[]) {
+export async function countCalloutsBySubtypes(subtypes: string[]): Promise<CalloutBlockCountResult> {
     const keys = [...new Set(
         subtypes.map((subtype) => canonicalCalloutKey(subtype)).filter(Boolean),
     )];
-    if (!keys.length) return 0;
+    if (!keys.length) return { ok: true, count: 0 };
 
     const conditions = keys.map((key) => `upper(subtype) = '${escapeSqlLiteral(key)}'`);
     const stmt = `SELECT COUNT(*) AS c FROM blocks WHERE type = 'callout' AND (${conditions.join(" OR ")})`;
     try {
         const rows = await querySQL(stmt);
-        return readSqlCount(rows);
+        return { ok: true, count: readSqlCount(rows) };
     } catch (error) {
         warnLog("[cl_api] countCalloutsBySubtypes failed", { stmt, error });
-        return 0;
+        return { ok: false };
     }
 }
 

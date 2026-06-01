@@ -773,7 +773,6 @@
 }
 
 .callout-enhance-past-labels__empty {
-    opacity: 0.55;
     line-height: 1.4;
 }
 
@@ -831,7 +830,6 @@
 
 .callout-enhance-edit-preview-hint {
     font-size: 12px;
-    opacity: 0.65;
     line-height: 1.4;
 }
 
@@ -846,6 +844,8 @@
     gap: 16px;
     padding: 8px 16px 0;
     box-sizing: border-box;
+    --callout-enhance-settings-text: var(--b3-theme-on-background);
+    --callout-enhance-settings-desc-color: var(--b3-theme-on-surface);
 
     .callout-enhance-edit-footer {
         padding: 8px 0 16px;
@@ -949,6 +949,7 @@
     gap: 6px;
     align-items: center;
     flex-shrink: 0;
+    min-height: 28px;
 }
 
 .callout-enhance-icon-popover__tab {
@@ -976,8 +977,15 @@
 
 .callout-enhance-icon-popover__count {
     margin-left: auto;
-    opacity: 0.7;
-    font-size: 12px;
+    padding: 4px 10px;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: normal;
+    color: var(--b3-theme-on-surface);
+    opacity: 1;
+    flex-shrink: 0;
+    white-space: nowrap;
+    align-self: center;
 }
 
 .callout-enhance-icon-popover__grid {
@@ -991,6 +999,7 @@
     padding: 24px 8px;
     text-align: center;
     grid-column: 1 / -1;
+    color: var(--b3-theme-on-surface);
 }
 
 /* Legacy alias kept for tab button styling */
@@ -1109,17 +1118,14 @@
     padding: 10px 12px;
     border-radius: var(--b3-border-radius);
     cursor: pointer;
-    color: var(--b3-theme-on-surface);
-    opacity: 0.72;
-    transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+    color: var(--b3-theme-on-background);
+    transition: background-color 120ms ease;
 
     &:hover {
         background: var(--b3-list-hover);
-        opacity: 0.9;
     }
 
     &--active {
-        opacity: 1;
         font-weight: 600;
         color: var(--b3-theme-on-background);
         background: var(--b3-list-hover);
@@ -1131,12 +1137,13 @@
     height: 16px;
     flex-shrink: 0;
     fill: currentColor;
-    color: inherit;
+    color: var(--b3-theme-on-background);
 }
 
 .callout-enhance-nav-item__text {
-    font-size: 13px;
-    line-height: 1.3;
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--b3-theme-on-background);
 }
 
 .callout-enhance-detail {
@@ -1147,6 +1154,8 @@
     box-sizing: border-box;
     overflow-y: auto;
     background: var(--b3-theme-background);
+    --callout-enhance-settings-text: var(--b3-theme-on-background);
+    --callout-enhance-settings-desc-color: var(--b3-theme-on-surface);
 
     &--layout {
         overflow: hidden;
@@ -1158,6 +1167,33 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
+    }
+}
+
+/* Settings / edit dialog: section titles use primary text; descriptive copy uses dark gray */
+.callout-enhance-detail,
+.callout-enhance-edit-body {
+    .callout-enhance-layout-settings__preset-label-row > .b3-label__text,
+    .callout-enhance-layout-settings__preview-label-row > .b3-label__text:first-child,
+    .callout-enhance-layout-settings__group-title,
+    .callout-enhance-edit-row__label,
+    .callout-enhance-preview-label-row > .b3-label__text:first-child,
+    .callout-enhance-about__heading,
+    .callout-enhance-about__switch-label > .b3-label__text:not(.callout-enhance-about__hint) {
+        color: var(--callout-enhance-settings-text);
+        opacity: 1;
+    }
+
+    .callout-enhance-layout-settings__preview-hint,
+    .callout-enhance-edit-preview-hint,
+    .callout-enhance-about__hint,
+    .callout-enhance-about__inline-row,
+    .callout-enhance-about__inline-label,
+    .callout-enhance-about__inline-value,
+    .callout-enhance-past-labels__empty,
+    .callout-enhance-list-empty {
+        color: var(--callout-enhance-settings-desc-color);
+        opacity: 1;
     }
 }
 
@@ -1316,16 +1352,27 @@
     box-sizing: border-box;
 }
 
-.callout-enhance-layout-settings__slider-value {
+.callout-enhance-layout-settings__field-label,
+.callout-enhance-layout-settings__slider-value,
+.callout-enhance-layout-settings__unit {
     font-size: 12px;
     line-height: 1.35;
-    opacity: 0.65;
+    font-weight: normal;
+    font-family: var(--b3-font-family);
+    font-variant-ligatures: none;
+    color: var(--b3-theme-on-surface);
+}
+
+.callout-enhance-layout-settings__unit {
+    flex-shrink: 0;
+}
+
+.callout-enhance-layout-settings__slider-value {
     text-align: right;
 }
 
 .callout-enhance-layout-settings__preview-hint {
     font-size: 12px;
-    opacity: 0.65;
     line-height: 1.4;
 }
 
@@ -1360,6 +1407,7 @@
     font-size: 13px;
     font-weight: normal;
     line-height: 1.35;
+    color: var(--b3-theme-on-background);
 }
 
 .callout-enhance-layout-settings__grid {
@@ -1373,30 +1421,26 @@
     flex-direction: column;
     gap: 4px;
     min-width: 0;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: normal;
+    font-family: var(--b3-font-family);
+    font-variant-ligatures: none;
 
     .b3-select,
     .b3-text-field {
-        font-size: 12px;
-        line-height: 1.35;
-        opacity: 0.65;
+        font-size: inherit;
+        line-height: inherit;
+        font-weight: inherit;
+        font-family: inherit;
+        font-variant-ligatures: inherit;
+        color: var(--b3-theme-on-surface);
+        opacity: 1;
     }
-}
-
-.callout-enhance-layout-settings__field-label {
-    font-size: 12px;
-    line-height: 1.35;
-    opacity: 0.65;
 }
 
 .callout-enhance-layout-settings__control-wrap {
     min-width: 0;
-}
-
-.callout-enhance-layout-settings__unit {
-    font-size: 12px;
-    line-height: 1.35;
-    opacity: 0.65;
-    flex-shrink: 0;
 }
 
 .callout-enhance-about {
@@ -1407,6 +1451,7 @@
 
 .callout-enhance-about__heading {
     margin: 0;
+    color: var(--b3-theme-on-background);
 }
 
 .callout-enhance-about__info {
@@ -1423,11 +1468,10 @@
 
 .callout-enhance-about__inline-label {
     color: var(--b3-theme-on-surface);
-    opacity: 0.78;
 }
 
 .callout-enhance-about__inline-value {
-    color: var(--b3-theme-on-background);
+    color: var(--b3-theme-on-surface);
 }
 
 .callout-enhance-about__row {
@@ -1466,6 +1510,7 @@
 .callout-enhance-cleanup-progress__message {
     line-height: 1.45;
     min-height: 2.9em;
+    color: var(--b3-theme-on-surface);
 }
 
 .callout-enhance-cleanup-progress__track {
@@ -1529,7 +1574,6 @@
 
 .callout-enhance-about__hint {
     font-size: 12px;
-    opacity: 0.65;
     line-height: 1.4;
 }
 
@@ -1540,6 +1584,7 @@
 
 .callout-enhance-appearance-close-body__message {
     line-height: 1.5;
+    color: var(--b3-theme-on-surface);
 }
 
 .callout-enhance-appearance-close-body__input {
@@ -1587,4 +1632,5 @@
 
 .callout-enhance-confirm-body__message {
     line-height: 1.5;
+    color: var(--b3-theme-on-surface);
 }

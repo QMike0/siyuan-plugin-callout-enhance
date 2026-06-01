@@ -98,7 +98,7 @@ export function openIconPicker(opts: IconPickerOptions) {
     tabsRow.append(tabButtons.all, tabButtons.plugin, tabButtons.host);
 
     const countLabel = document.createElement("span");
-    countLabel.className = "b3-label__text callout-enhance-icon-popover__count";
+    countLabel.className = "callout-enhance-icon-popover__count";
     tabsRow.append(countLabel);
 
     const missingHint = document.createElement("div");
