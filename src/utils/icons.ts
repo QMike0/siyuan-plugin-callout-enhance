@@ -275,20 +275,37 @@ export function hasSymbol(id: string) {
     return !!getSymbolElement(id);
 }
 
-/**
- * Convert a registered `<symbol>` into a CSS-mask-friendly `url(...)` data URL.
- * Returns `null` when the symbol is missing so callers can fall back gracefully.
- */
-export function symbolToMaskUrl(id: string): string | null {
-    if (!id || typeof document === "undefined") return null;
-    const el = getSymbolElement(id);
-    if (!el) return null;
-    const viewBox = el.getAttribute("viewBox") || "0 0 24 24";
-    // `currentColor` is not resolvable inside a standalone data URL, so swap
-    // it to black -- only the alpha channel matters when used as a mask.
-    const inner = (el as unknown as SVGSymbolElement).innerHTML.replace(/currentColor/g, "black");
+function maskUrlFromSymbolMarkup(viewBox: string, innerHtml: string) {
+    const inner = innerHtml.replace(/currentColor/g, "black");
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${inner}</svg>`;
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+function pluginSymbolToMaskUrl(id: string): string | null {
+    const markup = PLUGIN_SVG_SYMBOLS[id];
+    if (!markup) return null;
+    const viewBoxMatch = markup.match(/\bviewBox="([^"]+)"/);
+    const innerMatch = markup.match(/<symbol\b[^>]*>([\s\S]*?)<\/symbol>/i);
+    if (!innerMatch) return null;
+    return maskUrlFromSymbolMarkup(viewBoxMatch?.[1] || "0 0 24 24", innerMatch[1]);
+}
+
+/**
+ * Convert a registered `<symbol>` into a CSS-mask-friendly `url(...)` data URL.
+ * Falls back to bundled plugin symbol markup when the DOM node is not ready yet
+ * (e.g. during early `onload` before SiYuan finishes injecting sprites).
+ */
+export function symbolToMaskUrl(id: string): string | null {
+    if (!id) return null;
+    if (typeof document !== "undefined") {
+        const el = getSymbolElement(id);
+        if (el) {
+            const viewBox = el.getAttribute("viewBox") || "0 0 24 24";
+            const inner = (el as unknown as SVGSymbolElement).innerHTML;
+            return maskUrlFromSymbolMarkup(viewBox, inner);
+        }
+    }
+    return pluginSymbolToMaskUrl(id);
 }
 
 export type SymbolRenderMeta = {

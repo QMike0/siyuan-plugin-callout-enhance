@@ -11,6 +11,7 @@ import { CalloutTypeItem } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
 import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { debugLog } from "../utils/logger";
+import { t } from "../utils/i18n";
 
 export type TypeMenuPluginLike = PluginWithGetEditor & {
     calloutTypeMenuElement: HTMLDivElement | null;
@@ -123,7 +124,7 @@ export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: stri
         delete block.dataset.subtype;
     }
     debugLog(plugin, "[Type] Rollback: reverted to", previousSubtype || "(default)");
-    showMessage("callout subtype save failed");
+    showMessage(t("calloutSubtypeSaveFailed"));
 }
 
 export function handleCalloutTypeKeydown(plugin: TypeMenuPluginLike, e: KeyboardEvent) {

@@ -10,6 +10,7 @@ import { ensureEmptyBodyPlaceholderForCallout, createEmptyParagraphElement, getC
 import { normalizeCalloutTitleText } from "../utils/text";
 import { createTransaction, getCurrentProtyle, getNewNodeId, getSiyuanLute, getFirstBlockInnerHTMLFromMd, PluginWithGetEditor } from "../core/api";
 import { debugLog, warnLog, errorLog } from "../utils/logger";
+import { t } from "../utils/i18n";
 
 export type TitleEditPluginLike = PluginWithGetEditor & {
     titleEditSnapshots: WeakMap<HTMLElement, string>;
@@ -267,7 +268,7 @@ export function handleTitleKeydown(plugin: TitleEditPluginLike, e: KeyboardEvent
         const protyle = getCurrentProtyle(plugin, block, titleEl);
         if (!blockId || !protyle) {
             errorLog("[ERROR] TitleEnter failed: Missing blockId or protyle context");
-            showMessage("标题回车失败：未找到编辑器上下文");
+            showMessage(t("titleEnterNoEditor"));
             return;
         }
 
@@ -276,7 +277,7 @@ export function handleTitleKeydown(plugin: TitleEditPluginLike, e: KeyboardEvent
             const isFolded = block.getAttribute("fold") === "1";
             const newBlockId = getNewNodeId();
             if (!newBlockId) {
-                showMessage("标题回车失败：无法生成合法块 ID");
+                showMessage(t("titleEnterInvalidBlockId"));
                 return;
             }
             const newBlock = createEmptyParagraphElement(getNewNodeId, newBlockId);
@@ -314,7 +315,7 @@ export function handleTitleKeydown(plugin: TitleEditPluginLike, e: KeyboardEvent
                 warnLog("[WARN] Transaction API unavailable during title enter insert", { blockId, newBlockId });
                 newBlock.remove();
                 errorLog("[ERROR] TitleEnter transaction failed for block", blockId, "- new block:", newBlockId);
-                showMessage("无法调用思源事务接口，标题回车插入失败");
+                showMessage(t("titleEnterTransactionFailed"));
                 return;
             }
         } catch (err) {

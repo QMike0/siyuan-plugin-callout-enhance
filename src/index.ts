@@ -30,6 +30,7 @@ import { debugLog, errorLog, setDebugEnabled, warnLog } from "./utils/logger";
 import { openSettingsDialog } from "./components/settings_panel";
 import { runCleanup, type CleanupResult, type RunCleanupOptions } from "./utils/migration";
 import { registerPluginIcons } from "./utils/icons";
+import { setPluginI18n, t } from "./utils/i18n";
 
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 const STORAGE_NAME = "callout-enhance-settings";
@@ -207,6 +208,15 @@ export default class CalloutEnhancePlugin extends Plugin {
         syncCalloutExportStylesheet(css);
     }
 
+    /** Re-run after sprites/layout settle so `symbol:*` icons resolve reliably. */
+    private refreshDynamicCalloutStylesAfterPaint() {
+        if (typeof requestAnimationFrame === "undefined") {
+            this.updateDynamicCalloutStyles();
+            return;
+        }
+        requestAnimationFrame(() => this.updateDynamicCalloutStyles());
+    }
+
     previewCalloutLayout(layout: Partial<CalloutLayoutSettings>) {
         this.appearancePreviewLayout = normalizeCalloutLayout({
             ...normalizeCalloutLayout(this.settings.layout),
@@ -350,7 +360,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             if (!ok) {
                 warnLog(`[WARN] Transaction API unavailable during block save (${reason})`, { blockId });
                 errorLog(`[ERROR] Block save transaction failed (${reason}) for block`, blockId);
-                showMessage("无法调用思源事务接口，块修改未保存");
+                showMessage(t("transactionBlockSaveFailed"));
                 return false;
             }
             return true;
@@ -444,7 +454,7 @@ export default class CalloutEnhancePlugin extends Plugin {
                 if (restoredCallout) bodyBlock.replaceWith(restoredCallout);
             }
             warnLog("[WARN] Transaction API unavailable during empty callout enter", { blockId, bodyBlockId });
-            showMessage("无法调用思源事务接口，空 callout 回车处理失败");
+            showMessage(t("transactionEmptyCalloutEnterFailed"));
             return false;
         }
         return true;
@@ -569,6 +579,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     async onload() {
         if ((window as any)[STARTUP_FLAG]) return;
         (window as any)[STARTUP_FLAG] = true;
+        setPluginI18n(this.i18n);
 
         registerPluginIcons(this);
 
@@ -576,6 +587,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.updateDynamicCalloutStyles();
 
         await this.loadSettings();
+        this.refreshDynamicCalloutStylesAfterPaint();
         this.data = { settings: this.settings };
         (window as any).__calloutEnhancePlugin = this;
         this.openSetting = this.openSetting.bind(this);
@@ -624,6 +636,7 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     onLayoutReady() {
         this.scanAllCallouts();
+        this.updateDynamicCalloutStyles();
     }
 
     openSetting() {

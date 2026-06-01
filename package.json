@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint . --fix --cache",
-    "predev": "node scripts/generate-callout-defaults.cjs",
+    "predev": "node build/generate-callout-defaults.cjs",
     "dev": "webpack --mode development",
-    "prebuild": "node scripts/generate-callout-defaults.cjs",
+    "prebuild": "node build/generate-callout-defaults.cjs",
     "build": "webpack --mode production"
   },
   "keywords": ["siyuan", "plugin", "callout"],

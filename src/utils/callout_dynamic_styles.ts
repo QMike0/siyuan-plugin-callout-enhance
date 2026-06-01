@@ -5,11 +5,11 @@
  * --local-color and ::before icon masks. Empty type color resolves to the same
  * built-in CSS variables as index.scss fallback rules.
  *
- * `buildDefaultCalloutTypesStylesheet()` is also emitted at build time into
- * `src/callout_defaults.css` (Phase B static fallback).
+ * `buildCalloutStaticStylesheet()` is emitted at build time into
+ * `src/callout_defaults.css` (palette + default built-in subtype rules).
  */
 
-import { CalloutTypeItem, getCalloutStyleSubtypes, normalizeCalloutLabel, resolveCalloutIconMask } from "./callout_types";
+import { CalloutTypeItem, DEFAULT_CALLOUT_ICON_MASK, getCalloutStyleSubtypes, normalizeCalloutLabel, resolveCalloutIconMask } from "./callout_types";
 import { buildCalloutLayoutStylesheet, CalloutLayoutSettings, normalizeCalloutLayout } from "./callout_layout_vars";
 import { CalloutEnhanceSettings, createDefaultCalloutSettings, getAllResolvedCalloutTypes } from "./settings";
 
@@ -24,33 +24,32 @@ export const DYNAMIC_STYLE_ID = "callout-enhance-dynamic-styles";
  */
 export const EXPORT_SNIPPET_STYLE_ID = "snippetCSSCalloutEnhance";
 
-/**
- * Built-in label → SCSS `--callout-color-*` token.
- * Keep in sync with `:root` defaults in index.scss.
- */
-export const BUILTIN_LABEL_COLOR_VAR: Record<string, string> = {
-    info: "--callout-color-info",
-    note: "--callout-color-default",
-    tip: "--callout-color-tip",
-    quote: "--callout-color-quote",
-    question: "--callout-color-question",
-    important: "--callout-color-important",
-    warning: "--callout-color-warning",
-    caution: "--callout-color-caution",
+export type BuiltinCalloutPaletteEntry = {
+    label: string;
+    cssVar: string;
+    hex: string;
 };
 
-/** Hex mirror of index.scss for reference / non-DOM consumers. */
-export const BUILTIN_CALLOUT_COLOR_HEX: Record<string, string> = {
-    info: "#086ddd",
-    note: "#00BFBC",
-    tip: "#08B94D",
-    quote: "#7f8c8d",
-    question: "#EC7500",
-    important: "#7852EE",
-    warning: "#EC7500",
-    caution: "#E93147",
-    default: "#00BFBC",
-};
+/** Single source for built-in callout palette (hex → CSS var at build time). */
+export const BUILTIN_CALLOUT_PALETTE: readonly BuiltinCalloutPaletteEntry[] = [
+    { label: "info", cssVar: "--callout-color-info", hex: "#086ddd" },
+    { label: "note", cssVar: "--callout-color-default", hex: "#00BFBC" },
+    { label: "tip", cssVar: "--callout-color-tip", hex: "#08B94D" },
+    { label: "quote", cssVar: "--callout-color-quote", hex: "#7f8c8d" },
+    { label: "question", cssVar: "--callout-color-question", hex: "#EC7500" },
+    { label: "important", cssVar: "--callout-color-important", hex: "#7852EE" },
+    { label: "warning", cssVar: "--callout-color-warning", hex: "#EC7500" },
+    { label: "caution", cssVar: "--callout-color-caution", hex: "#E93147" },
+];
+
+/** Built-in label → `--callout-color-*` token (derived from {@link BUILTIN_CALLOUT_PALETTE}). */
+export const BUILTIN_LABEL_COLOR_VAR: Record<string, string> = BUILTIN_CALLOUT_PALETTE.reduce(
+    (record, entry) => {
+        record[entry.label] = entry.cssVar;
+        return record;
+    },
+    {} as Record<string, string>,
+);
 
 export type BuildCalloutDynamicStylesheetOptions = {
     settings: Partial<CalloutEnhanceSettings> | null | undefined;
@@ -113,9 +112,23 @@ export function buildCalloutTypeAppearanceStylesheet(
     return rules.join("\n");
 }
 
-/** Default built-in types only — written to `callout_defaults.css` at build time. */
+/** Built-in palette + default icon mask on `.callout[data-type="NodeCallout"]`. */
+export function buildCalloutPaletteStylesheet(): string {
+    const decls = [
+        ...BUILTIN_CALLOUT_PALETTE.map((entry) => `${entry.cssVar}:${entry.hex}`),
+        `--callout-icon-mask-default:${safeCssValue(DEFAULT_CALLOUT_ICON_MASK)}`,
+    ].join(";");
+    return `.callout[data-type="NodeCallout"]{${decls}}`;
+}
+
+/** Default built-in types only — per-subtype `--local-color` and icon masks. */
 export function buildDefaultCalloutTypesStylesheet(): string {
     return buildCalloutTypeAppearanceStylesheet(createDefaultCalloutSettings());
+}
+
+/** Palette + default subtype rules — written to `callout_defaults.css` at build time. */
+export function buildCalloutStaticStylesheet(): string {
+    return [buildCalloutPaletteStylesheet(), buildDefaultCalloutTypesStylesheet()].filter(Boolean).join("\n");
 }
 
 export type ResolvePreviewCalloutIconMaskOptions = {

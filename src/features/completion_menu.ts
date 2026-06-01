@@ -11,6 +11,7 @@ import { CalloutTypeItem, calloutMatchesFilter } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
 import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { errorLog } from "../utils/logger";
+import { t } from "../utils/i18n";
 
 interface CompletionTypeProvider {
     getCalloutTypes?: () => CalloutTypeItem[];
@@ -202,7 +203,7 @@ export function applyCompletion(plugin: CompletionMenuPluginLike, index = plugin
     if (!selected) return;
     hideCompletionMenu(plugin);
     const ok = applyCompletionTransform(selected.label);
-    if (!ok) showMessage("callout completion transform failed");
+    if (!ok) showMessage(t("calloutCompletionTransformFailed"));
 }
 
 function isFirstLineOfQuote(quoteEl: HTMLElement | null, sourceNode: Node | null): boolean {

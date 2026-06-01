@@ -13,6 +13,7 @@ import {
 import { createPreviewHelpIcon, openConfirmDialog } from "./settings_ui";
 import { CalloutTypeItem } from "../utils/callout_types";
 import { CalloutAppearancePreset, isDefaultAppearancePreset } from "../utils/settings";
+import { t, layoutFieldLabel, layoutGroupLabel, layoutOptionLabel } from "../utils/i18n";
 
 export type LayoutSettingsPanelOptions = {
     host: HTMLElement;
@@ -70,7 +71,7 @@ function openAppearancePresetNameDialog(options: AppearancePresetNameDialogOptio
         title,
         confirmLabel,
         initialName = "",
-        placeholder = "Configuration name",
+        placeholder = t("configurationNamePlaceholder"),
         onConfirm,
     } = options;
 
@@ -92,12 +93,11 @@ function openAppearancePresetNameDialog(options: AppearancePresetNameDialogOptio
 
     const footer = document.createElement("div");
     footer.className = "b3-dialog__action callout-enhance-dialog-footer";
-    footer.style.marginTop = "16px";
 
     const cancel = document.createElement("button");
     cancel.className = "b3-button b3-button--cancel";
     cancel.type = "button";
-    cancel.textContent = "Cancel";
+    cancel.textContent = t("cancel");
     cancel.addEventListener("click", () => dialog.destroy());
 
     const confirmBtn = document.createElement("button");
@@ -107,7 +107,7 @@ function openAppearancePresetNameDialog(options: AppearancePresetNameDialogOptio
     confirmBtn.addEventListener("click", () => {
         const name = input.value.trim();
         if (!name) {
-            showMessage("Please enter a configuration name");
+            showMessage(t("configurationNameRequired"));
             input.focus();
             return;
         }
@@ -130,23 +130,23 @@ function openAppearancePresetNameDialog(options: AppearancePresetNameDialogOptio
 
 function openAppearancePresetSaveDialog(existingNames: string[], onSave: (name: string) => void) {
     openAppearancePresetNameDialog({
-        title: "Save appearance configuration",
-        confirmLabel: "Save",
+        title: t("layoutSaveConfiguration"),
+        confirmLabel: t("save"),
         onConfirm: (name) => {
             onSave(name);
-            showMessage(existingNames.includes(name) ? "Configuration updated" : "Configuration saved");
+            showMessage(existingNames.includes(name) ? t("configurationUpdated") : t("configurationSaved"));
         },
     });
 }
 
 function openAppearancePresetUpdateDialog(presetName: string, onUpdate: (name: string) => void) {
     openAppearancePresetNameDialog({
-        title: "Update appearance configuration",
-        confirmLabel: "Update",
+        title: t("layoutUpdateConfiguration"),
+        confirmLabel: t("update"),
         initialName: presetName,
         onConfirm: (name) => {
             onUpdate(name);
-            showMessage("Configuration updated");
+            showMessage(t("configurationUpdated"));
         },
     });
 }
@@ -202,7 +202,7 @@ function createLayoutFieldInput(field: CalloutLayoutFieldDef, stored: string, on
         field.options.forEach((opt) => {
             const option = document.createElement("option");
             option.value = opt.value;
-            option.textContent = opt.label;
+            option.textContent = layoutOptionLabel(opt.label);
             select.appendChild(option);
         });
         select.value = stored || field.defaultValue;
@@ -260,11 +260,11 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     presetLabelRow.className = "fn__flex callout-enhance-layout-settings__preset-label-row";
     const presetLabel = document.createElement("div");
     presetLabel.className = "b3-label__text";
-    presetLabel.textContent = "Preset";
+    presetLabel.textContent = t("layoutPreset");
     const resetBtn = document.createElement("button");
     resetBtn.type = "button";
     resetBtn.className = "b3-button b3-button--text callout-enhance-layout-settings__reset-btn";
-    resetBtn.textContent = "Reset defaults";
+    resetBtn.textContent = t("layoutResetDefaults");
     resetBtn.addEventListener("click", () => {
         layout = normalizeCalloutLayout();
         onChange(layout);
@@ -280,7 +280,7 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     presets.forEach((preset) => {
         const option = document.createElement("option");
         option.value = preset.id;
-        option.textContent = preset.name;
+        option.textContent = isDefaultAppearancePreset(preset.id) ? t("defaultPresetName") : preset.name;
         presetSelect.appendChild(option);
     });
     presetSelect.value = presets.some((item) => item.id === activePresetId)
@@ -294,7 +294,7 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     presetActions.className = "callout-enhance-layout-settings__preset-actions";
 
     const savePresetBtn = createPresetSvgIconButton(
-        "Save as new preset",
+        t("saveNewPreset"),
         "<path d=\"M12 5v14\"></path><path d=\"M5 12h14\"></path>",
         "callout-enhance-layout-settings__preset-save",
     );
@@ -307,10 +307,11 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
         );
     });
 
-    const updatePresetBtn = document.createElement("button");
-    updatePresetBtn.type = "button";
-    updatePresetBtn.className = "b3-button b3-button--outline callout-enhance-layout-settings__preset-action-btn";
-    updatePresetBtn.textContent = "Update";
+    const updatePresetBtn = createPresetIconButton(
+        t("layoutUpdateConfiguration"),
+        "iconRefresh",
+        "callout-enhance-layout-settings__preset-update",
+    );
     updatePresetBtn.addEventListener("click", () => {
         const preset = presets.find((item) => item.id === activePresetId);
         if (!preset || isDefaultAppearancePreset(preset.id) || updatePresetBtn.disabled) return;
@@ -318,7 +319,7 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     });
 
     const deletePresetBtn = createPresetIconButton(
-        "Delete",
+        t("delete"),
         "iconTrashcan",
         "callout-enhance-icon-button--delete callout-enhance-layout-settings__preset-delete",
     );
@@ -326,16 +327,18 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
         const preset = presets.find((item) => item.id === activePresetId);
         if (!preset || isDefaultAppearancePreset(preset.id) || deletePresetBtn.disabled) return;
         openConfirmDialog({
-            title: "Delete appearance configuration",
-            message: `Delete "${preset.name}"? This action cannot be undone.`,
-            confirmLabel: "Delete",
+            title: t("layoutDeleteConfiguration"),
+            message: t("layoutDeletePresetMessage", {
+                name: isDefaultAppearancePreset(preset.id) ? t("defaultPresetName") : preset.name,
+            }),
+            confirmLabel: t("delete"),
             width: window.innerWidth < 768 ? "88vw" : "360px",
             onConfirm: () => onPresetDelete(preset.id),
         });
     });
 
     const revertPresetBtn = createPresetIconButton(
-        "Revert to saved preset",
+        t("revertToSavedPreset"),
         "iconUndo",
         "callout-enhance-layout-settings__preset-revert",
     );
@@ -344,7 +347,7 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
         options.onPresetRevert();
     });
 
-    presetActions.append(updatePresetBtn, savePresetBtn, revertPresetBtn, deletePresetBtn);
+    presetActions.append(savePresetBtn, updatePresetBtn, revertPresetBtn, deletePresetBtn);
 
     const refreshPresetActionStates = () => {
         const isDefault = isDefaultAppearancePreset(activePresetId);
@@ -368,11 +371,11 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     previewLabelRow.className = "fn__flex callout-enhance-layout-settings__preview-label-row";
     const previewLabel = document.createElement("div");
     previewLabel.className = "b3-label__text";
-    previewLabel.textContent = "Preview";
+    previewLabel.textContent = t("layoutPreview");
     previewLabelRow.append(previewLabel, createPreviewHelpIcon());
     const previewHint = document.createElement("div");
     previewHint.className = "callout-enhance-layout-settings__preview-hint b3-label__text";
-    previewHint.textContent = "Click the fold control to preview collapsed and expanded styles.";
+    previewHint.textContent = t("layoutPreviewHint");
     const previewHost = document.createElement("div");
     previewHost.className = "callout-enhance-layout-preview-host";
 
@@ -418,8 +421,8 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
         section.className = "callout-enhance-layout-settings__group";
 
         const groupTitle = document.createElement("div");
-        groupTitle.className = "callout-enhance-layout-settings__group-title";
-        groupTitle.textContent = groupName;
+        groupTitle.className = "b3-label__text callout-enhance-layout-settings__group-title";
+        groupTitle.textContent = layoutGroupLabel(groupName);
         section.appendChild(groupTitle);
 
         const grid = document.createElement("div");
@@ -430,8 +433,8 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
             row.className = "callout-enhance-layout-settings__field";
 
             const label = document.createElement("span");
-            label.className = "b3-label__text callout-enhance-layout-settings__field-label";
-            label.textContent = field.label;
+            label.className = "callout-enhance-layout-settings__field-label";
+            label.textContent = layoutFieldLabel(field.varName, field.label);
 
             const control = createLayoutFieldInput(
                 field,

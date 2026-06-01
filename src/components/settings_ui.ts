@@ -1,13 +1,6 @@
 import { Dialog } from "siyuan";
 import type { CleanupProgress, CleanupResult } from "../utils/migration";
-
-export const PREVIEW_HELP_TOOLTIP = "Default-theme preview only. See the editor for theme-specific results.";
-
-export const LABEL_HELP_TOOLTIP = "Unique type ID written to [!LABEL] and used for styling. Must not duplicate another type (case-insensitive).";
-
-export const KEYWORDS_HELP_TOOLTIP = "Aliases for search and completion only; not written to the document. Separate multiple entries with commas or semicolons.";
-
-export const PAST_LABEL_HELP_TOOLTIP = "Past labels kept after a rename. Used for styling and settings search only; not used for completion or written to new blocks.";
+import { t } from "../utils/i18n";
 
 export function formatTombstoneReclaimConfirmMessage(options: {
     reclaimedLabel: string;
@@ -15,26 +8,24 @@ export function formatTombstoneReclaimConfirmMessage(options: {
     count: number;
 }) {
     const { reclaimedLabel, newTypeTitle, count } = options;
-    const countLine = count > 0
-        ? `About ${count} callout block(s) in open or indexed notebooks still use that name with the default style. `
-        : "";
-    return `${countLine}A deleted type previously used "${reclaimedLabel}". After saving, blocks can use the current type "${newTypeTitle}". To keep the default style instead, run "Clean up legacy data" on the About tab before reusing this name.`;
+    if (count > 0) {
+        return t("tombstoneReclaimMessageWithCount", { count, reclaimedLabel, newTypeTitle });
+    }
+    return t("tombstoneReclaimMessage", { reclaimedLabel, newTypeTitle });
 }
 
-export const CLEANUP_CONFIRM_MESSAGE = "This may take a long time. Save all open documents first (unsaved editor buffers are not in the database and will be skipped). Current Callout Types edits in this dialog are included. Keep SiYuan and this settings window open until cleanup finishes.";
-
-export const CLEANUP_ABORT_CONFIRM_MESSAGE = "Blocks already updated will stay changed. Past labels and tombstones in settings are not cleared until cleanup finishes successfully. Temporarily opened notebooks will be closed.";
-
-export const SETTINGS_CLOSE_DURING_CLEANUP_MESSAGE = `Cleanup is still running. Closing this settings window will stop cleanup. ${CLEANUP_ABORT_CONFIRM_MESSAGE}`;
-
 export function formatCleanupResultMessage(result: CleanupResult) {
-    const status = result.aborted ? "Cleanup stopped." : "Cleanup finished.";
-    const summary = `Processed ${result.processed}, updated ${result.succeeded}, failed ${result.failed}.`;
+    const status = result.aborted ? t("cleanupStopped") : t("cleanupFinished");
+    const summary = t("cleanupSummary", {
+        processed: result.processed,
+        succeeded: result.succeeded,
+        failed: result.failed,
+    });
     if (!result.errors.length) {
         return `${status} ${summary}`;
     }
     const detail = result.errors.slice(0, 3).map((entry) => `${entry.id}: ${entry.reason}`).join("; ");
-    const more = result.errors.length > 3 ? ` (+${result.errors.length - 3} more)` : "";
+    const more = result.errors.length > 3 ? t("cleanupErrorsMore", { count: result.errors.length - 3 }) : "";
     return `${status} ${summary} ${detail}${more}`;
 }
 
@@ -52,7 +43,7 @@ export function openCleanupProgressDialog(options: {
     const { signal, onCancel } = options;
 
     const dialog = new Dialog({
-        title: "Clean up legacy data",
+        title: t("cleanupProgressTitle"),
         width: window.innerWidth < 768 ? "92vw" : "480px",
         disableClose: true,
         content: "<div class=\"callout-enhance-cleanup-progress\"></div>",
@@ -83,7 +74,7 @@ export function openCleanupProgressDialog(options: {
     const cancelBtn = document.createElement("button");
     cancelBtn.className = "b3-button b3-button--cancel";
     cancelBtn.type = "button";
-    cancelBtn.textContent = "Cancel";
+    cancelBtn.textContent = t("cancel");
 
     footer.append(cancelBtn);
     root.append(messageEl, progressTrack, footer);
@@ -114,7 +105,7 @@ export function openCleanupProgressDialog(options: {
         progressBar.style.width = result.aborted ? "" : "100%";
         messageEl.textContent = formatCleanupResultMessage(result);
         cancelBtn.disabled = false;
-        cancelBtn.textContent = "Close";
+        cancelBtn.textContent = t("close");
         cancelBtn.classList.remove("b3-button--cancel");
         cancelBtn.classList.add("b3-button--text");
     };
@@ -133,10 +124,10 @@ export function openCleanupProgressDialog(options: {
 
 export function formatDeleteCalloutTypeMessage(options: { title: string; count: number }) {
     const { title, count } = options;
-    const countLine = count > 0
-        ? `At least ${count} callout block(s) use this type (open or indexed notebooks only). `
-        : "";
-    return `${countLine}Delete "${title}"? Blocks keep their subtype but lose custom styling. This cannot be undone.`;
+    if (count > 0) {
+        return t("deleteCalloutTypeMessageWithCount", { count, title });
+    }
+    return t("deleteCalloutTypeMessage", { title });
 }
 
 export function createHelpIcon(tooltip: string, extraClass = "") {
@@ -156,7 +147,7 @@ export function createHelpIcon(tooltip: string, extraClass = "") {
 }
 
 export function createPreviewHelpIcon(extraClass = "") {
-    return createHelpIcon(PREVIEW_HELP_TOOLTIP, extraClass);
+    return createHelpIcon(t("helpPreview"), extraClass);
 }
 
 export type ConfirmDialogOptions = {
@@ -173,8 +164,8 @@ export function openConfirmDialog(options: ConfirmDialogOptions) {
     const {
         title,
         message,
-        confirmLabel = "Confirm",
-        cancelLabel = "Cancel",
+        confirmLabel = t("confirm"),
+        cancelLabel = t("cancel"),
         width = window.innerWidth < 768 ? "88vw" : "360px",
         onConfirm,
         onCancel,

@@ -21,6 +21,7 @@ import {
     normalizeCalloutSettings,
     resolveCalloutTypeBySubtype,
 } from "./settings";
+import { t } from "./i18n";
 
 const BATCH_SIZE = 50;
 const FLUSH_DELAY_MS = 50;
@@ -284,11 +285,11 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
         assertCleanupWritable();
         throwIfAborted(signal);
 
-        mapProgress(onProgress, "prepare", 0, 5, 1, "Preparing notebooks…");
+        mapProgress(onProgress, "prepare", 0, 5, 1, t("migratePreparing"));
         const notebooks = (await lsNotebooks()).filter((nb) => !isUserGuideNotebook(nb.id));
         const toOpen = notebooks.filter((nb) => nb.closed).map((nb) => nb.id);
 
-        mapProgress(onProgress, "open", 5, 15, 0, "Opening closed notebooks…");
+        mapProgress(onProgress, "open", 5, 15, 0, t("migrateOpening"));
         for (let i = 0; i < toOpen.length; i += 1) {
             throwIfAborted(signal);
             const notebookId = toOpen[i];
@@ -302,7 +303,7 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
                 5,
                 15,
                 (i + 1) / Math.max(toOpen.length, 1),
-                `Opening notebooks (${i + 1}/${toOpen.length})…`,
+                t("migrateOpeningProgress", { current: i + 1, total: toOpen.length }),
             );
         }
 
@@ -316,19 +317,19 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
                     15,
                     25,
                     i / openedForCleanup.length,
-                    `Indexing notebook ${i + 1}/${openedForCleanup.length}…`,
+                    t("migrateIndexing", { current: i + 1, total: openedForCleanup.length }),
                     true,
                 );
                 const indexed = await waitNotebookIndexed(notebookId);
                 if (indexed.timedOut) {
                     result.errors.push({
                         id: notebookId,
-                        reason: "Notebook indexing timed out; some blocks may be skipped",
+                        reason: t("migrateTimeoutReason"),
                     });
                 }
             }
         }
-        mapProgress(onProgress, "index", 15, 25, 1, "Indexing complete");
+        mapProgress(onProgress, "index", 15, 25, 1, t("migrateIndexingComplete"));
 
         const settings = normalizeCalloutSettings(getSettings());
         const phaseA = buildPhaseAMigrations(settings);
@@ -343,7 +344,7 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
             processedInMapping: number,
             mappingTotal: number,
         ) => {
-            const label = migration.phase === "a" ? "Phase A" : "Phase B";
+            const label = migration.phase === "a" ? t("migratePhaseA") : t("migratePhaseB");
             const migrateRatio = totalBlocks > 0
                 ? Math.min(1, result.processed / totalBlocks)
                 : 1;
@@ -353,7 +354,11 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
                 25,
                 98,
                 migrateRatio,
-                `${label}: ${migration.fromLabel} → ${migration.toLabel} (${Math.min(processedInMapping, mappingTotal)}/${mappingTotal})`,
+                t("migratePhase", {
+                    phase: `${label}: ${migration.fromLabel} -> ${migration.toLabel}`,
+                    current: Math.min(processedInMapping, mappingTotal),
+                    total: mappingTotal,
+                }),
             );
         };
 
@@ -376,10 +381,10 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
         }
 
         if (!phaseA.length && !phaseB.length) {
-            mapProgress(onProgress, "migrate-a", 25, 98, 1, "No legacy callout blocks to migrate");
+            mapProgress(onProgress, "migrate-a", 25, 98, 1, t("migrateNoBlocks"));
         }
 
-        mapProgress(onProgress, "close", 98, 100, 0, "Closing temporarily opened notebooks…");
+        mapProgress(onProgress, "close", 98, 100, 0, t("migrateClosing"));
         for (let i = 0; i < openedForCleanup.length; i += 1) {
             throwIfAborted(signal);
             await closeNotebook(openedForCleanup[i]);
@@ -389,11 +394,11 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
                 98,
                 100,
                 (i + 1) / Math.max(openedForCleanup.length, 1),
-                `Closing notebooks (${i + 1}/${openedForCleanup.length})…`,
+                t("migrateClosingProgress", { current: i + 1, total: openedForCleanup.length }),
             );
         }
 
-        mapProgress(onProgress, "save", 98, 100, 0.5, "Saving settings…");
+        mapProgress(onProgress, "save", 98, 100, 0.5, t("migrateSaving"));
         const latest = normalizeCalloutSettings(getSettings());
         await saveSettings({
             callouts: latest.callouts.map((item) => ({
@@ -404,7 +409,7 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
         });
         onStylesUpdate?.();
 
-        mapProgress(onProgress, "done", 100, 100, 1, "Cleanup finished");
+        mapProgress(onProgress, "done", 100, 100, 1, t("migrateDone"));
         return result;
     } catch (error) {
         if (signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {

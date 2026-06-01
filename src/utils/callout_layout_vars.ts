@@ -52,6 +52,15 @@ export const DEFAULT_CALLOUT_LAYOUT: CalloutLayoutSettings = {
     "--callout-fold-duration": "180ms",
 };
 
+type CalloutLayoutFieldSpec = Omit<CalloutLayoutFieldDef, "defaultValue">;
+
+function withLayoutFieldDefaults(specs: CalloutLayoutFieldSpec[]): CalloutLayoutFieldDef[] {
+    return specs.map((field) => ({
+        ...field,
+        defaultValue: DEFAULT_CALLOUT_LAYOUT[field.varName] ?? "",
+    }));
+}
+
 /** Vars copied to settings preview probes. */
 export const CALLOUT_LAYOUT_CSS_VARS = Object.keys(DEFAULT_CALLOUT_LAYOUT) as (keyof typeof DEFAULT_CALLOUT_LAYOUT)[];
 
@@ -68,63 +77,65 @@ export const CALLOUT_LAYOUT_FIELD_GROUPS = [
     "Shell",
     "Title",
     "Body",
-    "Icon & accent",
+    "Icon",
     "Fold",
 ] as const;
 
-export const CALLOUT_LAYOUT_FIELDS: CalloutLayoutFieldDef[] = [
-    { varName: "--callout-shell-padding-top", label: "Padding top", group: "Shell", kind: "length", defaultValue: "10px", unit: "px", step: 1, min: 0, max: 48 },
-    { varName: "--callout-shell-padding-right", label: "Padding right", group: "Shell", kind: "length", defaultValue: "0px", unit: "px", step: 1, min: 0, max: 48 },
-    { varName: "--callout-shell-padding-bottom", label: "Padding bottom", group: "Shell", kind: "length", defaultValue: "4px", unit: "px", step: 1, min: 0, max: 48 },
-    { varName: "--callout-shell-padding-left", label: "Padding left", group: "Shell", kind: "length", defaultValue: "12px", unit: "px", step: 1, min: 0, max: 48 },
-    { varName: "--callout-border-radius", label: "Border radius", group: "Shell", kind: "length", defaultValue: "6px", unit: "px", step: 1, min: 0, max: 24 },
-    { varName: "--callout-border-width", label: "Outer border width", group: "Shell", kind: "length", defaultValue: "0px", unit: "px", step: 1, min: 0, max: 8 },
+const CALLOUT_LAYOUT_FIELD_SPECS: CalloutLayoutFieldSpec[] = [
+    { varName: "--callout-shell-padding-top", label: "Padding top", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 48 },
+    { varName: "--callout-shell-padding-right", label: "Padding right", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 48 },
+    { varName: "--callout-shell-padding-bottom", label: "Padding bottom", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 48 },
+    { varName: "--callout-shell-padding-left", label: "Padding left", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 48 },
+    { varName: "--callout-border-radius", label: "Border radius", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 24 },
+    { varName: "--callout-border-width", label: "Outer border width", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 8 },
+    { varName: "--callout-left-accent-width", label: "Left bar width", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 12 },
 
-    { varName: "--callout-title-font-size", label: "Font size", group: "Title", kind: "length", defaultValue: "12pt", unit: "pt", step: 0.5, min: 6, max: 36 },
-    { varName: "--callout-title-font-weight", label: "Font weight", group: "Title", kind: "select", defaultValue: "bold", options: [
+    { varName: "--callout-title-font-size", label: "Font size", group: "Title", kind: "length", unit: "pt", step: 0.5, min: 6, max: 36 },
+    { varName: "--callout-title-font-weight", label: "Font weight", group: "Title", kind: "select", options: [
         { value: "normal", label: "Normal" },
         { value: "500", label: "500" },
         { value: "600", label: "600" },
         { value: "bold", label: "Bold" },
         { value: "700", label: "700" },
     ] },
-    { varName: "--callout-title-line-height", label: "Line height", group: "Title", kind: "text", defaultValue: "1.2" },
-    { varName: "--callout-title-opacity", label: "Font opacity", group: "Title", kind: "opacity", defaultValue: "1", step: 0.05, min: 0, max: 1 },
-    { varName: "--callout-title-padding-right", label: "Padding right", group: "Title", kind: "length", defaultValue: "28px", unit: "px", step: 1, min: 0, max: 64 },
-    { varName: "--callout-header-height", label: "Header height", group: "Title", kind: "length", defaultValue: "28px", unit: "px", step: 1, min: 16, max: 64 },
-    { varName: "--callout-header-y-adjust", label: "Vertical adjust", group: "Title", kind: "length", defaultValue: "-4px", unit: "px", step: 1, min: -16, max: 16 },
-    { varName: "--callout-header-width-offset", label: "Header offset", group: "Title", kind: "length", defaultValue: "2px", unit: "px", step: 1, min: -16, max: 32 },
-    { varName: "--callout-header-background", label: "Header background", group: "Title", kind: "select", defaultValue: "var(--callout-surface-background)", options: [
+    { varName: "--callout-title-line-height", label: "Line height", group: "Title", kind: "text" },
+    { varName: "--callout-title-opacity", label: "Font opacity", group: "Title", kind: "opacity", step: 0.05, min: 0, max: 1 },
+    { varName: "--callout-title-padding-right", label: "Padding right", group: "Title", kind: "length", unit: "px", step: 1, min: 0, max: 64 },
+    { varName: "--callout-header-height", label: "Header height", group: "Title", kind: "length", unit: "px", step: 1, min: 16, max: 64 },
+    { varName: "--callout-header-y-adjust", label: "Vertical position", group: "Title", kind: "length", unit: "px", step: 1, min: -16, max: 16 },
+    { varName: "--callout-header-width-offset", label: "Horizontal position", group: "Title", kind: "length", unit: "px", step: 1, min: -16, max: 32 },
+    { varName: "--callout-header-background", label: "Background", group: "Title", kind: "select", options: [
         { value: "var(--callout-surface-background)", label: "Tinted" },
         { value: "transparent", label: "Transparent" },
     ] },
 
-    { varName: "--callout-icon-size", label: "Icon size", group: "Icon & accent", kind: "length", defaultValue: "16px", unit: "px", step: 1, min: 8, max: 32 },
-    { varName: "--callout-icon-left", label: "Icon left", group: "Icon & accent", kind: "length", defaultValue: "20px", unit: "px", step: 1, min: 0, max: 64 },
-    { varName: "--callout-icon-title-gap", label: "Icon–title gap", group: "Icon & accent", kind: "length", defaultValue: "2px", unit: "px", step: 1, min: 0, max: 24 },
-    { varName: "--callout-left-accent-width", label: "Left accent width", group: "Icon & accent", kind: "length", defaultValue: "0px", unit: "px", step: 1, min: 0, max: 12 },
-    { varName: "--callout-icon-before-display", label: "Show mask icon", group: "Icon & accent", kind: "select", defaultValue: "inline-block", options: [
+    { varName: "--callout-icon-size", label: "Icon size", group: "Icon", kind: "length", unit: "px", step: 1, min: 8, max: 32 },
+    { varName: "--callout-icon-left", label: "Icon–left edge gap", group: "Icon", kind: "length", unit: "px", step: 1, min: 0, max: 64 },
+    { varName: "--callout-icon-title-gap", label: "Icon–title gap", group: "Icon", kind: "length", unit: "px", step: 1, min: 0, max: 24 },
+    { varName: "--callout-icon-before-display", label: "Show icon", group: "Icon", kind: "select", options: [
         { value: "inline-block", label: "Show" },
         { value: "none", label: "Hide" },
     ] },
 
-    { varName: "--callout-body-padding-x", label: "Padding horizontal", group: "Body", kind: "length", defaultValue: "10px", unit: "px", step: 1, min: 0, max: 48 },
-    { varName: "--callout-body-padding-bottom", label: "Padding bottom", group: "Body", kind: "length", defaultValue: "12px", unit: "px", step: 1, min: 0, max: 48 },
-    { varName: "--callout-body-gap-top", label: "Gap below title", group: "Body", kind: "length", defaultValue: "4px", unit: "px", step: 1, min: 0, max: 32 },
-    { varName: "--callout-body-background", label: "Background", group: "Body", kind: "select", defaultValue: "var(--callout-surface-background)", options: [
+    { varName: "--callout-body-padding-x", label: "Padding horizontal", group: "Body", kind: "length", unit: "px", step: 1, min: 0, max: 48 },
+    { varName: "--callout-body-padding-bottom", label: "Padding bottom", group: "Body", kind: "length", unit: "px", step: 1, min: 0, max: 48 },
+    { varName: "--callout-body-gap-top", label: "Gap below title", group: "Body", kind: "length", unit: "px", step: 1, min: 0, max: 32 },
+    { varName: "--callout-body-background", label: "Background", group: "Body", kind: "select", options: [
         { value: "var(--callout-surface-background)", label: "Tinted" },
         { value: "transparent", label: "Transparent" },
     ] },
 
-    { varName: "--callout-fold-after-display", label: "Show fold control", group: "Fold", kind: "select", defaultValue: "block", options: [
+    { varName: "--callout-fold-after-display", label: "Show fold button", group: "Fold", kind: "select", options: [
         { value: "block", label: "Show" },
         { value: "none", label: "Hide" },
     ] },
-    { varName: "--callout-fold-hit-width", label: "Fold hit width", group: "Fold", kind: "length", defaultValue: "40px", unit: "px", step: 1, min: 16, max: 80 },
-    { varName: "--callout-fold-icon-size", label: "Fold icon size", group: "Fold", kind: "length", defaultValue: "1.25em", unit: "em", step: 0.05, min: 0.5, max: 2.5 },
-    { varName: "--callout-fold-icon-right", label: "Fold icon right", group: "Fold", kind: "length", defaultValue: "0.5em", unit: "em", step: 0.05, min: 0, max: 3 },
-    { varName: "--callout-fold-duration", label: "Fold duration", group: "Fold", kind: "time", defaultValue: "180ms", unit: "ms", step: 10, min: 0, max: 2000 },
+    { varName: "--callout-fold-hit-width", label: "Click area width", group: "Fold", kind: "length", unit: "px", step: 1, min: 16, max: 80 },
+    { varName: "--callout-fold-icon-size", label: "Button size", group: "Fold", kind: "length", unit: "em", step: 0.05, min: 0.5, max: 2.5 },
+    { varName: "--callout-fold-icon-right", label: "Button–right edge gap", group: "Fold", kind: "length", unit: "em", step: 0.05, min: 0, max: 3 },
+    { varName: "--callout-fold-duration", label: "Fold/expand animation duration", group: "Fold", kind: "time", unit: "ms", step: 10, min: 0, max: 2000 },
 ];
+
+export const CALLOUT_LAYOUT_FIELDS: CalloutLayoutFieldDef[] = withLayoutFieldDefaults(CALLOUT_LAYOUT_FIELD_SPECS);
 
 export function areCalloutLayoutsEqual(
     left?: CalloutLayoutSettings | null,

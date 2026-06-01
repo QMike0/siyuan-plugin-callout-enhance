@@ -7,6 +7,7 @@ import {
     stringifyIconRef,
     SymbolEntry,
 } from "../utils/icons";
+import { t } from "../utils/i18n";
 
 /**
  * Icon picker popover (anchored panel).
@@ -32,10 +33,10 @@ export type IconPickerOptions = {
     onPick: (value: string, result: IconPickerResult) => void;
 };
 
-const TAB_LABELS: Record<GroupTab, string> = {
-    all: "All",
-    plugin: "Plugin",
-    host: "SiYuan",
+const TAB_LABEL_KEYS: Record<GroupTab, string> = {
+    all: "iconTabAll",
+    plugin: "iconTabPlugin",
+    host: "iconTabHost",
 };
 
 const ICON_SIZE_PX = 20;
@@ -65,7 +66,7 @@ export function openIconPicker(opts: IconPickerOptions) {
     const popover = document.createElement("div");
     popover.className = "callout-enhance-icon-popover";
     popover.setAttribute("role", "dialog");
-    popover.setAttribute("aria-label", "Choose icon");
+    popover.setAttribute("aria-label", t("iconPickerTitle"));
 
     const searchRow = document.createElement("div");
     searchRow.className = "callout-enhance-icon-popover__search";
@@ -73,15 +74,15 @@ export function openIconPicker(opts: IconPickerOptions) {
     const search = document.createElement("input");
     search.className = "b3-text-field";
     search.type = "text";
-    search.placeholder = "Search by name or keyword...";
+    search.placeholder = t("iconSearchPlaceholder");
     search.autocomplete = "off";
     search.spellcheck = false;
 
     const searchBtn = document.createElement("button");
     searchBtn.className = "callout-enhance-icon-popover__search-btn";
     searchBtn.type = "button";
-    searchBtn.title = "Search";
-    searchBtn.setAttribute("aria-label", "Search");
+    searchBtn.title = t("search");
+    searchBtn.setAttribute("aria-label", t("search"));
     searchBtn.innerHTML = renderSymbolUseHtml("iconSearch", "16px");
 
     searchRow.append(search, searchBtn);
@@ -106,13 +107,13 @@ export function openIconPicker(opts: IconPickerOptions) {
 
     const missingText = document.createElement("span");
     missingText.textContent = currentMissing
-        ? `Icon "${currentSymbolId}" is not available. It will use the default icon.`
+        ? t("iconMissing", { id: currentSymbolId })
         : "";
 
     const missingReset = document.createElement("button");
     missingReset.className = "b3-button b3-button--text";
     missingReset.type = "button";
-    missingReset.textContent = "Use default";
+    missingReset.textContent = t("useDefault");
     missingReset.addEventListener("click", (e) => {
         e.stopPropagation();
         selectedId = "";
@@ -132,7 +133,7 @@ export function openIconPicker(opts: IconPickerOptions) {
         const btn = document.createElement("button");
         btn.className = "callout-enhance-icon-popover__tab";
         btn.type = "button";
-        btn.textContent = TAB_LABELS[tab];
+        btn.textContent = t(TAB_LABEL_KEYS[tab]);
         btn.dataset.tab = tab;
         btn.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -160,11 +161,11 @@ export function openIconPicker(opts: IconPickerOptions) {
     function renderGrid() {
         grid.innerHTML = "";
         const list = filteredEntries();
-        countLabel.textContent = `${list.length} icons`;
+        countLabel.textContent = t("iconCount", { count: list.length });
         if (list.length === 0) {
             const empty = document.createElement("div");
             empty.className = "b3-form__desc callout-enhance-icon-popover__empty";
-            empty.textContent = "No matching icons.";
+            empty.textContent = t("noMatchingIcons");
             grid.appendChild(empty);
             return;
         }

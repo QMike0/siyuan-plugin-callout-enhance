@@ -9,6 +9,7 @@ import {
     formatCalloutTitleFromLabel,
 } from "./callout_types";
 import { CalloutEnhanceSettings, normalizeCalloutSettings } from "./settings";
+import { t } from "./i18n";
 
 export type CalloutOccupancySource = "label" | "past" | "tombstone";
 
@@ -81,17 +82,17 @@ export function buildOccupancyMap(settings?: Partial<CalloutEnhanceSettings> | n
 function formatOccupancyConflictMessage(conflict: CalloutLabelOccupancyConflict, enteredLabel: string) {
     const entered = (enteredLabel || "").trim();
     if (conflict.source === "tombstone") {
-        return `Label "${entered}" was used by a deleted callout type. Run "Clean up legacy data" in About, or choose a different name.`;
+        return t("occupancyTombstone", { entered });
     }
     if (conflict.source === "past") {
         const owner = conflict.ownerLabel?.trim();
         const ownerName = owner
             ? (formatCalloutTitleFromLabel(owner) || owner)
-            : "another type";
-        return `Label "${entered}" conflicts with type "${ownerName}" (past label "${conflict.existingLabel}").`;
+            : t("anotherType");
+        return t("occupancyPast", { entered, ownerName, existingLabel: conflict.existingLabel });
     }
     const owner = conflict.ownerLabel?.trim() || conflict.existingLabel;
-    return `Label "${entered}" already exists on type "${formatCalloutTitleFromLabel(owner) || owner}". Please choose a different name.`;
+    return t("occupancyLabel", { entered, owner: formatCalloutTitleFromLabel(owner) || owner });
 }
 
 export function validateLabelOccupancy(

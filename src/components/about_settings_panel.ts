@@ -1,4 +1,5 @@
 import pluginMeta from "../../plugin.json";
+import { t } from "../utils/i18n";
 
 export type AboutSettingsPanelOptions = {
     host: HTMLElement;
@@ -10,8 +11,6 @@ export type AboutSettingsPanelOptions = {
 
 const LICENSE_NAME = "MIT License";
 const LICENSE_URL = "https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/LICENSE";
-
-const CLEANUP_DESCRIPTION = "Merge callouts left on old labels after renames, map orphaned subtypes from deleted types to NOTE, and clear tombstones and past labels. Recommended after many renames or deletions.";
 
 function createAboutInlineRow(label: string, value: string | HTMLElement) {
     const row = document.createElement("div");
@@ -52,16 +51,16 @@ export function renderAboutSettingsPanel(options: AboutSettingsPanelOptions) {
 
     const heading = document.createElement("div");
     heading.className = "b3-label__text callout-enhance-about__heading";
-    heading.textContent = "About this plugin";
+    heading.textContent = t("aboutHeading");
 
     const info = document.createElement("div");
     info.className = "callout-enhance-about__info";
 
     info.append(
-        createAboutInlineRow("Version", pluginMeta.version),
-        createAboutInlineRow("Author", pluginMeta.author || "—"),
-        createAboutInlineRow("Repository", createAboutLink(pluginMeta.url, pluginMeta.url)),
-        createAboutInlineRow("License", createAboutLink(LICENSE_URL, LICENSE_NAME)),
+        createAboutInlineRow(t("aboutVersion"), pluginMeta.version),
+        createAboutInlineRow(t("aboutAuthor"), pluginMeta.author || "—"),
+        createAboutInlineRow(t("aboutRepository"), createAboutLink(pluginMeta.url, pluginMeta.url)),
+        createAboutInlineRow(t("aboutLicense"), createAboutLink(LICENSE_URL, LICENSE_NAME)),
     );
 
     const cleanupRow = document.createElement("div");
@@ -72,18 +71,19 @@ export function renderAboutSettingsPanel(options: AboutSettingsPanelOptions) {
 
     const cleanupLabel = document.createElement("div");
     cleanupLabel.className = "b3-label__text";
-    cleanupLabel.textContent = "Clean up legacy data";
+    cleanupLabel.textContent = t("aboutCleanupLabel");
 
     const cleanupHint = document.createElement("div");
     cleanupHint.className = "callout-enhance-about__hint b3-label__text";
-    cleanupHint.textContent = CLEANUP_DESCRIPTION;
+    cleanupHint.textContent = t("aboutCleanupHint");
 
     cleanupLabelWrap.append(cleanupLabel, cleanupHint);
 
     const cleanupBtn = document.createElement("button");
     cleanupBtn.type = "button";
-    cleanupBtn.className = "b3-button b3-button--text callout-enhance-about__cleanup-btn";
-    cleanupBtn.textContent = "Purge";
+    cleanupBtn.className = "b3-button b3-button--outline callout-enhance-about__cleanup-btn";
+    cleanupBtn.innerHTML = `<svg class="b3-menu__icon callout-enhance-about__cleanup-btn-icon" style="width:14px;height:14px;margin:0;"><use href="#iconTrashcan"></use></svg>`;
+    cleanupBtn.append(document.createTextNode(t("aboutCleanupPurge")));
     cleanupBtn.disabled = cleanupRunning || !onCleanupClick;
     if (onCleanupClick) {
         cleanupBtn.addEventListener("click", () => onCleanupClick());
@@ -99,11 +99,11 @@ export function renderAboutSettingsPanel(options: AboutSettingsPanelOptions) {
 
     const debugLabel = document.createElement("div");
     debugLabel.className = "b3-label__text";
-    debugLabel.textContent = "Debug logging";
+    debugLabel.textContent = t("aboutDebugLabel");
 
     const debugHint = document.createElement("div");
     debugHint.className = "callout-enhance-about__hint b3-label__text";
-    debugHint.textContent = "Output detailed plugin logs to the browser console (DevTools).";
+    debugHint.textContent = t("aboutDebugHint");
 
     debugLabelWrap.append(debugLabel, debugHint);
 
