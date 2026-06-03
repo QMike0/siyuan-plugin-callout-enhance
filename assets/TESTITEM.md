@@ -215,7 +215,15 @@
   - List changes (order, enable, edit, delete) remain after closing settings.
   - Settings survive restarting SiYuan.
 
-## 11. Type rename / delete / legacy cleanup
+## 11. Settings: About
+- About info:
+  - Version, author, repository link, and license link are shown; links open correctly.
+- Clean up historical data, see "12. Type rename / delete / legacy cleanup"
+- Debug log:
+  - The debug log toggle saves immediately.
+  - When enabled, detailed plugin DEBUG logs appear in the SiYuan console (F12); when disabled, they stop.
+
+## 12. Type rename / delete / legacy cleanup
 - Rename (before cleanup):
   - After changing the label in settings, past labels appear in the list; blocks with the old subtype still use plugin styling.
   - The completion menu does not list past label names; the type menu writes the current label.
@@ -242,9 +250,10 @@
 - Path 2 — Clean up (no snapshot):
   - Progress from open-notebook phase (~0–100%; migrate uses most of the bar).
 - Progress and phases:
-  - Open notebooks → index → Phase A (past label → current label) → Phase B (tombstone orphans → NOTE) → close temp notebooks → save settings.
-  - Path 1 migrate ~33–98%, finish 98–100%; path 2 migrate ~25–98%, finish 98–100%.
-  - Unsaved Callout Types draft in the settings dialog should be used for cleanup.
+  - Open Notebook (→ Create Snapshot) → Index → Stage A (past label → current label) → Stage B (tombstone orphan → NOTE) → Close temporary notebook → Save Settings
+  - Stage A: Merge the subtype of blocks corresponding to the past label with [!LABEL]
+  - Stage A: Merge the subtype of blocks corresponding to the past label with [!LABEL]
+  - Unsaved draft of the Callout type list in the settings window should participate in the cleanup (consistent with the current draft)
 - During cleanup in settings:
   - **Callout Types**: red lock hint; search, add, edit, delete, enable toggle, and drag reorder disabled.
   - Appearance / About remain viewable; About cleanup button stays disabled.
@@ -266,17 +275,24 @@
   - After closing progress, if metadata remains, **Force clear legacy records** should appear (reason includes index timeout).
   - Blocks may already be migrated while settings metadata is not cleared—retry cleanup or force-clear metadata.
 - Block migration failure / partial failure:
-  - Details in the console; metadata may be fully or partially retained.
-  - **Force clear legacy records** when there are failures or index timeout; confirm clears metadata only.
+  - The console can display details of failed blocks.
+  - If a past/tombstone mapping has failed blocks, the corresponding metadata item can be retained; the summary can indicate partial retention
+  - After closing the progress window: If there are failures or an index timeout, a "Force Clear History" prompt can appear; after confirmation, only the metadata is cleared, without guaranteeing that all blocks have been migrated
 
-## 12. Settings: About
-- About info:
-  - Version, author, repository link, and license link are shown; links open correctly.
-- Debug log:
-  - The debug log toggle saves immediately.
-  - When enabled, detailed plugin DEBUG logs appear in the SiYuan console (F12); when disabled, they stop.
+## 13. Publish service: read-only callout
+- Environment: access via SiYuan **Publish service** (`window.siyuan.isPublish`), not normal editing in the desktop app
+- Appearance:
+  - Callout styling (colors, icons, layout variables) should match the desktop editor
+  - The fold/unfold control on the title row should be visible (same as the editor, not hidden like export preview)
+  - Folded callouts should still show body content collapsed
+- Read-only interaction (none of these should change the document or open edit UI):
+  - Click the icon area on the callout title row: no type menu
+  - Click the callout title text: no title editing (no caret / floating toolbar)
+  - Click the fold/unfold control area on the right of the title row: fold state must not toggle
+- Control (same document in the desktop editor):
+  - Icon opens the type menu, title is editable, fold control toggles—confirm publish restrictions do not affect normal editing
 
-## 13. Stability and pollution checks
+## 14. Stability and pollution checks
 - After folding/unfolding, switching types, and editing the title, check whether any temporary styles remain in the DOM.
 - The following should not remain:
   - `height`

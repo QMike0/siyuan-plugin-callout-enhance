@@ -10,7 +10,7 @@
 
 > 若想了解更多细节，请参考[这里](https://github.com/QMike0/siyuan-plugin-callout-enhance/tree/main/assets/TESTITEM_zh_CN.md)
 
-#### （1）Callout外观优化
+### （1）Callout外观优化
 
 默认外观：
 
@@ -22,15 +22,15 @@
 
 
 
-#### （2）标题快速编辑
+### （2）标题快速编辑
 
 ![title_editing](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/title_editing.gif)
 
-#### （3）快速折叠/展开
+### （3）快速折叠/展开
 
 ![fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/fold%26unfold.gif)
 
-#### （4）补全菜单
+### （4）补全菜单
 
 -  引述块首行的开头处输入`[`/`【` 唤出补全菜单
 -  支持键盘切换或鼠标点击选择类型
@@ -38,14 +38,14 @@
 
 ![completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/completion_menu.gif)
 
-#### （5）类型菜单
+### （5）类型菜单
 
 - 点击icon唤出类型菜单
 - 支持键盘切换或鼠标点击选择类型
 
 ![type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/type_menu.gif)
 
-#### （6）设置项：Callout外观自定义
+### （6）设置项：Callout外观自定义
 
 - 可在「设置-外观」中自定义 Callout 外观，并支持保存、管理外观预设及实时预览样式
 
@@ -53,7 +53,7 @@
 
   ![PixPin_2026-06-02_00-02-02](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-02-02.gif)
 
-#### （7）设置项：Callout 类型管理
+### （7）设置项：Callout 类型管理
 
 - 可在「设置-Callout类型」中新增、删除、禁用、排序与编辑Callout类型。注意思源思源笔记内置的五种callout类型（NOTE、TIP 等)不支持删除
 

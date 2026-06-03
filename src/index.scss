@@ -297,8 +297,22 @@
     /* 导出图片容器与导出 HTML/PDF 预览容器中隐藏折叠/展开按钮 */
     .export-img &>.callout-info::after,
     .export-img .protyle-wysiwyg &>.callout-info::after,
-    body:not(.body--win32):not(.body--win32msg):not(.body--darwin):not(.body--linux):not(.body--mobile):not(.body--window) &>.callout-info::after {
+    body:not(.body--win32):not(.body--win32msg):not(.body--darwin):not(.body--linux):not(.body--mobile):not(.body--window):not(.callout-enhance-publish-service) &>.callout-info::after {
         display: none !important;
+    }
+
+    /* 发布服务：保留折叠按钮外观，禁止标题/折叠/icon 区交互（与 index.ts 一致） */
+    body.callout-enhance-publish-service .protyle-wysiwyg & {
+        .callout-title {
+            pointer-events: none;
+            cursor: default;
+            user-select: text;
+        }
+
+        &>.callout-info::after {
+            pointer-events: none;
+            cursor: default;
+        }
     }
 
     /* 设置页专用样式 */

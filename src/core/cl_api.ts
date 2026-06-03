@@ -45,11 +45,18 @@ type SiYuanWindow = Window & {
             readonly?: boolean;
             editor?: { readOnly?: boolean };
         };
+        /** True on SiYuan publish service (read-only role); see kernel api/system.go getConf. */
+        isPublish?: boolean;
     };
 };
 
 function getSiyuanWindow() {
     return window as SiYuanWindow;
+}
+
+/** SiYuan publish service only — not desktop editor lock or workspace readonly. */
+export function isPublishService() {
+    return !!getSiyuanWindow().siyuan?.isPublish;
 }
 
 export function isWorkspaceReadOnly() {

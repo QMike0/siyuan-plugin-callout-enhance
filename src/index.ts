@@ -9,6 +9,7 @@ import {
     countCalloutsForTypeItem,
     type CalloutBlockCountResult,
     isEditorReadOnly,
+    isPublishService,
     isWorkspaceReadOnly,
 } from "./core/cl_api";
 import { deleteCallout } from "./features/callout_delete";
@@ -34,6 +35,7 @@ import { registerPluginIcons } from "./utils/icons";
 import { setPluginI18n, t } from "./utils/i18n";
 
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
+const PUBLISH_BODY_CLASS = "callout-enhance-publish-service";
 const STORAGE_NAME = "callout-enhance-settings";
 
 export default class CalloutEnhancePlugin extends Plugin {
@@ -123,6 +125,12 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
         const titleEl = block.querySelector(".callout-title") as HTMLElement | null;
         if (!titleEl) {
+            block.dataset.enhanced = "true";
+            return;
+        }
+        if (isPublishService()) {
+            ensureCalloutTitleEditable(titleEl);
+            this.titleBoundEls.add(titleEl);
             block.dataset.enhanced = "true";
             return;
         }
@@ -495,7 +503,28 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
     };
 
+    /** Publish: block callout header interactions without registering editor edit handlers. */
+    private handlePublishCalloutClickGuard = (e: MouseEvent) => {
+        const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
+        if (!callout || isCalloutSettingsPreview(callout)) return;
+
+        const rect = callout.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        const hit = this.getCalloutHeaderHitAreas(callout);
+        const onTypeIcon = clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight;
+        const onFold = clickX >= rect.width - hit.foldButtonWidth && clickY <= hit.headerHeight;
+        const onTitle = !!(e.target as HTMLElement | null)?.closest?.(".callout-title");
+
+        if (onTypeIcon || onFold || onTitle) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        }
+    };
+
     private handleGlobalPointerDown = (e: PointerEvent) => {
+        if (isPublishService()) return;
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
         if (!callout || isCalloutSettingsPreview(callout)) return;
         const rect = callout.getBoundingClientRect();
@@ -515,6 +544,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (this.completionMenuElement && !this.completionMenuElement.contains(e.target as Node)) {
             hideCompletionMenu(this);
         }
+
+        if (isPublishService()) return;
 
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
         if (!callout || isCalloutSettingsPreview(callout)) return;
@@ -567,6 +598,8 @@ export default class CalloutEnhancePlugin extends Plugin {
             return;
         }
 
+        if (isPublishService()) return;
+
         const titleEl = closestTitleFromTarget(e.target);
         if (titleEl) {
             if (e.key === "Enter") {
@@ -597,6 +630,10 @@ export default class CalloutEnhancePlugin extends Plugin {
         (window as any)[STARTUP_FLAG] = true;
         setPluginI18n(this.i18n);
 
+        if (isPublishService()) {
+            document.body.classList.add(PUBLISH_BODY_CLASS);
+        }
+
         registerPluginIcons(this);
 
         // Phase A: inject defaults before async settings load to reduce first-paint flash.
@@ -608,31 +645,32 @@ export default class CalloutEnhancePlugin extends Plugin {
         (window as any).__calloutEnhancePlugin = this;
         this.openSetting = this.openSetting.bind(this);
 
-        this.listen(document, "focusin", (e) => handleTitleFocusIn(this, e as FocusEvent), true);
-        this.listen(document, "focusout", (e) => handleTitleFocusOut(this, e as FocusEvent), true);
-        this.listen(document, "keydown", this.handleGlobalKeydown, true);
-        this.listen(document, "keyup", (e) => preventTitleToolbarRender(e, this), true);
-        this.listen(document, "mouseup", (e) => preventTitleToolbarRender(e, this), true);
-        this.listen(document, "selectionchange", () => hideProtyleToolbarForTitle(document.activeElement, this), true);
-        this.listen(document, "beforeinput", (e) => guardTitleEvents(this, e), true);
-        this.listen(document, "paste", (e) => guardTitleEvents(this, e), true);
-        // 标题 input 事件：防抖后自动保存（在 guardTitleEvents 之前执行）
-        this.listen(document, "input", (e) => handleTitleInput(this, e as Event), true);
-        this.listen(document, "input", (e) => guardTitleEvents(this, e), true);
-        // 标题 composition 事件：跟踪 IME 输入状态
-        this.listen(document, "compositionstart", (e) => handleTitleCompositionStart(this, e as Event), true);
-        this.listen(document, "compositionstart", (e) => guardTitleEvents(this, e), true);
-        this.listen(document, "compositionupdate", (e) => guardTitleEvents(this, e), true);
-        this.listen(document, "compositionend", (e) => handleTitleCompositionEnd(this, e as Event), true);
-        this.listen(document, "compositionend", (e) => guardTitleEvents(this, e), true);
-        this.listen(document, "pointerdown", this.handleGlobalPointerDown, true);
-
-        this.listen(document.body, "click", this.handleGlobalClick, true);
-        this.listen(document.body, "input", (e) => handleCompletionInput(this, e as InputEvent), true);
-        this.listen(document.body, "compositionstart", () => handleCompletionCompositionStart(this), true);
-        this.listen(document.body, "compositionend", () => handleCompletionCompositionEnd(this), true);
-        this.listen(document.body, "mousedown", (e) => handleCompletionMousedown(this, e as MouseEvent), true);
-        this.listen(document, "selectionchange", () => handleSelectionChange(this), true);
+        if (isPublishService()) {
+            this.listen(document, "click", this.handlePublishCalloutClickGuard, true);
+        } else {
+            this.listen(document, "focusin", (e) => handleTitleFocusIn(this, e as FocusEvent), true);
+            this.listen(document, "focusout", (e) => handleTitleFocusOut(this, e as FocusEvent), true);
+            this.listen(document, "keydown", this.handleGlobalKeydown, true);
+            this.listen(document, "keyup", (e) => preventTitleToolbarRender(e, this), true);
+            this.listen(document, "mouseup", (e) => preventTitleToolbarRender(e, this), true);
+            this.listen(document, "selectionchange", () => hideProtyleToolbarForTitle(document.activeElement, this), true);
+            this.listen(document, "beforeinput", (e) => guardTitleEvents(this, e), true);
+            this.listen(document, "paste", (e) => guardTitleEvents(this, e), true);
+            this.listen(document, "input", (e) => handleTitleInput(this, e as Event), true);
+            this.listen(document, "input", (e) => guardTitleEvents(this, e), true);
+            this.listen(document, "compositionstart", (e) => handleTitleCompositionStart(this, e as Event), true);
+            this.listen(document, "compositionstart", (e) => guardTitleEvents(this, e), true);
+            this.listen(document, "compositionupdate", (e) => guardTitleEvents(this, e), true);
+            this.listen(document, "compositionend", (e) => handleTitleCompositionEnd(this, e as Event), true);
+            this.listen(document, "compositionend", (e) => guardTitleEvents(this, e), true);
+            this.listen(document, "pointerdown", this.handleGlobalPointerDown, true);
+            this.listen(document.body, "click", this.handleGlobalClick, true);
+            this.listen(document.body, "input", (e) => handleCompletionInput(this, e as InputEvent), true);
+            this.listen(document.body, "compositionstart", () => handleCompletionCompositionStart(this), true);
+            this.listen(document.body, "compositionend", () => handleCompletionCompositionEnd(this), true);
+            this.listen(document.body, "mousedown", (e) => handleCompletionMousedown(this, e as MouseEvent), true);
+            this.listen(document.body, "selectionchange", () => handleSelectionChange(this), true);
+        }
 
         this.observer = new MutationObserver((mutations) => {
             for (const mutation of mutations) {

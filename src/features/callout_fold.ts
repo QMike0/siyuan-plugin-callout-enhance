@@ -1,6 +1,7 @@
 /**
  * Fold/unfold logic for callout blocks.
  */
+import { isPublishService } from "../core/cl_api";
 import { debugLog, errorLog } from "../utils/logger";
 
 export type CalloutFoldPluginLike = {
@@ -219,6 +220,7 @@ export async function setPreviewFoldState(block: HTMLElement | null, fold: boole
 }
 
 export async function setFoldState(plugin: CalloutFoldPluginLike, block: HTMLElement | null, fold: boolean) {
+    if (isPublishService()) return false;
     if (!block || !block.dataset.nodeId) return false;
     const blockId = block.dataset.nodeId;
     try {

@@ -9,6 +9,7 @@ import { closestTitleFromTarget, focusNewBlockEditableStart, placeCaretAtEnd } f
 import { ensureEmptyBodyPlaceholderForCallout, createEmptyParagraphElement, getCalloutBodyContainer } from "../utils/callout";
 import { normalizeCalloutTitleText } from "../utils/text";
 import { createTransaction, getCurrentProtyle, getNewNodeId, getSiyuanLute, getFirstBlockInnerHTMLFromMd, PluginWithGetEditor } from "../core/api";
+import { isPublishService } from "../core/cl_api";
 import { debugLog, warnLog, errorLog } from "../utils/logger";
 import { t } from "../utils/i18n";
 
@@ -24,6 +25,11 @@ export type TitleEditPluginLike = PluginWithGetEditor & {
 
 export function ensureCalloutTitleEditable(titleEl: HTMLElement | null) {
     if (!titleEl) return;
+    if (isPublishService()) {
+        titleEl.contentEditable = "false";
+        titleEl.removeAttribute("contenteditable");
+        return;
+    }
     titleEl.contentEditable = "true";
     titleEl.spellcheck = false;
 }
@@ -162,6 +168,7 @@ export function preventTitleToolbarRender(e: Event, plugin?: TitleEditPluginLike
 export function handleTitleFocusIn(plugin: TitleEditPluginLike, e: FocusEvent) {
     const titleEl = closestTitleFromTarget(e.target);
     if (!titleEl) return;
+    if (isPublishService()) return;
     ensureCalloutTitleEditable(titleEl);
     const block = titleEl.closest(".callout") as HTMLElement | null;
     const protyle = getCurrentProtyle(plugin, block, titleEl);

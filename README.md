@@ -10,7 +10,7 @@
 
 > For more details, please refer to [here](https://github.com/QMike0/siyuan-plugin-callout-enhance/tree/main/assets/TESTITEM.md).
 
-#### (1) Callout Appearance Enhancement
+### (1) Callout Appearance Enhancement
 
 Default appearance:
 
@@ -20,15 +20,15 @@ After nesting:
 
 ![callout_nesting](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nesting.png)
 
-#### (2) Quick Title Editing
+### (2) Quick Title Editing
 
 ![title_editing](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/title_editing.gif)
 
-#### (3) Quick Fold/Unfold
+### (3) Quick Fold/Unfold
 
 ![fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/fold%26unfold.gif)
 
-#### (4) Completion Menu
+### (4) Completion Menu
 
 - Type `[` or `【` at the beginning of the first line of a quote block to open the completion menu.
 - Supports keyboard navigation or mouse click to select a type.
@@ -36,14 +36,14 @@ After nesting:
 
 ![completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/completion_menu.gif)
 
-#### (5) Type Menu
+### (5) Type Menu
 
 - Click the icon to open the type menu.
 - Supports keyboard navigation or mouse click to select a type.
 
 ![type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/type_menu.gif)
 
-#### (6) Settings: Callout Appearance Customization
+### (6) Settings: Callout Appearance Customization
 
 - Customize callout appearance under **Settings → Appearance**, with preset save/load, preset management, and live preview.
 
@@ -51,7 +51,7 @@ After nesting:
 
   ![PixPin_2026-06-02_00-02-02](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-02-02.gif)
 
-#### (7) Settings: Callout Type Management
+### (7) Settings: Callout Type Management
 
 - Under **Settings → Callout Types**, add, delete, disable, reorder, and edit callout types. Built-in SiYuan types (NOTE, TIP, etc.) cannot be deleted.
 

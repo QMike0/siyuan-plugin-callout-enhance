@@ -7,6 +7,7 @@
 import { showMessage } from "siyuan";
 import { getBlockquoteElement } from "../utils/dom";
 import { PluginWithGetEditor } from "../core/api";
+import { isPublishService } from "../core/cl_api";
 import { CalloutTypeItem, calloutMatchesFilter } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
 import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
@@ -215,6 +216,10 @@ function isFirstLineOfQuote(quoteEl: HTMLElement | null, sourceNode: Node | null
 }
 
 export function handleCompletionInput(plugin: CompletionMenuPluginLike, e: InputEvent) {
+    if (isPublishService()) {
+        hideCompletionMenu(plugin);
+        return;
+    }
     if (plugin.isComposing) return;
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount) {

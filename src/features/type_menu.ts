@@ -10,6 +10,7 @@ import { PluginWithGetEditor } from "../core/api";
 import { CalloutTypeItem } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
 import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
+import { isPublishService } from "../core/cl_api";
 import { debugLog } from "../utils/logger";
 import { t } from "../utils/i18n";
 
@@ -86,6 +87,7 @@ function positionCalloutTypeMenu(menu: HTMLElement, x: number, y: number) {
 }
 
 export function showCalloutTypeMenu(plugin: TypeMenuPluginLike, block: HTMLElement, x: number, y: number) {
+    if (isPublishService()) return;
     ensureCalloutTypeMenu(plugin);
     if (!plugin.calloutTypeMenuElement) return;
     plugin.calloutTypeMenuActiveBlock = block;
@@ -100,6 +102,7 @@ export function showCalloutTypeMenu(plugin: TypeMenuPluginLike, block: HTMLEleme
 }
 
 export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: string) {
+    if (isPublishService()) return;
     const block = plugin.calloutTypeMenuActiveBlock;
     if (!block) return;
     const blockId = block.dataset.nodeId;

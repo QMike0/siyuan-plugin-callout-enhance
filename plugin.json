@@ -10,7 +10,7 @@
   "frontends": [
     "all"
   ],
-  "disabledInPublish": true,
+  "disabledInPublish": false,
   "displayName": {
     "default": "Callout Enhance",
     "zh_CN": "Callout 增强"
