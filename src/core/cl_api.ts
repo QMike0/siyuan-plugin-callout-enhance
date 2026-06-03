@@ -65,6 +65,17 @@ export function isUserGuideNotebook(notebookId: string) {
     return USER_GUIDE_NOTEBOOK_IDS.has(notebookId);
 }
 
+/** Progress bar range [0, end] reserved for pre-cleanup repo snapshot (path with snapshot). */
+export const CLEANUP_SNAPSHOT_PROGRESS_END = 8;
+
+export async function createRepoSnapshot(memo: string) {
+    const trimmed = memo.trim();
+    if (!trimmed) {
+        throw new ClApiError("Snapshot memo is required", -1);
+    }
+    return requestClApi("/api/repo/createSnapshot", { memo: trimmed });
+}
+
 export async function requestClApi<T = unknown>(url: string, data: Record<string, unknown> = {}) {
     const response = await fetchSyncPost(url, data) as IWebSocketData;
     if (response.code !== 0) {

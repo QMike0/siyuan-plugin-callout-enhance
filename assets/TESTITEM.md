@@ -223,23 +223,51 @@
   - The confirm dialog shows an “at least N blocks” count (open/indexed notebooks).
   - After confirm, the type is removed; blocks fall back to the default SiYuan callout style with the same subtype.
   - Creating the same label again triggers the tombstone prompt with **Save and apply style**.
-- Cleanup (**About → Clean up legacy data**):
-  - The start prompt warns about temporarily opening closed notebooks and indexing; read-only workspace should be rejected.
-  - The progress dialog shows Phase A (past-label merge) and Phase B (tombstone orphans merged to NOTE).
-  - Phase A: merge past-label subtypes and `[!LABEL]` to each type’s current label.
-  - Phase B: merge tombstone orphans to NOTE.
-  - Past labels and tombstone are cleared when done; cancel or closing settings should abort.
-  - Unsaved Callout Types edits in the settings dialog should be included in cleanup.
-  - Editor lock should not block cleanup.
+- Cleanup entry (**About → Clean up legacy data**):
+  - Read-only workspace: cleanup is rejected with a message.
+  - Editor read-only: does not block cleanup; the start prompt may note editor lock.
+  - While cleanup runs, the **Clean up** button stays disabled until finished.
+- Start confirm (three buttons):
+  - Explains temporary open/index of closed notebooks and optional snapshot.
+  - **Create snapshot & clean up**: snapshot phase then migration.
+  - **Clean up**: migration only (no snapshot API).
+  - **Cancel**: no cleanup.
+  - The start dialog must not dismiss via scrim or header close—buttons only.
+- Path 1 — Create snapshot & clean up:
+  - Progress shows “Creating data snapshot…” first (~0–8%, indeterminate).
+  - On success: progress ~8%, toast about Data history rollback, then open/index/migrate (~8–100%).
+  - On failure: progress closes; second confirm (clean up without snapshot or cancel). **Continue** reopens progress and migrates without retrying snapshot. **Cancel** exits fully.
+  - **Cancel** during snapshot: abandons cleanup only (no migration); settings become usable again.
+  - Closing settings during snapshot with **Stop cleanup and close** should stop and close settings.
+- Path 2 — Clean up (no snapshot):
+  - Progress from open-notebook phase (~0–100%; migrate uses most of the bar).
+- Progress and phases:
+  - Open notebooks → index → Phase A (past label → current label) → Phase B (tombstone orphans → NOTE) → close temp notebooks → save settings.
+  - Path 1 migrate ~33–98%, finish 98–100%; path 2 migrate ~25–98%, finish 98–100%.
+  - Unsaved Callout Types draft in the settings dialog should be used for cleanup.
+- During cleanup in settings:
+  - **Callout Types**: red lock hint; search, add, edit, delete, enable toggle, and drag reorder disabled.
+  - Appearance / About remain viewable; About cleanup button stays disabled.
+- Cleanup modals (progress, snapshot failed, stop cleanup, close settings during cleanup):
+  - Must not dismiss via scrim or header close—footer buttons only.
 - Closed notebooks:
-  - If legacy blocks exist only in closed notebooks, cleanup should open them temporarily and close them afterward.
+  - Legacy blocks only in closed notebooks: open temporarily, close after normal completion.
+- Successful completion:
+  - No past labels or tombstone left.
+  - Progress summary shows finished status and counts.
 - Aborting cleanup:
-  - **Stop cleanup** or closing settings during cleanup should show a confirm dialog.
-  - Updated blocks keep their changes; past labels and tombstone are cleared only after successful completion.
-  - Temporarily opened notebooks should be closed before cleanup fully stops.
-- Cleanup failure / partial failure:
-  - Failures are visible in the console; past labels and tombstone should be retained or partially retained depending on the outcome.
-  - When block updates fail or notebook indexing times out, **Force clear legacy records** may appear; confirming clears metadata and blocks that failed to migrate can no longer be tracked via past labels or tombstone.
+  - **Cancel** on progress during migrate: confirm **Stop cleanup**.
+  - Closing settings: confirm **Stop cleanup and close** (vs **Stay** to keep running).
+  - Updated blocks keep changes; past labels/tombstone cleared only after a successful metadata save.
+  - Temporarily opened notebooks should close on abort.
+- Index timeout:
+  - Timed-out notebook ids appear in the result errors with a timeout reason.
+  - End-of-progress summary should mention retained past labels/tombstone.
+  - After closing progress, if metadata remains, **Force clear legacy records** should appear (reason includes index timeout).
+  - Blocks may already be migrated while settings metadata is not cleared—retry cleanup or force-clear metadata.
+- Block migration failure / partial failure:
+  - Details in the console; metadata may be fully or partially retained.
+  - **Force clear legacy records** when there are failures or index timeout; confirm clears metadata only.
 
 ## 12. Settings: About
 - About info:

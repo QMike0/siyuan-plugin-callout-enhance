@@ -30,7 +30,7 @@ const FLUSH_DELAY_MS = 50;
 const NOTE_LABEL = "NOTE";
 
 export type CleanupProgress = {
-    phase: "prepare" | "open" | "index" | "migrate-a" | "migrate-b" | "close" | "save" | "done";
+    phase: "snapshot" | "prepare" | "open" | "index" | "migrate-a" | "migrate-b" | "close" | "save" | "done";
     message: string;
     /** 0–100 when determinate */
     percent?: number;
@@ -87,7 +87,32 @@ export type RunCleanupOptions = {
     onStylesUpdate?: () => void;
     /** When true, clear all pastLabels/tombstone even if some blocks failed or indexing timed out. */
     forceClearMetadata?: boolean;
+    /** Shifts cleanup phase percents (e.g. 8 when a snapshot phase occupies 0–8). */
+    progressOffset?: number;
+    /** Migrate-a/b end percent before close/save (default 98). */
+    migrateEndPercent?: number;
 };
+
+const CLEANUP_MIGRATE_END_DEFAULT = 98;
+const CLEANUP_CLOSE_END = 100;
+
+function resolveCleanupProgressScale(options: RunCleanupOptions) {
+    const offset = Math.max(0, options.progressOffset ?? 0);
+    const migrateEnd = options.migrateEndPercent ?? CLEANUP_MIGRATE_END_DEFAULT;
+    return {
+        offset,
+        prepareStart: offset,
+        prepareEnd: offset + 5,
+        openStart: offset + 5,
+        openEnd: offset + 15,
+        indexStart: offset + 15,
+        indexEnd: offset + 25,
+        migrateStart: offset + 25,
+        migrateEnd,
+        closeStart: migrateEnd,
+        closeEnd: CLEANUP_CLOSE_END,
+    };
+}
 
 type SubtypeMigration = {
     phase: "a" | "b";
@@ -473,15 +498,17 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
     let indexTimedOut = false;
     const successfulMigrations: SubtypeMigration[] = [];
 
+    const scale = resolveCleanupProgressScale(options);
+
     try {
         assertCleanupWritable();
         throwIfAborted(signal);
 
-        mapProgress(onProgress, "prepare", 0, 5, 1, t("migratePreparing"));
+        mapProgress(onProgress, "prepare", scale.prepareStart, scale.prepareEnd, 1, t("migratePreparing"));
         const notebooks = (await lsNotebooks()).filter((nb) => !isUserGuideNotebook(nb.id));
         const toOpen = notebooks.filter((nb) => nb.closed).map((nb) => nb.id);
 
-        mapProgress(onProgress, "open", 5, 15, 0, t("migrateOpening"));
+        mapProgress(onProgress, "open", scale.openStart, scale.openEnd, 0, t("migrateOpening"));
         for (let i = 0; i < toOpen.length; i += 1) {
             throwIfAborted(signal);
             const notebookId = toOpen[i];
@@ -492,8 +519,8 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
             mapProgress(
                 onProgress,
                 "open",
-                5,
-                15,
+                scale.openStart,
+                scale.openEnd,
                 (i + 1) / Math.max(toOpen.length, 1),
                 t("migrateOpeningProgress", { current: i + 1, total: toOpen.length }),
             );
@@ -506,8 +533,8 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
                 mapProgress(
                     onProgress,
                     "index",
-                    15,
-                    25,
+                    scale.indexStart,
+                    scale.indexEnd,
                     i / openedForCleanup.length,
                     t("migrateIndexing", { current: i + 1, total: openedForCleanup.length }),
                     true,
@@ -523,7 +550,7 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
                 }
             }
         }
-        mapProgress(onProgress, "index", 15, 25, 1, t("migrateIndexingComplete"));
+        mapProgress(onProgress, "index", scale.indexStart, scale.indexEnd, 1, t("migrateIndexingComplete"));
 
         const settings = normalizeCalloutSettings(getSettings());
         const phaseA = buildPhaseAMigrations(settings);
@@ -548,8 +575,8 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
             mapProgress(
                 onProgress,
                 migration.phase === "a" ? "migrate-a" : "migrate-b",
-                25,
-                98,
+                scale.migrateStart,
+                scale.migrateEnd,
                 migrateRatio,
                 t("migratePhase", {
                     phase: `${label}: ${migration.fromLabel} -> ${migration.toLabel}`,
@@ -582,24 +609,24 @@ export async function runCleanup(options: RunCleanupOptions): Promise<CleanupRes
         }
 
         if (!phaseA.length && !phaseB.length) {
-            mapProgress(onProgress, "migrate-a", 25, 98, 1, t("migrateNoBlocks"));
+            mapProgress(onProgress, "migrate-a", scale.migrateStart, scale.migrateEnd, 1, t("migrateNoBlocks"));
         }
 
-        mapProgress(onProgress, "close", 98, 100, 0, t("migrateClosing"));
+        mapProgress(onProgress, "close", scale.closeStart, scale.closeEnd, 0, t("migrateClosing"));
         for (let i = 0; i < openedForCleanup.length; i += 1) {
             throwIfAborted(signal);
             await closeNotebook(openedForCleanup[i]);
             mapProgress(
                 onProgress,
                 "close",
-                98,
-                100,
+                scale.closeStart,
+                scale.closeEnd,
                 (i + 1) / Math.max(openedForCleanup.length, 1),
                 t("migrateClosingProgress", { current: i + 1, total: openedForCleanup.length }),
             );
         }
 
-        mapProgress(onProgress, "save", 98, 100, 0.5, t("migrateSaving"));
+        mapProgress(onProgress, "save", scale.closeStart, scale.closeEnd, 0.5, t("migrateSaving"));
         result.indexTimedOut = indexTimedOut;
 
         if (forceClearMetadata) {

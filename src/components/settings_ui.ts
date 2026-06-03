@@ -3,6 +3,8 @@ import type { CleanupProgress, CleanupResult } from "../utils/migration";
 import { t } from "../utils/i18n";
 import { warnLog } from "../utils/logger";
 
+export type CleanupStartMode = "snapshot-then-cleanup" | "cleanup-only";
+
 export function formatTombstoneReclaimConfirmMessage(options: {
     reclaimedLabel: string;
     newTypeTitle: string;
@@ -87,6 +89,7 @@ export function openCleanupProgressDialog(options: {
         disableClose: true,
         content: "<div class=\"callout-enhance-cleanup-progress\"></div>",
     });
+    bindDialogModalDismiss(dialog);
 
     const root = dialog.element.querySelector(".callout-enhance-cleanup-progress") as HTMLElement | null;
     if (!root) {
@@ -197,12 +200,27 @@ export function createPreviewHelpIcon(extraClass = "") {
     return createHelpIcon(t("helpPreview"), extraClass);
 }
 
+/** Block scrim / header close; user must use in-dialog buttons. */
+export function bindDialogModalDismiss(dialog: Dialog) {
+    dialog.element.querySelector(".b3-dialog__close")?.classList.add("fn__none");
+    dialog.element.querySelector(".b3-dialog__scrim")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    dialog.element.querySelector(".b3-dialog__close")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+}
+
 export type ConfirmDialogOptions = {
     title: string;
     message: string;
     confirmLabel?: string;
     cancelLabel?: string;
     width?: string;
+    /** When true, only footer buttons can dismiss the dialog. */
+    disableClose?: boolean;
     onConfirm: () => void;
     onCancel?: () => void;
 };
@@ -214,6 +232,7 @@ export function openConfirmDialog(options: ConfirmDialogOptions) {
         confirmLabel = t("confirm"),
         cancelLabel = t("cancel"),
         width = window.innerWidth < 768 ? "88vw" : "360px",
+        disableClose = false,
         onConfirm,
         onCancel,
     } = options;
@@ -221,8 +240,12 @@ export function openConfirmDialog(options: ConfirmDialogOptions) {
     const dialog = new Dialog({
         title,
         width,
+        disableClose,
         content: "<div class=\"callout-enhance-confirm-body\"></div>",
     });
+    if (disableClose) {
+        bindDialogModalDismiss(dialog);
+    }
 
     const body = dialog.element.querySelector(".callout-enhance-confirm-body") as HTMLElement | null;
     if (!body) return dialog;
@@ -255,4 +278,87 @@ export function openConfirmDialog(options: ConfirmDialogOptions) {
     footer.append(confirmBtn, cancelBtn);
     body.append(messageEl, footer);
     return dialog;
+}
+
+export function openCleanupStartConfirmDialog(options: {
+    title: string;
+    message: string;
+    width?: string;
+    onSnapshotThenCleanup: () => void;
+    onCleanupOnly: () => void;
+    onCancel?: () => void;
+}) {
+    const {
+        title,
+        message,
+        width = window.innerWidth < 768 ? "92vw" : "480px",
+        onSnapshotThenCleanup,
+        onCleanupOnly,
+        onCancel,
+    } = options;
+
+    const dialog = new Dialog({
+        title,
+        width,
+        content: "<div class=\"callout-enhance-confirm-body\"></div>",
+    });
+
+    const body = dialog.element.querySelector(".callout-enhance-confirm-body") as HTMLElement | null;
+    if (!body) return dialog;
+
+    const messageEl = document.createElement("div");
+    messageEl.className = "b3-label__text callout-enhance-confirm-body__message";
+    messageEl.textContent = message;
+
+    const footer = document.createElement("div");
+    footer.className = "b3-dialog__action callout-enhance-dialog-footer callout-enhance-cleanup-start-footer";
+
+    const snapshotBtn = document.createElement("button");
+    snapshotBtn.className = "b3-button b3-button--text";
+    snapshotBtn.type = "button";
+    snapshotBtn.textContent = t("cleanupStartWithSnapshot");
+    snapshotBtn.addEventListener("click", () => {
+        onSnapshotThenCleanup();
+        dialog.destroy();
+    });
+
+    const cleanupBtn = document.createElement("button");
+    cleanupBtn.className = "b3-button b3-button--outline";
+    cleanupBtn.type = "button";
+    cleanupBtn.textContent = t("cleanupStartWithoutSnapshot");
+    cleanupBtn.addEventListener("click", () => {
+        onCleanupOnly();
+        dialog.destroy();
+    });
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "b3-button b3-button--cancel";
+    cancelBtn.type = "button";
+    cancelBtn.textContent = t("cancel");
+    cancelBtn.addEventListener("click", () => {
+        onCancel?.();
+        dialog.destroy();
+    });
+
+    footer.append(snapshotBtn, cleanupBtn, cancelBtn);
+    body.append(messageEl, footer);
+    return dialog;
+}
+
+export function openSnapshotFailedContinueDialog(options: {
+    reason: string;
+    onContinue: () => void;
+    onCancel?: () => void;
+}) {
+    const message = t("cleanupSnapshotFailedContinue", { reason: options.reason });
+    return openConfirmDialog({
+        title: t("cleanupSnapshotFailedTitle"),
+        message,
+        confirmLabel: t("cleanupContinueWithoutSnapshot"),
+        cancelLabel: t("cancel"),
+        width: window.innerWidth < 768 ? "92vw" : "440px",
+        disableClose: true,
+        onConfirm: options.onContinue,
+        onCancel: options.onCancel,
+    });
 }

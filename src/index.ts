@@ -166,7 +166,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     async runCalloutCleanup(
-        options: Pick<RunCleanupOptions, "signal" | "onProgress" | "getSettings" | "saveSettings" | "forceClearMetadata"> & {
+        options: Pick<RunCleanupOptions, "signal" | "onProgress" | "getSettings" | "saveSettings" | "forceClearMetadata" | "progressOffset" | "migrateEndPercent"> & {
             signal?: AbortSignal;
             /** When provided (with `signal`), `abortCalloutCleanup()` aborts this controller. */
             abortController?: AbortController;
@@ -189,6 +189,8 @@ export default class CalloutEnhancePlugin extends Plugin {
                 onProgress: options.onProgress,
                 onStylesUpdate: () => this.updateDynamicCalloutStyles(),
                 forceClearMetadata: options.forceClearMetadata,
+                progressOffset: options.progressOffset,
+                migrateEndPercent: options.migrateEndPercent,
             });
         } finally {
             if (this.calloutCleanupAbort === controller) {

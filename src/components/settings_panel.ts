@@ -36,9 +36,13 @@ import {
     formatDeleteCalloutTypeMessage,
     formatTombstoneReclaimConfirmMessage,
     openCleanupProgressDialog,
+    openCleanupStartConfirmDialog,
     openConfirmDialog,
+    openSnapshotFailedContinueDialog,
+    type CleanupStartMode,
+    type CleanupProgressDialogHandle,
 } from "./settings_ui";
-import { ClApiError, type CalloutBlockCountResult } from "../core/cl_api";
+import { ClApiError, CLEANUP_SNAPSHOT_PROGRESS_END, createRepoSnapshot, type CalloutBlockCountResult } from "../core/cl_api";
 import type { CleanupProgress, CleanupResult } from "../utils/migration";
 import { Plugin } from "siyuan";
 import { t } from "../utils/i18n";
@@ -62,6 +66,8 @@ export type SettingsEditorPluginLike = Plugin & {
         getSettings?: () => CalloutEnhanceSettings;
         saveSettings?: (settings: Partial<CalloutEnhanceSettings>) => Promise<void>;
         forceClearMetadata?: boolean;
+        progressOffset?: number;
+        migrateEndPercent?: number;
     }) => Promise<CleanupResult>;
     clearLegacyCalloutMetadata?: (options?: {
         getSettings?: () => CalloutEnhanceSettings;
@@ -989,7 +995,11 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             </div>
         `,
         destroyCallback: () => {
-            plugin.abortCalloutCleanup?.();
+            if (cleanupRunning) {
+                stopRunningCleanup();
+            } else {
+                plugin.abortCalloutCleanup?.();
+            }
             finalizeAppearanceOnClose();
         },
     });
@@ -1216,50 +1226,10 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         return true;
     };
 
-    const waitCleanupNotRunning = async () => {
-        while (cleanupRunning) {
-            await new Promise<void>((resolve) => {
-                window.setTimeout(resolve, 50);
-            });
-        }
-    };
-
-    const confirmAndAbortRunningCleanup = (options: {
-        title: string;
-        message: string;
-        confirmLabel: string;
-        cancelLabel?: string;
-    }): Promise<boolean> => {
-        if (!cleanupRunning) {
-            return Promise.resolve(true);
-        }
-        return new Promise<boolean>((resolve) => {
-            openConfirmDialog({
-                title: options.title,
-                message: options.message,
-                confirmLabel: options.confirmLabel,
-                cancelLabel: options.cancelLabel ?? t("continue"),
-                width: window.innerWidth < 768 ? "92vw" : "420px",
-                onConfirm: () => resolve(true),
-                onCancel: () => resolve(false),
-            });
-        }).then(async (confirmed) => {
-            if (!confirmed) return false;
-            plugin.abortCalloutCleanup?.();
-            await waitCleanupNotRunning();
-            return true;
-        });
-    };
-
     const requestCloseSettings = async (afterAppearanceCommit?: () => Promise<void>) => {
         if (appearanceClosePromptOpen) return false;
 
-        if (!(await confirmAndAbortRunningCleanup({
-            title: t("cleanupCloseTitle"),
-            message: t("cleanupCloseDuring"),
-            confirmLabel: t("cleanupStopClose"),
-            cancelLabel: t("stay"),
-        }))) {
+        if (!(await confirmAndAbortRunningCleanupForClose())) {
             return false;
         }
 
@@ -1330,6 +1300,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     };
 
     const persistCalloutsOnly = async () => {
+        if (cleanupRunning) return;
         const normalized = normalizeCalloutTypesSlice(
             { callouts: draft, calloutTombstone: tombstoneDraft },
             {
@@ -1513,6 +1484,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     };
 
     const moveItem = (from: number, to: number) => {
+        if (cleanupRunning) return;
         const next = reorderCalloutTypes(draft, from, to);
         if (!next) return;
         draft = next;
@@ -1522,6 +1494,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
     };
 
     const moveItemDuringDrag = (from: number, to: number) => {
+        if (cleanupRunning) return;
         const next = reorderCalloutTypes(draft, from, to);
         if (!next) return;
         const selectedKey = getItemKey(draft[selectedIndex]);
@@ -1571,13 +1544,26 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         });
     };
 
+    const lockCalloutTypeControl = (element: HTMLElement, locked: boolean) => {
+        if (locked) {
+            element.setAttribute("disabled", "");
+            element.classList.add("callout-enhance-control--cleanup-locked");
+            element.setAttribute("aria-disabled", "true");
+        } else {
+            element.removeAttribute("disabled");
+            element.classList.remove("callout-enhance-control--cleanup-locked");
+            element.removeAttribute("aria-disabled");
+        }
+    };
+
     const renderList = (itemsOnly = false) => {
+        const typesEditLocked = cleanupRunning;
         if (!itemsOnly) {
             captureListScrollTop();
             detail.innerHTML = "";
 
             const topBar = document.createElement("div");
-            topBar.className = "fn__flex callout-enhance-list-topbar";
+            topBar.className = `fn__flex callout-enhance-list-topbar${typesEditLocked ? " callout-enhance-list-topbar--cleanup-locked" : ""}`;
 
             const topActions = document.createElement("div");
             topActions.className = "fn__flex callout-enhance-list-top-actions";
@@ -1585,13 +1571,25 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             const searchInput = createTextInput(listSearchQuery);
             searchInput.className = "b3-text-field callout-enhance-list-search";
             searchInput.placeholder = t("searchCalloutTypesPlaceholder");
+            searchInput.readOnly = typesEditLocked;
+            lockCalloutTypeControl(searchInput, typesEditLocked);
             searchInput.addEventListener("input", () => {
+                if (typesEditLocked) return;
                 listSearchQuery = searchInput.value;
                 renderList(true);
             });
 
+            if (typesEditLocked) {
+                const lockHint = document.createElement("div");
+                lockHint.className = "b3-form__desc callout-enhance-list-cleanup-lock-hint";
+                lockHint.textContent = t("cleanupTypesLockedHint");
+                topBar.appendChild(lockHint);
+            }
+
             const addBtn = createIconButton(t("addCalloutType"), ICON_ADD);
+            lockCalloutTypeControl(addBtn, typesEditLocked);
             addBtn.addEventListener("click", () => {
+                if (cleanupRunning) return;
                 const created = createCalloutTypeDraft(draft, {
                     color: getNewCalloutDefaultColor(),
                 });
@@ -1621,9 +1619,9 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             detail.appendChild(topBar);
 
             const listBody = document.createElement("div");
-            listBody.className = "callout-enhance-list-body";
+            listBody.className = `callout-enhance-list-body${typesEditLocked ? " callout-enhance-list-body--cleanup-locked" : ""}`;
             listBody.addEventListener("dragover", (e) => {
-                if (draggingIndex < 0) return;
+                if (cleanupRunning || draggingIndex < 0) return;
                 e.preventDefault();
                 if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
                 updateDragAutoScroll(e.clientY);
@@ -1633,6 +1631,10 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
         const listBody = detail.querySelector(".callout-enhance-list-body") as HTMLElement | null;
         if (!listBody) return;
+
+        listBody.classList.toggle("callout-enhance-list-body--cleanup-locked", typesEditLocked);
+        const topBar = detail.querySelector(".callout-enhance-list-topbar");
+        topBar?.classList.toggle("callout-enhance-list-topbar--cleanup-locked", typesEditLocked);
 
         const savedListScrollTop = itemsOnly ? listBody.scrollTop : calloutListScrollTop;
         calloutListScrollTop = savedListScrollTop;
@@ -1646,7 +1648,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             row.className = "callout-enhance-setting-item";
             row.dataset.index = String(index);
             row.dataset.key = getItemKey(item);
-            row.draggable = !searchActive;
+            row.draggable = !searchActive && !typesEditLocked;
             row.style.display = "flex";
             row.style.alignItems = "center";
             row.style.gap = "var(--callout-enhance-setting-row-gap)";
@@ -1673,7 +1675,9 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             enabled.title = t("enabled");
             enabled.style.margin = "0";
             enabled.addEventListener("click", (e) => e.stopPropagation());
+            lockCalloutTypeControl(enabled, typesEditLocked);
             enabled.addEventListener("change", () => {
+                if (cleanupRunning) return;
                 const next = setCalloutTypeEnabled(draft, index, enabled.checked);
                 if (next) draft = next;
                 selectedIndex = index;
@@ -1681,8 +1685,10 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             });
 
             const editBtn = createIconButton(t("edit"), ICON_EDIT, "callout-enhance-icon-button--edit");
+            lockCalloutTypeControl(editBtn, typesEditLocked);
             editBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
+                if (cleanupRunning) return;
                 captureListScrollTop();
                 openEditDialog(draft[index], (next) => {
                     const updated = updateCalloutTypeAtIndex(draft, index, { ...next, order: index });
@@ -1698,7 +1704,8 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
             const deleteBtn = createIconButton(t("delete"), ICON_DELETE, "callout-enhance-icon-button--delete");
             const protectedType = isProtectedCalloutType(item);
-            deleteBtn.disabled = protectedType;
+            deleteBtn.disabled = protectedType || typesEditLocked;
+            lockCalloutTypeControl(deleteBtn, protectedType ? false : typesEditLocked);
             if (protectedType) {
                 deleteBtn.classList.add("callout-enhance-icon-button--disabled");
                 deleteBtn.title = t("builtinCannotDelete");
@@ -1706,7 +1713,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             }
             deleteBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
-                if (protectedType) return;
+                if (cleanupRunning || protectedType) return;
                 void confirmDeleteCalloutType(
                     item,
                     plugin,
@@ -1739,7 +1746,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             }
 
             row.addEventListener("dragstart", (e) => {
-                if (searchActive) {
+                if (cleanupRunning || searchActive) {
                     e.preventDefault();
                     return;
                 }
@@ -1799,46 +1806,93 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         applyListScrollAfterRender(listBody, savedListScrollTop);
     };
 
-    const runCleanupFlow = async () => {
-        if (cleanupRunning || !plugin.runCalloutCleanup) return;
-        cleanupRunning = true;
-        if (mode === "about") renderAbout();
+    let cleanupSession: {
+        controller: AbortController;
+        closeProgress: () => void;
+    } | null = null;
 
-        const controller = new AbortController();
-        const requestAbortCleanup = () => {
-            void confirmAndAbortRunningCleanup({
-                title: t("cleanupStopTitle"),
-                message: t("cleanupStopConfirm"),
-                confirmLabel: t("cleanupStop"),
-                cancelLabel: t("continue"),
+    const finishCleanupRunning = () => {
+        if (!cleanupRunning) return;
+        cleanupRunning = false;
+        cleanupSession = null;
+        if (mode === "about") renderAbout();
+        else if (mode === "list") renderList();
+    };
+
+    const stopRunningCleanup = () => {
+        cleanupSession?.controller.abort();
+        cleanupSession?.closeProgress();
+        plugin.abortCalloutCleanup?.();
+        finishCleanupRunning();
+    };
+
+    const waitCleanupNotRunning = async (timeoutMs = 8000) => {
+        const deadline = Date.now() + timeoutMs;
+        while (cleanupRunning) {
+            if (Date.now() >= deadline) {
+                finishCleanupRunning();
+                return;
+            }
+            await new Promise<void>((resolve) => {
+                window.setTimeout(resolve, 50);
             });
-        };
-        const progressDialog = openCleanupProgressDialog({
-            signal: controller.signal,
-            onCancel: requestAbortCleanup,
-            onFinishedClose: (result) => {
-                if (result.aborted || result.metadataCleared || !plugin.clearLegacyCalloutMetadata) return;
-                openConfirmDialog({
-                    title: t("cleanupForceClearTitle"),
-                    message: formatCleanupForceClearMessage(result),
-                    confirmLabel: t("cleanupForceClearMetadata"),
-                    cancelLabel: t("close"),
-                    width: window.innerWidth < 768 ? "92vw" : "440px",
-                    onConfirm: () => {
-                        void plugin.clearLegacyCalloutMetadata?.({
-                            getSettings: getCleanupSettings,
-                            saveSettings: async (partial) => {
-                                await plugin.setSettings(partial);
-                                syncDraftFromPluginSettings();
-                            },
-                        }).then(() => {
-                            if (mode === "list") renderList(true);
-                            showMessage(t("cleanupMetadataForceCleared"));
-                        });
-                    },
-                });
-            },
+        }
+    };
+
+    const confirmAndAbortRunningCleanup = (options: {
+        title: string;
+        message: string;
+        confirmLabel: string;
+        cancelLabel?: string;
+    }): Promise<boolean> => {
+        if (!cleanupRunning) {
+            return Promise.resolve(true);
+        }
+        return new Promise<boolean>((resolve) => {
+            openConfirmDialog({
+                title: options.title,
+                message: options.message,
+                confirmLabel: options.confirmLabel,
+                cancelLabel: options.cancelLabel ?? t("continue"),
+                width: window.innerWidth < 768 ? "92vw" : "420px",
+                disableClose: true,
+                onConfirm: () => resolve(true),
+                onCancel: () => resolve(false),
+            });
+        }).then(async (confirmed) => {
+            if (!confirmed) return false;
+            stopRunningCleanup();
+            await waitCleanupNotRunning();
+            return true;
         });
+    };
+
+    const confirmAndAbortRunningCleanupForClose = () => confirmAndAbortRunningCleanup({
+        title: t("cleanupCloseTitle"),
+        message: t("cleanupCloseDuring"),
+        confirmLabel: t("cleanupStopClose"),
+        cancelLabel: t("stay"),
+    });
+
+    const formatCleanupSnapshotMemoTime = () => {
+        const now = new Date();
+        const pad = (value: number) => String(value).padStart(2, "0");
+        return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    };
+
+    const runCleanupFlow = async (startMode: CleanupStartMode) => {
+        if (cleanupRunning || !plugin.runCalloutCleanup) return;
+        if (plugin.isWorkspaceReadOnly?.()) {
+            showMessage(t("workspaceReadOnlyCleanup"));
+            return;
+        }
+
+        cleanupRunning = true;
+        render();
+
+        const progressOffset = startMode === "snapshot-then-cleanup" ? CLEANUP_SNAPSHOT_PROGRESS_END : 0;
+        const controller = new AbortController();
+        let inSnapshotPhase = false;
 
         const getCleanupSettings = () => normalizeCalloutSettings({
             ...plugin.settings,
@@ -1851,31 +1905,149 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             tombstoneDraft = synced.calloutTombstone;
         };
 
-        try {
-            const result = await plugin.runCalloutCleanup({
-                signal: controller.signal,
-                abortController: controller,
-                onProgress: (progress) => progressDialog.update(progress),
-                getSettings: getCleanupSettings,
-                saveSettings: async (partial) => {
-                    await plugin.setSettings(partial);
-                    syncDraftFromPluginSettings();
+        const handleProgressFinishedClose = (result: CleanupResult) => {
+            if (result.aborted || result.metadataCleared || !plugin.clearLegacyCalloutMetadata) return;
+            openConfirmDialog({
+                title: t("cleanupForceClearTitle"),
+                message: formatCleanupForceClearMessage(result),
+                confirmLabel: t("cleanupForceClearMetadata"),
+                cancelLabel: t("close"),
+                width: window.innerWidth < 768 ? "92vw" : "440px",
+                onConfirm: () => {
+                    void plugin.clearLegacyCalloutMetadata?.({
+                        getSettings: getCleanupSettings,
+                        saveSettings: async (partial) => {
+                            await plugin.setSettings(partial);
+                            syncDraftFromPluginSettings();
+                        },
+                    }).then(() => {
+                        if (mode === "list") renderList(true);
+                        showMessage(t("cleanupMetadataForceCleared"));
+                    });
                 },
             });
-            progressDialog.showResult(result);
-            syncDraftFromPluginSettings();
-            if (mode === "list") renderList(true);
-        } catch (error) {
-            if (!(controller.signal.aborted)) {
-                const message = error instanceof ClApiError
+        };
+
+        const requestAbortDuringMigrate = () => {
+            void confirmAndAbortRunningCleanup({
+                title: t("cleanupStopTitle"),
+                message: t("cleanupStopConfirm"),
+                confirmLabel: t("cleanupStop"),
+                cancelLabel: t("continue"),
+            });
+        };
+
+        const createProgressDialog = (): CleanupProgressDialogHandle => openCleanupProgressDialog({
+            signal: controller.signal,
+            onCancel: () => {
+                if (inSnapshotPhase) {
+                    stopRunningCleanup();
+                    return;
+                }
+                requestAbortDuringMigrate();
+            },
+            onFinishedClose: handleProgressFinishedClose,
+        });
+
+        let progressDialog = createProgressDialog();
+        cleanupSession = {
+            controller,
+            closeProgress: () => progressDialog.close(),
+        };
+
+        type SnapshotAttemptOutcome = "ok" | "skip" | "aborted" | "declined";
+
+        const attemptSnapshot = async (): Promise<SnapshotAttemptOutcome> => {
+            if (controller.signal.aborted) return "aborted";
+            inSnapshotPhase = true;
+            progressDialog.update({
+                phase: "snapshot",
+                message: t("cleanupSnapshotCreating"),
+                percent: 0,
+                indeterminate: true,
+            });
+            try {
+                await createRepoSnapshot(t("cleanupSnapshotMemo", {
+                    time: formatCleanupSnapshotMemoTime(),
+                }));
+                inSnapshotPhase = false;
+                if (controller.signal.aborted) return "aborted";
+                progressDialog.update({
+                    phase: "snapshot",
+                    message: t("cleanupSnapshotCreated"),
+                    percent: CLEANUP_SNAPSHOT_PROGRESS_END,
+                    indeterminate: false,
+                });
+                showMessage(t("cleanupSnapshotSuccessHint"));
+                return "ok";
+            } catch (error) {
+                inSnapshotPhase = false;
+                if (controller.signal.aborted) return "aborted";
+                const reason = error instanceof ClApiError
                     ? error.message
-                    : t("cleanupFailedConsole");
-                showMessage(message);
+                    : t("cleanupSnapshotFailedGeneric");
+                progressDialog.close();
+                return await new Promise<SnapshotAttemptOutcome>((resolve) => {
+                    openSnapshotFailedContinueDialog({
+                        reason,
+                        onContinue: () => resolve("skip"),
+                        onCancel: () => resolve("declined"),
+                    });
+                });
             }
-            progressDialog.close();
+        };
+
+        try {
+            if (startMode === "snapshot-then-cleanup") {
+                const snapshotOutcome = await attemptSnapshot();
+                if (snapshotOutcome === "aborted" || snapshotOutcome === "declined") {
+                    progressDialog.close();
+                    return;
+                }
+                if (snapshotOutcome === "skip") {
+                    progressDialog = createProgressDialog();
+                    cleanupSession = {
+                        controller,
+                        closeProgress: () => progressDialog.close(),
+                    };
+                }
+            }
+
+            if (controller.signal.aborted) {
+                progressDialog.close();
+                return;
+            }
+
+            try {
+                const result = await plugin.runCalloutCleanup({
+                    signal: controller.signal,
+                    abortController: controller,
+                    onProgress: (progress) => {
+                        if (controller.signal.aborted) return;
+                        progressDialog.update(progress);
+                    },
+                    getSettings: getCleanupSettings,
+                    saveSettings: async (partial) => {
+                        await plugin.setSettings(partial);
+                        syncDraftFromPluginSettings();
+                    },
+                    progressOffset,
+                    migrateEndPercent: 98,
+                });
+                progressDialog.showResult(result);
+                syncDraftFromPluginSettings();
+                if (mode === "list") renderList(true);
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    const message = error instanceof ClApiError
+                        ? error.message
+                        : t("cleanupFailedConsole");
+                    showMessage(message);
+                }
+                progressDialog.close();
+            }
         } finally {
-            cleanupRunning = false;
-            if (mode === "about") renderAbout();
+            finishCleanupRunning();
         }
     };
 
@@ -1888,13 +2060,15 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         const editorNote = plugin.isEditorReadOnly?.()
             ? t("cleanupEditorLockNote")
             : "";
-        openConfirmDialog({
+        openCleanupStartConfirmDialog({
             title: t("cleanupTitle"),
-            message: `${t("cleanupConfirm")}${editorNote}`,
-            confirmLabel: t("startCleanup"),
-            width: window.innerWidth < 768 ? "92vw" : "440px",
-            onConfirm: () => {
-                void runCleanupFlow();
+            message: `${t("cleanupConfirm")}${editorNote}\n\n${t("cleanupConfirmSnapshotHint")}`,
+            width: window.innerWidth < 768 ? "92vw" : "480px",
+            onSnapshotThenCleanup: () => {
+                void runCleanupFlow("snapshot-then-cleanup");
+            },
+            onCleanupOnly: () => {
+                void runCleanupFlow("cleanup-only");
             },
         });
     };
