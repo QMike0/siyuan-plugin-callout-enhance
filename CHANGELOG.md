@@ -1,3 +1,14 @@
+## v0.2.4 2026-06-04
+
+- 🇨🇳 优化”清理历史数据“功能，允许创建数据快照以便于回退至清理前的状态
+- 🇨🇳 清理期间锁定”callout类型“设置页面的所有功能，避免冲突
+- 🇨🇳 适配思源笔记发布服务，实现发布页callout与编辑器callout外观一致，并禁用类型菜单、标题编辑、折叠/展开按钮
+- 🇨🇳 更新README.md和TESTITEM.md
+- 🇺🇸 Optimize the "Clean Up Historical Data" feature, allowing the creation of data snapshots to enable rollback to the state before cleanup
+- 🇺🇸 Lock all functions of the "Callout Types" settings page during cleanup to avoid conflicts
+- 🇺🇸 Adapt to the SiYuan Note publishing service, ensuring published callouts have the same appearance as editor callouts, while disabling the type menu, title editing, and collapse/expand buttons
+- 🇺🇸 Update README.md and TESTITEM.md
+
 ## v0.2.3 2026-06-03
 
 - 🇨🇳 实现对删除callout条目、重命名callout条目label所产生的`data-subtype`遗留的清理，并支持清理过程中断
