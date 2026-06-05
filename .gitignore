@@ -8,6 +8,5 @@ package.zip
 node_modules
 dev
 dist
-build
 tmp
 .env

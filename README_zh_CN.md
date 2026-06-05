@@ -55,7 +55,7 @@
 
 ### （7）设置项：Callout 类型管理
 
-- 可在「设置-Callout类型」中新增、删除、禁用、排序与编辑Callout类型。注意思源思源笔记内置的五种callout类型（NOTE、TIP 等)不支持删除
+- 可在「设置-Callout类型」中新增、删除、禁用、排序与编辑Callout类型。注意思源笔记内置的五种callout类型（NOTE、TIP 等）不支持删除
 
   ![PixPin_2026-06-02_00-53-281](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-53-281.gif)
 
@@ -73,7 +73,7 @@
 
   **清理历史数据**的目的是迁移笔记文档中的callout块的 `data-subtype`至新标签或 NOTE 标签，从而安全地清空 *历史标签* 与 *墓碑* 
 
-- 「设置-关于-清理历史数据」：在思源笔记控制台显示插件详细DEBUG日志
+- 「设置-关于-调试日志」：在思源笔记控制台显示插件详细DEBUG日志
 
 ## 更新日志
 
