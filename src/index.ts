@@ -208,7 +208,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     async clearLegacyCalloutMetadata(
-        options: Pick<RunCleanupOptions, "getSettings" | "saveSettings"> = {},
+        options: Partial<Pick<RunCleanupOptions, "getSettings" | "saveSettings">> = {},
     ) {
         const getSettings = options.getSettings ?? (() => normalizeCalloutSettings(this.settings));
         const saveSettings = options.saveSettings ?? ((partial) => this.setSettings(partial));
@@ -697,6 +697,15 @@ export default class CalloutEnhancePlugin extends Plugin {
         openSettingsDialog(this);
     }
 
+    async uninstall() {
+        try {
+            await this.removeData(STORAGE_NAME);
+        } catch (e: unknown) {
+            const msg = (e as { msg?: string })?.msg || String(e);
+            showMessage(`uninstall [${this.name}] remove data [${STORAGE_NAME}] fail: ${msg}`);
+        }
+    }
+
     async onunload() {
         this.clearAppearancePreview();
         this.cleanupHandlers.forEach((fn) => fn());
@@ -715,6 +724,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.completionMenuElement = null;
         removeCalloutDynamicStylesheet(DYNAMIC_STYLE_ID);
         removeCalloutExportStylesheet();
+        document.body.classList.remove(PUBLISH_BODY_CLASS);
         delete (window as any)[STARTUP_FLAG];
     }
 }
