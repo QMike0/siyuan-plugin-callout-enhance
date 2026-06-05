@@ -1,3 +1,14 @@
+## v0.2.5 2026-06-06
+
+- 🇨🇳 更改.gitignore，将build文件夹、pnpm-lock.yaml和pnpm-workspace.yaml纳入Git
+- 🇨🇳 修复src/index.ts 缺少 uninstall() 方法的问题
+- 🇨🇳 修复src/index.ts onunload()未移除 onload() 中为发布服务添加的 document.body.classList 类名 callout-enhance-publish-service的问题
+- 🇨🇳 更新README_zh_CN.md，改正文字错误
+- 🇺🇸 Update .gitignore to include the build folder, pnpm-lock.yaml, and pnpm-workspace.yaml in Git
+- 🇺🇸 Fix the missing uninstall() method in src/index.ts
+- 🇺🇸 Fix the issue in src/index.ts where onunload() does not remove the document.body.classList class name callout-enhance-publish-service added for the publishing service in onload()
+- 🇺🇸 Update README_zh_CN.md to correct text errors
+
 ## v0.2.4 2026-06-04
 
 - 🇨🇳 优化”清理历史数据“功能，允许创建数据快照以便于回退至清理前的状态
