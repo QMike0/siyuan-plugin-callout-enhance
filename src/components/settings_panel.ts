@@ -2062,7 +2062,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
             : "";
         openCleanupStartConfirmDialog({
             title: t("cleanupTitle"),
-            message: `${t("cleanupConfirm")}${editorNote}\n\n${t("cleanupConfirmSnapshotHint")}`,
+            message: `${t("cleanupConfirm")}${editorNote}`,
             width: window.innerWidth < 768 ? "92vw" : "480px",
             onSnapshotThenCleanup: () => {
                 void runCleanupFlow("snapshot-then-cleanup");

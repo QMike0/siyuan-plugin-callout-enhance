@@ -7,7 +7,7 @@
  */
 import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
-import { CalloutTypeItem } from "../utils/callout_types";
+import { CalloutTypeItem, equalsCalloutKeyCI } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
 import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { isPublishService } from "../core/cl_api";
@@ -39,13 +39,23 @@ export function hideCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     plugin.calloutTypeMenuIndex = -1;
 }
 
+function isActiveCalloutType(item: CalloutTypeItem, block: HTMLElement | null) {
+    if (!block) return false;
+    const subtype = block.getAttribute("data-subtype") || "";
+    if (!subtype) return false;
+    if (equalsCalloutKeyCI(item.label, subtype)) return true;
+    return (item.pastLabels || []).some((pastLabel) => equalsCalloutKeyCI(pastLabel, subtype));
+}
+
 function renderCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (!plugin.calloutTypeMenuElement) return;
     plugin.calloutTypeMenuElement.innerHTML = "";
     const calloutTypes = plugin.getCalloutTypes?.() ?? [];
+    const activeBlock = plugin.calloutTypeMenuActiveBlock;
     calloutTypes.forEach((item, index) => {
         const btn = renderCalloutMenuItem(item, {
             focused: index === plugin.calloutTypeMenuIndex,
+            selected: isActiveCalloutType(item, activeBlock),
             activateEvent: "click",
             onActivate: async () => {
                 plugin.calloutTypeMenuIndex = index;

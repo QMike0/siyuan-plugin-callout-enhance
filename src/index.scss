@@ -22,9 +22,15 @@
     --callout-enhance-setting-action-gap: 2px;
     --callout-enhance-setting-edit-delete-gap: 0px;
     --callout-enhance-menu-max-visible-items: 8;
-    /* SiYuan .b3-list-item: 28px min-height + 1px margin top/bottom */
-    --callout-enhance-menu-item-slot-height: 30px;
-    --callout-enhance-menu-padding-block: 12px;
+    --callout-enhance-menu-item-slot-height: 30px;      /* SiYuan .b3-list-item: 28px min-height + 1px margin top/bottom */
+    --callout-enhance-menu-padding-inline: 4px;
+    --callout-enhance-menu-inset-inline: 3px;           /*菜单整体左右内边距 padding-inline + inset-inline*/
+    --callout-enhance-menu-padding-block: 6px;          /*菜单整体上下内边距*/
+    --callout-enhance-menu-item-padding-start: 8px;     /*设置项内 icon 与左缘的间距*/
+    --callout-enhance-menu-item-padding-end: 6px;       /*设置项内勾号与右缘的间距*/
+    --callout-enhance-menu-icon-text-gap: 10px;         /*设置项内icon与文字的间距*/
+    --callout-enhance-menu-check-gap: 6px;              /*设置项内勾号与文字的间距*/
+    --callout-enhance-menu-min-width: 160px;            /*菜单整体更宽/更窄（下限）*/
 }
 
 .callout[data-type="NodeCallout"] {
@@ -676,14 +682,49 @@
 .callout-enhance-callout-menu {
     position: fixed;
     z-index: 9999;
-    min-width: 160px;
+    min-width: var(--callout-enhance-menu-min-width);
     max-height: calc(
         var(--callout-enhance-menu-item-slot-height) * var(--callout-enhance-menu-max-visible-items)
         /*+ var(--callout-enhance-menu-padding-block)*/
     );
     overflow-y: auto;
-    padding: 6px;
+    padding: var(--callout-enhance-menu-padding-block) var(--callout-enhance-menu-padding-inline);
     box-shadow: var(--b3-dialog-shadow);
+
+    /* 设置项宽度 = 菜单内容区宽度 − 左右 inset（无显式 width，块级撑满） */
+    .b3-list-item {
+        box-sizing: border-box;
+        width: auto;
+        margin-left: var(--callout-enhance-menu-inset-inline);
+        margin-right: var(--callout-enhance-menu-inset-inline);
+        padding-left: var(--callout-enhance-menu-item-padding-start);
+        padding-right: var(--callout-enhance-menu-item-padding-end);
+    }
+
+    .b3-list-item__first {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .b3-list-item__graphic.callout-enhance-menu-icon {
+        margin-right: var(--callout-enhance-menu-icon-text-gap);
+        padding: 0;
+    }
+
+    .b3-list-item__text {
+        min-width: 0;
+        font-size: 15px;
+    }
+}
+
+.callout-enhance-menu-checked {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    margin-left: var(--callout-enhance-menu-check-gap);
+    color: var(--b3-theme-on-surface-light);
+    align-self: center;
 }
 
 .callout-enhance-setting-icon {
@@ -1687,4 +1728,5 @@
 .callout-enhance-confirm-body__message {
     line-height: 1.5;
     color: var(--b3-theme-on-surface);
+    white-space: pre-line;
 }
