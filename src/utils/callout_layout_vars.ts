@@ -165,6 +165,27 @@ function migrateTitleFontSize(value: string) {
     return DEFAULT_CALLOUT_LAYOUT["--callout-title-font-size"];
 }
 
+export type CalloutLayoutVarName = keyof typeof DEFAULT_CALLOUT_LAYOUT;
+
+/**
+ * Read a numeric length from computed callout layout CSS variables.
+ * Optional legacyVar covers SCSS aliases (e.g. --callout-header-x-shift).
+ * Valid 0 is preserved; only missing/invalid values fall back to legacy then DEFAULT.
+ */
+export function resolveCalloutLayoutLength(
+    styles: CSSStyleDeclaration,
+    varName: CalloutLayoutVarName,
+    legacyVar?: string,
+): number {
+    const primary = parseFloat(styles.getPropertyValue(varName));
+    if (Number.isFinite(primary)) return primary;
+    if (legacyVar) {
+        const legacy = parseFloat(styles.getPropertyValue(legacyVar));
+        if (Number.isFinite(legacy)) return legacy;
+    }
+    return parseFloat(DEFAULT_CALLOUT_LAYOUT[varName]);
+}
+
 export function normalizeCalloutLayout(raw?: CalloutLayoutSettings | null): CalloutLayoutSettings {
     const merged: CalloutLayoutSettings = { ...DEFAULT_CALLOUT_LAYOUT };
     if (!raw) return merged;

@@ -71,7 +71,7 @@
     --callout-title-edit-bg-mix: transparent 95%;
 
     /* --- 图标 mask（替代思源 ::before 左侧竖条） --- */
-    --callout-icon-size: 16px;
+    --callout-icon-size: 16px; /* 须与 callout_layout_vars.ts → DEFAULT_CALLOUT_LAYOUT 保持一致 */
     --callout-icon-left: 20px;
     --callout-icon-title-gap: 2px;
     --callout-icon-before-display: inline-block;
@@ -150,16 +150,21 @@
         vertical-align: middle;
         width: var(--callout-icon-size);
         height: var(--callout-icon-size);
+        /* 覆盖思源 .callout::before 左侧色条样式，避免圆角裁切 mask 图标 */
+        border-radius: 0 !important;
+        top: calc(var(--callout-shell-padding-top) + (var(--callout-header-height) / 2) + var(--callout-header-y-adjust));
+        bottom: auto !important;
+        right: auto;
+        left: calc(var(--callout-icon-left) + var(--callout-header-width-offset));
+        transform: translateY(-50%);
         background-color: currentColor;
         margin-right: var(--callout-icon-before-margin-right);
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
         -webkit-mask-size: contain;
         mask-size: contain;
-        /* 锚定在标题行中心，不受折叠/展开后正文高度影响 */
-        top: calc(var(--callout-shell-padding-top) + (var(--callout-header-height) / 2) + var(--callout-header-y-adjust));
-        left: calc(var(--callout-icon-left) + var(--callout-header-width-offset));
-        transform: translateY(-50%);
+        -webkit-mask-position: center;
+        mask-position: center;
         cursor: pointer;
         z-index: 1;
     }
@@ -236,8 +241,8 @@
         mask-image: var(--callout-enhance-preview-icon-mask) !important;
         -webkit-mask-repeat: no-repeat !important;
         mask-repeat: no-repeat !important;
-        -webkit-mask-size: cover !important;
-        mask-size: cover !important;
+        -webkit-mask-size: contain !important;
+        mask-size: contain !important;
         -webkit-mask-position: center !important;
         mask-position: center !important;
     }
@@ -463,8 +468,8 @@
         &::before {
             -webkit-mask-image: var(--callout-icon-mask-default);
             mask-image: var(--callout-icon-mask-default);
-            -webkit-mask-size: cover;
-            mask-size: cover;
+            -webkit-mask-size: contain;
+            mask-size: contain;
             -webkit-mask-repeat: no-repeat;
             mask-repeat: no-repeat;
             -webkit-mask-position: center;

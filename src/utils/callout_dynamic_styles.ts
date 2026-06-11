@@ -105,7 +105,7 @@ export function buildCalloutTypeAppearanceStylesheet(
         for (const subtype of subtypes) {
             const selector = `.callout[data-type="NodeCallout"][data-subtype="${escapeCssString(subtype)}" i]`;
             rules.push(`${selector}{${colorDecl}}`);
-            rules.push(`${selector}::before{-webkit-mask:${mask} center / cover no-repeat;mask:${mask} center / cover no-repeat}`);
+            rules.push(`${selector}::before{-webkit-mask:${mask} center / contain no-repeat;mask:${mask} center / contain no-repeat}`);
         }
     });
 
