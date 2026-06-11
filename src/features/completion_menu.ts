@@ -10,7 +10,7 @@ import { PluginWithGetEditor } from "../core/api";
 import { isPublishService } from "../core/cl_api";
 import { CalloutTypeItem, calloutMatchesFilter } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
-import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
+import { ensureCalloutMenuViewport, focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { errorLog } from "../utils/logger";
 import { t } from "../utils/i18n";
 
@@ -123,6 +123,7 @@ export function ensureCompletionMenu(plugin: CompletionMenuPluginLike) {
     plugin.completionMenuElement = document.createElement("div");
     plugin.completionMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none callout-enhance-callout-menu";
     document.body.appendChild(plugin.completionMenuElement);
+    ensureCalloutMenuViewport(plugin.completionMenuElement);
 }
 
 export function hideCompletionMenu(plugin: CompletionMenuPluginLike) {
@@ -132,6 +133,7 @@ export function hideCompletionMenu(plugin: CompletionMenuPluginLike) {
     plugin.completionSession.quote = null;
     plugin.completionSession.start = -1;
     if (plugin.completionMenuElement) {
+        resetMenuScroll(plugin.completionMenuElement);
         plugin.completionMenuElement.style.visibility = "";
         plugin.completionMenuElement.classList.add("fn__none");
     }
@@ -139,7 +141,8 @@ export function hideCompletionMenu(plugin: CompletionMenuPluginLike) {
 
 function renderCompletionMenu(plugin: CompletionMenuPluginLike, resetScroll = false) {
     if (!plugin.completionMenuElement) return;
-    plugin.completionMenuElement.innerHTML = "";
+    const viewport = ensureCalloutMenuViewport(plugin.completionMenuElement);
+    viewport.innerHTML = "";
     plugin.completionFiltered.forEach((item, i) => {
         const btn = renderCalloutMenuItem(item, {
             focused: i === plugin.completionIndex,
@@ -148,7 +151,7 @@ function renderCompletionMenu(plugin: CompletionMenuPluginLike, resetScroll = fa
                 applyCompletion(plugin, i);
             },
         });
-        plugin.completionMenuElement!.appendChild(btn);
+        viewport.appendChild(btn);
     });
     if (plugin.completionIndex === -1) plugin.completionIndex = 0;
     if (resetScroll) resetMenuScroll(plugin.completionMenuElement);

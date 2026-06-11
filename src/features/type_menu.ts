@@ -9,7 +9,7 @@ import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
 import { CalloutTypeItem, equalsCalloutKeyCI } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
-import { focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
+import { ensureCalloutMenuViewport, focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { isPublishService } from "../core/cl_api";
 import { debugLog } from "../utils/logger";
 import { t } from "../utils/i18n";
@@ -28,10 +28,12 @@ export function ensureCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     plugin.calloutTypeMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none callout-enhance-callout-menu";
     plugin.calloutTypeMenuElement.tabIndex = -1;
     document.body.appendChild(plugin.calloutTypeMenuElement);
+    ensureCalloutMenuViewport(plugin.calloutTypeMenuElement);
 }
 
 export function hideCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (plugin.calloutTypeMenuElement) {
+        resetMenuScroll(plugin.calloutTypeMenuElement);
         plugin.calloutTypeMenuElement.style.visibility = "";
         plugin.calloutTypeMenuElement.classList.add("fn__none");
     }
@@ -49,7 +51,8 @@ function isActiveCalloutType(item: CalloutTypeItem, block: HTMLElement | null) {
 
 function renderCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     if (!plugin.calloutTypeMenuElement) return;
-    plugin.calloutTypeMenuElement.innerHTML = "";
+    const viewport = ensureCalloutMenuViewport(plugin.calloutTypeMenuElement);
+    viewport.innerHTML = "";
     const calloutTypes = plugin.getCalloutTypes?.() ?? [];
     const activeBlock = plugin.calloutTypeMenuActiveBlock;
     calloutTypes.forEach((item, index) => {
@@ -62,7 +65,7 @@ function renderCalloutTypeMenu(plugin: TypeMenuPluginLike) {
                 await applyCalloutType(plugin, item.label);
             },
         });
-        plugin.calloutTypeMenuElement!.appendChild(btn);
+        viewport.appendChild(btn);
     });
 }
 

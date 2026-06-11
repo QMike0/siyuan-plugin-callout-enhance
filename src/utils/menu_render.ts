@@ -29,7 +29,7 @@ export function renderCalloutMenuItem(item: CalloutTypeItem, options: RenderCall
     const iconEl = renderCalloutIconSpan(item.icon || item.label, "b3-list-item__graphic callout-enhance-menu-icon", item.label, {
         preferEditorIcon: true,
         subtype: item.label,
-        size: "var(--callout-enhance-menu-icon-size)",
+        size: "var(--callout-menu-item-icon-size)",
     });
 
     const text = document.createElement("span");

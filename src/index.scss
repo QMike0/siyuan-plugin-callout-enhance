@@ -12,25 +12,36 @@
 }
 
 :root {
-    --callout-enhance-menu-icon-size: 16px;
-    --callout-enhance-picker-icon-size: 14px;
-    --callout-enhance-edit-icon-size: 16px;
-    --callout-enhance-edit-icon-btn-size: 32px;
-    --callout-enhance-color-picker-size: 26px;
-    --callout-enhance-setting-row-gap: 2px;
-    --callout-enhance-setting-row-margin-bottom: 8px;
-    --callout-enhance-setting-action-gap: 2px;
-    --callout-enhance-setting-edit-delete-gap: 0px;
-    --callout-enhance-menu-max-visible-items: 8;
-    --callout-enhance-menu-item-slot-height: 30px;      /* SiYuan .b3-list-item: 28px min-height + 1px margin top/bottom */
-    --callout-enhance-menu-padding-inline: 4px;
-    --callout-enhance-menu-inset-inline: 3px;           /*菜单整体左右内边距 padding-inline + inset-inline*/
-    --callout-enhance-menu-padding-block: 6px;          /*菜单整体上下内边距*/
-    --callout-enhance-menu-item-padding-start: 8px;     /*设置项内 icon 与左缘的间距*/
-    --callout-enhance-menu-item-padding-end: 6px;       /*设置项内勾号与右缘的间距*/
-    --callout-enhance-menu-icon-text-gap: 10px;         /*设置项内icon与文字的间距*/
-    --callout-enhance-menu-check-gap: 6px;              /*设置项内勾号与文字的间距*/
-    --callout-enhance-menu-min-width: 160px;            /*菜单整体更宽/更窄（下限）*/
+    /* 补全/类型菜单（.callout-enhance-callout-menu） */
+    --callout-menu-shell-min-width: 180px;               /* 菜单外壳最小宽度；当各元素宽度总和超出本值时，菜单外壳会自动调整宽度 */
+    --callout-menu-shell-padding-block: 8px;             /* 菜单外壳上下内边距（不随列表滚动，与思源 .protyle-hint 一致） */
+    --callout-menu-item-margin-inline: 10px;             /* 菜单项左右外边距（菜单项边界至外壳边框，与思源 margin: 1px 8px 同理） */
+    --callout-menu-scroll-max-rows: 8;                   /* 滚动区最多可见行数，超出后出现纵向滚动条 */
+    --callout-menu-item-row-height: 28px;                /* 菜单项内容区高度（同时用于 line-height 与 min-height，与思源 .b3-list-item 默认一致） */
+    --callout-menu-item-margin-block: 1px;               /* 菜单项上下外边距（各 1px，与思源默认一致） */
+    --callout-menu-item-gap: calc(2 * var(--callout-menu-item-margin-block)); /* 行间间距（由 margin 折叠等效，用于 viewport gap 精确计高） */
+    --callout-menu-scroll-area-max-height: calc(
+        var(--callout-menu-scroll-max-rows) * var(--callout-menu-item-row-height)
+        + (var(--callout-menu-scroll-max-rows) - 1) * var(--callout-menu-item-gap)
+    );                                                   /* 滚动区高度上限（不含外壳上下留白） */
+    --callout-menu-shell-max-height: calc(
+        var(--callout-menu-scroll-area-max-height)
+        + 2 * var(--callout-menu-shell-padding-block)
+    );                                                   /* 菜单外壳总高度上限 = 滚动区 + 上下留白 */
+    --callout-menu-item-icon-size: 16px;                 /* 菜单项内 callout 类型图标尺寸 */
+    --callout-menu-item-padding-inline-start: 8px;       /* 菜单项左内边距（icon 至菜单项左边界） */
+    --callout-menu-item-padding-inline-end: 6px;         /* 菜单项右内边距（勾号至菜单项右边界） */
+    --callout-menu-item-icon-text-gap: 10px;             /* 菜单项内 icon 与菜单项文字间距 */
+    --callout-menu-item-text-check-gap: 6px;             /* 类型菜单：菜单项文字与勾号的最小间距（非实际间距） */
+
+    --callout-enhance-picker-icon-size: 14px;            /* 设置列表、图标选择器等处的图标尺寸 */
+    --callout-enhance-edit-icon-size: 16px;              /* 样式编辑弹窗预览区图标尺寸 */
+    --callout-enhance-edit-icon-btn-size: 32px;          /* 样式编辑弹窗图标/重置按钮点击区域尺寸 */
+    --callout-enhance-color-picker-size: 26px;           /* 样式编辑弹窗主色选择器色块尺寸 */
+    --callout-enhance-setting-row-gap: 2px;              /* 设置页类型列表行内元素纵向间距 */
+    --callout-enhance-setting-row-margin-bottom: 8px;    /* 设置页相邻类型列表行之间的间距 */
+    --callout-enhance-setting-action-gap: 2px;           /* 设置页类型行右侧操作按钮之间的间距 */
+    --callout-enhance-setting-edit-delete-gap: 0px;      /* 设置页编辑与删除按钮之间的间距 */
 }
 
 .callout[data-type="NodeCallout"] {
@@ -674,45 +685,63 @@
 }
 
 .callout-enhance-menu-icon {
-    width: var(--callout-enhance-menu-icon-size);
-    min-width: var(--callout-enhance-menu-icon-size);
-    height: var(--callout-enhance-menu-icon-size);
+    width: var(--callout-menu-item-icon-size);
+    min-width: var(--callout-menu-item-icon-size);
+    height: var(--callout-menu-item-icon-size);
 }
 
 .callout-enhance-callout-menu {
     position: fixed;
     z-index: 9999;
-    min-width: var(--callout-enhance-menu-min-width);
-    max-height: calc(
-        var(--callout-enhance-menu-item-slot-height) * var(--callout-enhance-menu-max-visible-items)
-        /*+ var(--callout-enhance-menu-padding-block)*/
-    );
-    overflow-y: auto;
-    padding: var(--callout-enhance-menu-padding-block) var(--callout-enhance-menu-padding-inline);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: max-content;
+    min-width: var(--callout-menu-shell-min-width);
+    /* 覆盖思源 .protyle-hint：仅上下留白，滚动条贴外壳右缘 */
+    max-height: var(--callout-menu-shell-max-height);
+    overflow: hidden;
+    padding: var(--callout-menu-shell-padding-block) 0;
     box-shadow: var(--b3-dialog-shadow);
 
-    /* 设置项宽度 = 菜单内容区宽度 − 左右 inset（无显式 width，块级撑满） */
+    &__viewport {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--callout-menu-item-gap);
+        width: 100%;
+        min-width: max-content;
+        max-height: var(--callout-menu-scroll-area-max-height);
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
     .b3-list-item {
         box-sizing: border-box;
+        flex-shrink: 0;
         width: auto;
-        margin-left: var(--callout-enhance-menu-inset-inline);
-        margin-right: var(--callout-enhance-menu-inset-inline);
-        padding-left: var(--callout-enhance-menu-item-padding-start);
-        padding-right: var(--callout-enhance-menu-item-padding-end);
+        min-width: calc(100% - 2 * var(--callout-menu-item-margin-inline));
+        min-height: var(--callout-menu-item-row-height);
+        line-height: var(--callout-menu-item-row-height);
+        margin: 0 var(--callout-menu-item-margin-inline);
+        padding-left: var(--callout-menu-item-padding-inline-start);
+        padding-right: var(--callout-menu-item-padding-inline-end);
     }
 
     .b3-list-item__first {
         display: flex;
         align-items: center;
+        width: 100%;
         min-width: 0;
     }
 
     .b3-list-item__graphic.callout-enhance-menu-icon {
-        margin-right: var(--callout-enhance-menu-icon-text-gap);
+        margin-right: var(--callout-menu-item-icon-text-gap);
         padding: 0;
     }
 
     .b3-list-item__text {
+        flex: 1;
         min-width: 0;
         font-size: 15px;
     }
@@ -722,7 +751,7 @@
     flex-shrink: 0;
     width: 14px;
     height: 14px;
-    margin-left: var(--callout-enhance-menu-check-gap);
+    margin-left: var(--callout-menu-item-text-check-gap);
     color: var(--b3-theme-on-surface-light);
     align-self: center;
 }
