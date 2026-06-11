@@ -699,56 +699,78 @@
     position: fixed;
     z-index: 9999;
     display: inline-flex;
-    flex-direction: column;
-    align-items: stretch;
-    width: max-content;
-    min-width: var(--callout-menu-shell-min-width);
-    /* 覆盖思源 .protyle-hint：仅上下留白，滚动条贴外壳右缘 */
-    max-height: var(--callout-menu-shell-max-height);
-    overflow: hidden;
-    padding: var(--callout-menu-shell-padding-block) 0;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    box-sizing: border-box;
+    width: var(--callout-menu-shell-min-width) !important;
+    min-width: var(--callout-menu-shell-min-width) !important;
+    max-width: var(--callout-menu-shell-min-width) !important;
+    /* 覆盖思源 .protyle-hint 与第三方主题：仅上下留白，滚动条贴外壳右缘 */
+    max-height: var(--callout-menu-shell-max-height) !important;
+    overflow: hidden !important;
+    padding: var(--callout-menu-shell-padding-block) 0 !important;
+    background-color: var(--b3-menu-background, var(--b3-theme-surface)) !important;
     box-shadow: var(--b3-dialog-shadow);
 
     &__viewport {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: var(--callout-menu-item-gap);
-        width: 100%;
-        min-width: max-content;
-        max-height: var(--callout-menu-scroll-area-max-height);
-        overflow-x: hidden;
-        overflow-y: auto;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: var(--callout-menu-item-gap) !important;
+        box-sizing: border-box;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        max-height: var(--callout-menu-scroll-area-max-height) !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background-color: transparent !important;
     }
 
     .b3-list-item {
-        box-sizing: border-box;
-        flex-shrink: 0;
-        width: auto;
-        min-width: calc(100% - 2 * var(--callout-menu-item-margin-inline));
-        min-height: var(--callout-menu-item-row-height);
-        line-height: var(--callout-menu-item-row-height);
-        margin: 0 var(--callout-menu-item-margin-inline);
-        padding-left: var(--callout-menu-item-padding-inline-start);
-        padding-right: var(--callout-menu-item-padding-inline-end);
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        width: calc(100% - 2 * var(--callout-menu-item-margin-inline)) !important;
+        min-width: 0 !important;
+        max-width: calc(100% - 2 * var(--callout-menu-item-margin-inline)) !important;
+        min-height: var(--callout-menu-item-row-height) !important;
+        height: var(--callout-menu-item-row-height) !important;
+        line-height: var(--callout-menu-item-row-height) !important;
+        margin: 0 var(--callout-menu-item-margin-inline) !important;
+        padding: 0 var(--callout-menu-item-padding-inline-end) 0 var(--callout-menu-item-padding-inline-start) !important;
+        border: 0 !important;
+        background-clip: padding-box;
+        font: inherit;
     }
 
     .b3-list-item__first {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        min-width: 0;
+        display: flex !important;
+        align-items: center !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background-color: transparent !important;
     }
 
     .b3-list-item__graphic.callout-enhance-menu-icon {
-        margin-right: var(--callout-menu-item-icon-text-gap);
-        padding: 0;
+        margin: 0 var(--callout-menu-item-icon-text-gap) 0 0 !important;
+        padding: 0 !important;
     }
 
     .b3-list-item__text {
-        flex: 1;
-        min-width: 0;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
         font-size: 15px;
+        line-height: var(--callout-menu-item-row-height) !important;
     }
 }
 
