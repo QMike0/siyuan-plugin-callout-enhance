@@ -668,13 +668,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         openSettingsDialog(this);
     }
 
+    /** Keep `callout-enhance-settings` on disk so reinstall restores types, pastLabels, tombstone, layout, etc. */
     async uninstall() {
-        try {
-            await this.removeData(STORAGE_NAME);
-        } catch (e: unknown) {
-            const msg = (e as { msg?: string })?.msg || String(e);
-            showMessage(`uninstall [${this.name}] remove data [${STORAGE_NAME}] fail: ${msg}`);
-        }
     }
 
     async onunload() {
