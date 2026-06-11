@@ -17,7 +17,7 @@
 
 - 🇨🇳 更改`.gitignore`，将`build`文件夹、`pnpm-lock.yaml`和`pnpm-workspace.yaml`纳入Git
 - 🇨🇳 修复`src/index.ts` 缺少 `uninstall()` 方法的问题
-- 🇨🇳 修复`src/index.ts`中未移除 `onload()` 中为发布服务添加的 `document.body.classList `类名 `callout-enhance-publish-service`的问题
+- 🇨🇳 修复`src/index.ts` 的 `onunload()`未移除 `onload()` 中为发布服务添加的 `document.body.classList `类名 `callout-enhance-publish-service`的问题
 - 🇨🇳 更新`README_zh_CN.md`，改正文字错误
 - 🇺🇸 Update `.gitignore` to include the `build` folder, `pnpm-lock.yaml`, and `pnpm-workspace.yaml` in Git
 - 🇺🇸 Fix the missing `uninstall()` method in `src/index.ts`
