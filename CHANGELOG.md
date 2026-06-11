@@ -1,24 +1,39 @@
+## v0.2.6 2026-06-11
+
+- 🇨🇳 取消卸载插件时调用 `removeData()` 清理 `petal` 数据，避免由于配置文件删除导致相关匹配/清理能力失效
+- 🇨🇳 优化补全/类型菜单的样式，并在类型菜单中，为当前 callout 所属类型的设置项文本后添加勾号
+- 🇨🇳 优化callout标题区域icon的清晰度，并取消其显示区域的圆角，避免icon边边角角不显示；
+- 🇨🇳 优化代码逻辑，包括统一默认样式的函数定义、统一`index.ts`与`callout_fold.ts`关于编辑区/设置预览折叠行为的函数定义、避免`resolveCalloutLayoutLength`把0当成无效值等
+- 🇨🇳 优化设置窗口中的部分文本描述
+- 🇨🇳 更新`TESTITEM.md`
+- 🇺🇸 Cancel calling `removeData()` to clean `petal` data when uninstalling the plugin, to prevent the related matching/cleaning capabilities from failing due to the deletion of configuration files
+- 🇺🇸 Optimize the style of the completion/type menu, and add a checkmark after the setting item text for the current callout's type in the type menu
+- 🇺🇸 Improve the clarity of the icon in the callout title area, and remove the border-radius of its display area to prevent the corners of the icon from being cut off
+- 🇺🇸 Optimize code logic, including unifying the function definitions for default styles, unifying the function definitions for folding behavior in the editing area/settings preview between `index.ts` and `callout_fold.ts`, and preventing `resolveCalloutLayoutLength` from treating 0 as an invalid value
+- 🇺🇸 Improve some text descriptions in the settings window
+- 🇺🇸 Update `TESTITEM.md`
+
 ## v0.2.5 2026-06-06
 
-- 🇨🇳 更改.gitignore，将build文件夹、pnpm-lock.yaml和pnpm-workspace.yaml纳入Git
-- 🇨🇳 修复src/index.ts 缺少 uninstall() 方法的问题
-- 🇨🇳 修复src/index.ts onunload()未移除 onload() 中为发布服务添加的 document.body.classList 类名 callout-enhance-publish-service的问题
-- 🇨🇳 更新README_zh_CN.md，改正文字错误
-- 🇺🇸 Update .gitignore to include the build folder, pnpm-lock.yaml, and pnpm-workspace.yaml in Git
-- 🇺🇸 Fix the missing uninstall() method in src/index.ts
-- 🇺🇸 Fix the issue in src/index.ts where onunload() does not remove the document.body.classList class name callout-enhance-publish-service added for the publishing service in onload()
-- 🇺🇸 Update README_zh_CN.md to correct text errors
+- 🇨🇳 更改`.gitignore`，将`build`文件夹、`pnpm-lock.yaml`和`pnpm-workspace.yaml`纳入Git
+- 🇨🇳 修复`src/index.ts` 缺少 `uninstall()` 方法的问题
+- 🇨🇳 修复`src/index.ts`中未移除 `onload()` 中为发布服务添加的 `document.body.classList `类名 `callout-enhance-publish-service`的问题
+- 🇨🇳 更新`README_zh_CN.md`，改正文字错误
+- 🇺🇸 Update `.gitignore` to include the `build` folder, `pnpm-lock.yaml`, and `pnpm-workspace.yaml` in Git
+- 🇺🇸 Fix the missing `uninstall()` method in `src/index.ts`
+- 🇺🇸 Fix the issue in `src/index.ts` where `onunload()` does not remove the `document.body.classList` class name `callout-enhance-publish-service` added for the publishing service in `onload()`
+- 🇺🇸 Update `README_zh_CN.md` to correct text errors
 
 ## v0.2.4 2026-06-04
 
 - 🇨🇳 优化”清理历史数据“功能，允许创建数据快照以便于回退至清理前的状态
 - 🇨🇳 清理期间锁定”callout类型“设置页面的所有功能，避免冲突
 - 🇨🇳 适配思源笔记发布服务，实现发布页callout与编辑器callout外观一致，并禁用类型菜单、标题编辑、折叠/展开按钮
-- 🇨🇳 更新README.md、TESTITEM.md、plugin.json
+- 🇨🇳 更新`README.md`、`TESTITEM.md`、`plugin.json`
 - 🇺🇸 Optimize the "Clean Up Historical Data" feature, allowing the creation of data snapshots to enable rollback to the state before cleanup
 - 🇺🇸 Lock all functions of the "Callout Types" settings page during cleanup to avoid conflicts
 - 🇺🇸 Adapt to the SiYuan Note publishing service, ensuring published callouts have the same appearance as editor callouts, while disabling the type menu, title editing, and collapse/expand buttons
-- 🇺🇸 Update README.md, TESTITEM.md, plugin.json
+- 🇺🇸 Update `README.md`, `TESTITEM.md`, `plugin.json`
 
 ## v0.2.3 2026-06-03
 

@@ -76,6 +76,7 @@
   - Clicking the icon opens the menu.
   - The menu is displayed as completely as possible.
   - The menu closes automatically when it loses focus.
+  - A checkmark is present after the setting item text for the current callout's type.
 - Selecting a type with the mouse:
   - Clicking a menu item switches the type.
   - The icon / background color / title color change accordingly.
