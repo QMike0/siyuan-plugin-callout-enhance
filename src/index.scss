@@ -761,6 +761,11 @@
     .b3-list-item__graphic.callout-enhance-menu-icon {
         margin: 0 var(--callout-menu-item-icon-text-gap) 0 0 !important;
         padding: 0 !important;
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        background-clip: padding-box;
+        overflow: hidden;
     }
 
     .b3-list-item__text {
@@ -1040,8 +1045,7 @@
     gap: 8px;
     padding: 10px;
     box-sizing: border-box;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     border: 1px solid var(--b3-border-color);
     border-radius: 8px;
     background: var(--b3-theme-background);
@@ -1132,7 +1136,11 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
     gap: 4px;
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    align-content: start;
 }
 
 .callout-enhance-icon-popover__empty {
