@@ -72,8 +72,8 @@
 
   "helpPreview": "仅提供默认主题下的预览效果，其他主题中的具体表现请在编辑器中查看",
   "helpLabel": "不区分大小写，不可与其他类型的标签/历史标签重复；重命名标签会使旧标签自动录入历史标签",
-  "helpKeywords": "不会写入文档，仅用于 callout 的搜索与补全",
-  "helpPastLabel": "重命名标签时自动录入，使文档中data-subtype值仍为旧标签的callout块也能匹配样式（需在[关于-清理历史数据]进行清理以关联新标签）",
+  "helpKeywords": "不会写入笔记，仅用于 callout 的搜索与补全",
+  "helpPastLabel": "重命名标签时自动录入，使笔记中 data-subtype 值仍为旧标签的 callout 块也能匹配样式（需运行「关于-清理历史数据」以关联新标签）",
 
   "cleanupTitle": "清理历史数据",
   "cleanupConfirm": "建议点击「创建快照&开始清理」以创建数据仓库快照（需先在思源笔记设置中配置数据仓库密钥），以便在数据历史中回滚；清理前会临时开启已关闭的笔记本并完成索引，以免遗漏。\n清理过程可能耗时较久，请耐心等待...",
@@ -116,12 +116,12 @@
   "cleanupForceClearMetadata": "强制清除",
   "cleanupMetadataForceCleared": "历史标签与墓碑记录已清除",
 
-  "deleteCalloutTypeMessageWithCount": "笔记中至少存在 ${count} 个该类型的 callout 块（已打开/已索引笔记本）。本操作会使文档中对应 callout 块回退至 NOTE 样式，但仍保留其 data-subtype 值（需在「关于-清理历史数据」进行清理）。是否确认删除「${title}」？",
-  "deleteCalloutTypeMessage": "本操作会使文档中对应 callout 块回退至 NOTE 样式，但仍保留其 data-subtype 值（需在「关于-清理历史数据」进行清理）。是否确认删除「${title}」？",
-  "deleteCalloutTypeMessageCountUnknown": "无法统计受影响的 callout 块数量。本操作会使文档中对应 callout 块回退至 NOTE 样式，但仍保留其 data-subtype 值（需在「关于-清理历史数据」进行清理）。是否确认删除「${title}」？",
-  "tombstoneReclaimMessageWithCount": "笔记中至少有 ${count} 个 callout 块（已打开/已索引笔记本）使用该标签名，因其所属类型曾被删除而显示为 NOTE 样式。若确认保存，对应块将应用本类型样式；若希望对应 callout 块保持 NOTE 样式，请先运行「关于-清理历史数据」，再重新使用此标签名。是否确认保存？",
-  "tombstoneReclaimMessage": "该标签名曾被已删除类型使用。保存后相关 callout 将采用本类型样式；若希望保持 NOTE 样式，请先运行「关于-清理历史数据」，再复用此标签名。是否确认保存？",
-  "tombstoneReclaimMessageCountUnknown": "无法统计受影响的 callout 块数量。该标签名曾被已删除类型使用。保存后相关 callout 将采用本类型样式；若希望保持 NOTE 样式，请先运行「关于-清理历史数据」，再复用此标签名。是否确认保存？",
+  "deleteCalloutTypeMessageWithCount": "笔记中至少存在 ${count} 个该类型的 callout 块（已打开/已索引笔记本）。本操作会使对应 callout 块回退至 NOTE 样式，但仍保留其 data-subtype 值为 ${title}（需在「关于-清理历史数据」进行清理）。\n是否确认删除类型「${title}」？",
+  "deleteCalloutTypeMessage": "本操作会使对应 callout 块回退至 NOTE 样式，但仍保留其 data-subtype 值为 ${title}（需在「关于-清理历史数据」进行清理）。\n是否确认删除类型「${title}」？",
+  "deleteCalloutTypeMessageCountUnknown": "无法统计受影响的 callout 块数量。本操作会使对应 callout 块回退至 NOTE 样式，但仍保留其 data-subtype 值为 ${title}（需在「关于-清理历史数据」进行清理）。\n是否确认删除类型「${title}」？",
+  "tombstoneReclaimMessageWithCount": "标签 ${reclaimedLabel} 至少被 ${count} 个 callout 块用作 data-subtype（已打开/已索引笔记本）。因其所属类型已被删除，这些块当前显示为 NOTE 样式。确认保存后将改用当前样式；若仍需保持 NOTE 样式，请先运行「关于-清理历史数据」再重新使用此标签名。\n是否确认保存？",
+  "tombstoneReclaimMessage": "标签 ${reclaimedLabel} 曾用于已删除的 callout 类型，对应 callout 块若存在，则在笔记中显示为 NOTE 样式。确认保存后将改用当前样式；若仍需保持 NOTE 样式，请先运行「关于-清理历史数据」再重新使用此标签。\n是否确认保存？",
+  "tombstoneReclaimMessageCountUnknown": "标签 ${reclaimedLabel} 曾用于已删除的 callout 类型，对应 callout 块若存在，则在笔记中显示为 NOTE 样式。确认保存后将改用当前样式；若仍需保持 NOTE 样式，请先运行「关于-清理历史数据」再重新使用此标签。\n是否确认保存？",
 
   "aboutHeading": "关于本插件",
   "aboutVersion": "版本",
