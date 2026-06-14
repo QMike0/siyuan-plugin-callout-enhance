@@ -214,6 +214,19 @@ export type SymbolEntry = {
     keywords: string[];
 };
 
+/** Third-party plugin symbols that should not appear in the Callout icon picker. */
+const HOST_SYMBOL_EXCLUDED_ID_PREFIXES = [
+    "icon-monaco-editor", // siyuan-plugin-monaco-editor
+    "iconWebApp", // siyuan-plugin-copilot (dynamic webapp favicons)
+    "icon-custom-block", // custom-block
+    "iconLicense", // siyuan-sireader / siyuan-media-player license tier icons
+] as const;
+
+function isExcludedHostSymbolId(id: string) {
+    if (isPluginSymbol(id)) return false;
+    return HOST_SYMBOL_EXCLUDED_ID_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
+
 function humanizeId(id: string) {
     const stripped = id.replace(/^icon/i, "");
     const spaced = stripped.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
@@ -235,6 +248,7 @@ export function listAllSymbolEntries(): SymbolEntry[] {
         // symbol ids collide (e.g. fallback material set + user-selected
         // theme). Only the first one would actually paint via <use>.
         if (seen.has(id)) return;
+        if (isExcludedHostSymbolId(id)) return;
         seen.add(id);
         const isPlugin = isPluginSymbol(id);
         const meta = PLUGIN_SYMBOL_META[id];
