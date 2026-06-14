@@ -220,6 +220,9 @@ const HOST_SYMBOL_EXCLUDED_ID_PREFIXES = [
     "iconWebApp", // siyuan-plugin-copilot (dynamic webapp favicons)
     "icon-custom-block", // custom-block
     "iconLicense", // siyuan-sireader / siyuan-media-player license tier icons
+    "iconPicture", // siyuan-plugin-picture-library
+    "icon-keepass", // keepass
+    "icon-more", // siyuan-plugin-more-background, etc.
 ] as const;
 
 function isExcludedHostSymbolId(id: string) {

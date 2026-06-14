@@ -1668,7 +1668,9 @@
 
 .callout-enhance-about__cleanup-btn-icon {
     flex-shrink: 0;
-    color: var(--b3-theme-primary);
+    color: inherit;
+    fill: currentColor;
+    stroke: currentColor;
 }
 
 .callout-enhance-cleanup-progress__message {
