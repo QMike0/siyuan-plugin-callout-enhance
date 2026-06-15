@@ -1,4 +1,8 @@
-import { resolveCalloutLayoutLength } from "./callout_layout_vars";
+import {
+    CalloutLayoutVarName,
+    DEFAULT_CALLOUT_LAYOUT,
+    resolveCalloutLayoutLength,
+} from "./callout_layout_vars";
 
 /** Vertical slack below the title row when testing header clicks (icon / fold / title). */
 const HEADER_HIT_EXTRA_BOTTOM = 8;
@@ -7,8 +11,25 @@ export type CalloutHeaderHitAreas = {
     typeMenuLeft: number;
     typeMenuRight: number;
     headerHeight: number;
-    foldButtonWidth: number;
+    foldButtonLeft: number;
+    foldButtonRight: number;
 };
+
+function resolveLayoutLengthPx(styles: CSSStyleDeclaration, varName: CalloutLayoutVarName): number {
+    const raw = styles.getPropertyValue(varName).trim() || DEFAULT_CALLOUT_LAYOUT[varName] || "";
+    const num = parseFloat(raw);
+    if (!Number.isFinite(num)) {
+        return resolveCalloutLayoutLength(styles, varName);
+    }
+    if (raw.endsWith("em")) {
+        const fontSize = parseFloat(styles.fontSize);
+        return num * (Number.isFinite(fontSize) ? fontSize : 16);
+    }
+    if (raw.endsWith("pt")) {
+        return num * (96 / 72);
+    }
+    return num;
+}
 
 /**
  * Header click-hit geometry for a callout block (coordinates relative to the block border box).
@@ -28,14 +49,39 @@ export function getCalloutHeaderHitAreas(block: HTMLElement): CalloutHeaderHitAr
     const headerHeight = shellPaddingTop + titleRowHeight + HEADER_HIT_EXTRA_BOTTOM;
 
     const foldVisible = styles.getPropertyValue("--callout-fold-after-display").trim() !== "none";
-    const foldButtonWidth = foldVisible
-        ? resolveCalloutLayoutLength(styles, "--callout-fold-hit-width")
-        : 0;
+    let foldButtonLeft = 0;
+    let foldButtonRight = 0;
+
+    if (foldVisible) {
+        const foldHitWidth = resolveCalloutLayoutLength(styles, "--callout-fold-hit-width");
+        const foldIconRight = resolveLayoutLengthPx(styles, "--callout-fold-icon-right");
+        const foldIconSize = resolveLayoutLengthPx(styles, "--callout-fold-icon-size");
+
+        const infoEl = block.querySelector(".callout-info") as HTMLElement | null;
+        const blockRect = block.getBoundingClientRect();
+        const contentRight = infoEl
+            ? infoEl.getBoundingClientRect().right - blockRect.left
+            : blockRect.width - resolveCalloutLayoutLength(styles, "--callout-shell-padding-right");
+
+        const foldIconRightEdge = contentRight - foldIconRight;
+        const foldIconLeftEdge = foldIconRightEdge - foldIconSize;
+        const foldCenterX = (foldIconLeftEdge + foldIconRightEdge) / 2;
+        foldButtonLeft = Math.max(0, foldCenterX - foldHitWidth / 2);
+        foldButtonRight = foldCenterX + foldHitWidth / 2;
+    }
 
     return {
         typeMenuLeft,
         typeMenuRight,
         headerHeight,
-        foldButtonWidth,
+        foldButtonLeft,
+        foldButtonRight,
     };
+}
+
+export function isFoldButtonHit(hit: CalloutHeaderHitAreas, clickX: number, clickY: number): boolean {
+    return hit.foldButtonRight > hit.foldButtonLeft
+        && clickX >= hit.foldButtonLeft
+        && clickX <= hit.foldButtonRight
+        && clickY <= hit.headerHeight;
 }

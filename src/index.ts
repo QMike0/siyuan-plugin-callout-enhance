@@ -18,7 +18,7 @@ import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
 import { CalloutTypeItem } from "./utils/callout_types";
 import { CalloutEnhanceSettings, createDefaultCalloutSettings, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings, prepareCalloutSettings, SETTINGS_SCHEMA_VERSION } from "./utils/settings";
-import { getCalloutHeaderHitAreas } from "./utils/callout_header_hit";
+import { getCalloutHeaderHitAreas, isFoldButtonHit } from "./utils/callout_header_hit";
 import { CalloutLayoutSettings, normalizeCalloutLayout } from "./utils/callout_layout_vars";
 import {
     applyCalloutDynamicStylesheet,
@@ -484,7 +484,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         const clickY = e.clientY - rect.top;
         const hit = getCalloutHeaderHitAreas(callout);
         const onTypeIcon = clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight;
-        const onFold = clickX >= rect.width - hit.foldButtonWidth && clickY <= hit.headerHeight;
+        const onFold = isFoldButtonHit(hit, clickX, clickY);
         const onTitle = !!(e.target as HTMLElement | null)?.closest?.(".callout-title");
 
         if (onTypeIcon || onFold || onTitle) {
@@ -502,7 +502,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
         const hit = getCalloutHeaderHitAreas(callout);
-        if ((clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight) || (clickX >= rect.width - hit.foldButtonWidth && clickY <= hit.headerHeight)) {
+        if ((clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight) || isFoldButtonHit(hit, clickX, clickY)) {
             e.preventDefault();
             e.stopPropagation();
         }
@@ -535,7 +535,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             return;
         }
 
-        if (clickX >= rect.width - hit.foldButtonWidth && clickY <= hit.headerHeight && blockId) {
+        if (isFoldButtonHit(hit, clickX, clickY) && blockId) {
             e.preventDefault();
             e.stopPropagation();
             const isCurrentlyFolded = callout.getAttribute("fold") === "1";

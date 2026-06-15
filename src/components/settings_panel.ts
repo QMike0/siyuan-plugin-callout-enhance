@@ -27,7 +27,7 @@ import { CalloutTypeItem, calloutMatchesListSearch, formatCalloutKeywordsForInpu
 import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
 import { openIconPicker } from "./icon_picker";
 import { setPreviewFoldState } from "../features/callout_fold";
-import { getCalloutHeaderHitAreas } from "../utils/callout_header_hit";
+import { getCalloutHeaderHitAreas, isFoldButtonHit } from "../utils/callout_header_hit";
 import { renderLayoutSettingsPanel } from "./layout_settings_panel";
 import { renderAboutSettingsPanel } from "./about_settings_panel";
 import {
@@ -903,7 +903,7 @@ function wireFoldableAppearancePreview(preview: HTMLElement) {
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
         const hit = getCalloutHeaderHitAreas(preview);
-        if (clickX < rect.width - hit.foldButtonWidth || clickY > hit.headerHeight) return;
+        if (!isFoldButtonHit(hit, clickX, clickY)) return;
 
         event.preventDefault();
         event.stopPropagation();
