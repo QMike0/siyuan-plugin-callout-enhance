@@ -95,6 +95,10 @@
   - The changed callout type is still kept after reloading the page or closing and reopening the tab.
 - Other:
   - No temporary styles or temporary attributes are written into the document.
+- Float window (block ref / block link preview):
+  - After opening the type menu inside a float window, moving the mouse over menu items to select should keep the float window open (the menu alone should not remain while the float window closes).
+  - Clicking a menu item to switch type should succeed; **callout subtype save failed** should not appear.
+  - Keyboard selection should behave the same as in the main editor.
 
 ## 5. Completion menu functionality
 - Opening the completion menu:
@@ -123,6 +127,10 @@
   - The selected callout type is still kept after reloading the page or closing and reopening the tab.
 - Other:
   - No temporary styles or temporary attributes are written into the document.
+- Float window (block ref / block link preview):
+  - After opening the completion menu inside a float window, moving the mouse over menu items to select should keep the float window open.
+  - Clicking a menu item should convert the quote block to a callout successfully; completion failure messages should not appear.
+  - Keyboard selection should behave the same as in the main editor.
 
 ## 6. Layout compatibility
 - Callout in a normal paragraph:

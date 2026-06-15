@@ -1069,23 +1069,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
     padding: 0;
-    border: 1px solid var(--b3-border-color);
-    border-radius: 6px;
-    background: var(--b3-theme-background);
-    color: var(--b3-theme-on-surface);
-    cursor: pointer;
     flex-shrink: 0;
-    box-sizing: border-box;
-}
-
-.callout-enhance-icon-popover__search-btn:hover {
-    border-color: var(--b3-theme-primary);
-    color: var(--b3-theme-primary);
-    background: var(--b3-list-hover);
 }
 
 .callout-enhance-icon-popover__tabs {

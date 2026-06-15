@@ -12,7 +12,11 @@ import {
 } from "../utils/callout_layout_vars";
 import { createPreviewHelpIcon, openConfirmDialog } from "./settings_ui";
 import { CalloutTypeItem } from "../utils/callout_types";
-import { CalloutAppearancePreset, isDefaultAppearancePreset } from "../utils/settings";
+import {
+    CalloutAppearancePreset,
+    getDefaultAppearancePresetLayout,
+    isDefaultAppearancePreset,
+} from "../utils/settings";
 import { t, layoutFieldLabel, layoutGroupLabel, layoutOptionLabel } from "../utils/i18n";
 
 export type LayoutSettingsPanelOptions = {
@@ -352,9 +356,12 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     const refreshPresetActionStates = () => {
         const isDefault = isDefaultAppearancePreset(activePresetId);
         const activePreset = presets.find((item) => item.id === activePresetId);
-        const layoutMatchesPreset = !activePreset || isDefault
-            ? true
-            : areCalloutLayoutsEqual(layout, activePreset.layout);
+        const savedLayout = !activePreset
+            ? normalizeCalloutLayout()
+            : isDefault
+                ? getDefaultAppearancePresetLayout()
+                : activePreset.layout;
+        const layoutMatchesPreset = areCalloutLayoutsEqual(layout, savedLayout);
 
         setPresetActionDisabled(updatePresetBtn, isDefault);
         setPresetActionDisabled(revertPresetBtn, layoutMatchesPreset);

@@ -79,11 +79,13 @@ export function openIconPicker(opts: IconPickerOptions) {
     search.spellcheck = false;
 
     const searchBtn = document.createElement("button");
-    searchBtn.className = "callout-enhance-icon-popover__search-btn";
+    searchBtn.className =
+        "b3-button callout-enhance-icon-button callout-enhance-edit-reset-btn callout-enhance-icon-popover__search-btn";
     searchBtn.type = "button";
     searchBtn.title = t("search");
     searchBtn.setAttribute("aria-label", t("search"));
-    searchBtn.innerHTML = renderSymbolUseHtml("iconSearch", "16px");
+    searchBtn.innerHTML =
+        `<svg class="b3-menu__icon" style="width:14px;height:14px;margin:0;"><use href="#iconSearch"></use></svg>`;
 
     searchRow.append(search, searchBtn);
 
