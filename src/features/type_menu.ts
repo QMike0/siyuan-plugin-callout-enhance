@@ -9,6 +9,7 @@ import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
 import { CalloutTypeItem, equalsCalloutKeyCI } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
+import { attachCalloutMenuToHost } from "../utils/menu_host";
 import { ensureCalloutMenuViewport, focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { isPublishService } from "../core/cl_api";
 import { debugLog } from "../utils/logger";
@@ -27,7 +28,6 @@ export function ensureCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     plugin.calloutTypeMenuElement = document.createElement("div");
     plugin.calloutTypeMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none callout-enhance-callout-menu";
     plugin.calloutTypeMenuElement.tabIndex = -1;
-    document.body.appendChild(plugin.calloutTypeMenuElement);
     ensureCalloutMenuViewport(plugin.calloutTypeMenuElement);
 }
 
@@ -103,6 +103,7 @@ export function showCalloutTypeMenu(plugin: TypeMenuPluginLike, block: HTMLEleme
     if (isPublishService()) return;
     ensureCalloutTypeMenu(plugin);
     if (!plugin.calloutTypeMenuElement) return;
+    attachCalloutMenuToHost(plugin.calloutTypeMenuElement, block);
     plugin.calloutTypeMenuActiveBlock = block;
     plugin.calloutTypeMenuIndex = 0;
     renderCalloutTypeMenu(plugin);

@@ -10,6 +10,7 @@ import { PluginWithGetEditor } from "../core/api";
 import { isPublishService } from "../core/cl_api";
 import { CalloutTypeItem, calloutMatchesFilter } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
+import { attachCalloutMenuToHost } from "../utils/menu_host";
 import { ensureCalloutMenuViewport, focusMenuListItem, resetMenuScroll } from "../utils/menu_scroll";
 import { errorLog } from "../utils/logger";
 import { t } from "../utils/i18n";
@@ -122,7 +123,6 @@ export function ensureCompletionMenu(plugin: CompletionMenuPluginLike) {
     if (plugin.completionMenuElement) return;
     plugin.completionMenuElement = document.createElement("div");
     plugin.completionMenuElement.className = "protyle-hint b3-list b3-list--background hint--menu fn__none callout-enhance-callout-menu";
-    document.body.appendChild(plugin.completionMenuElement);
     ensureCalloutMenuViewport(plugin.completionMenuElement);
 }
 
@@ -183,9 +183,10 @@ function updateCompletionMenuPosition(plugin: CompletionMenuPluginLike, rect: DO
     plugin.completionMenuElement.style.left = `${left}px`;
 }
 
-export function showCompletionMenu(plugin: CompletionMenuPluginLike, filterText: string, rect: DOMRect) {
+export function showCompletionMenu(plugin: CompletionMenuPluginLike, filterText: string, rect: DOMRect, source?: Node | null) {
     ensureCompletionMenu(plugin);
     if (!plugin.completionMenuElement) return;
+    attachCalloutMenuToHost(plugin.completionMenuElement, source ?? plugin.completionSession.quote);
     const types = plugin.getCalloutTypes?.() ?? [];
     plugin.completionFiltered = types.filter((t) => calloutMatchesFilter(t, filterText));
     if (plugin.completionFiltered.length === 0) {
@@ -265,7 +266,7 @@ export function handleCompletionInput(plugin: CompletionMenuPluginLike, e: Input
             return;
         }
         const rect = sel.getRangeAt(0).getBoundingClientRect();
-        showCompletionMenu(plugin, sessionMatch[1], rect);
+        showCompletionMenu(plugin, sessionMatch[1], rect, focusText);
         return;
     }
 
@@ -294,7 +295,7 @@ export function handleCompletionInput(plugin: CompletionMenuPluginLike, e: Input
         plugin.completionSession.quote = quoteEl;
         plugin.completionSession.start = triggerStart;
         const rect = sel.getRangeAt(0).getBoundingClientRect();
-        showCompletionMenu(plugin, match[1], rect);
+        showCompletionMenu(plugin, match[1], rect, focusText);
     } else {
         if (plugin.completionVisible) hideCompletionMenu(plugin);
     }
@@ -340,6 +341,8 @@ export function handleCompletionMousedown(plugin: CompletionMenuPluginLike, e: M
 
 export function handleSelectionChange(plugin: CompletionMenuPluginLike) {
     if (!plugin.completionSession.active) return;
+    const active = document.activeElement;
+    if (active && plugin.completionMenuElement?.contains(active)) return;
     const sel = window.getSelection();
     const focusNode = sel?.focusNode || null;
     const quote = focusNode ? getBlockquoteElement(focusNode) : null;
