@@ -1,3 +1,22 @@
+## v0.2.7 2026-06-15
+
+- 🇨🇳 修复补全/类型菜单在思源笔记浮窗中存在的鼠标点击导致退出浮窗的问题
+- 🇨🇳 修复折叠/展开按钮的可点击区域不随该按钮位置的变化而变化的问题
+- 🇨🇳 调整callout样式编辑弹窗的icon选择界面为上方固定、下方滚动的结构
+- 🇨🇳 优化icon选择界面的筛选，滤除一些由其他插件引入的、不适合用于callout的icon
+- 🇨🇳 优化外观预设的逻辑，使得外观预设为Default时的样式修改可撤回
+- 🇨🇳 适配Asri、Savor主题，包括补全/类型菜单样式优化、icon边框去除、按钮样式等
+- 🇨🇳 优化设置界面的部分提示文本
+- 🇨🇳 更新`TESTITEM.md`
+- 🇺🇸 Fix the issue where clicking the mouse on the completion/type menu in a SiYuan note floating window would cause the floating window to exit
+- 🇺🇸 Fix the issue where the clickable area of the collapse/expand button does not move with the button position
+- 🇺🇸 Adjust the icon selection interface in the callout style editing popup to a structure with a fixed top area and a scrollable bottom area
+- 🇺🇸 Optimize filtering in the icon selection interface to filter out icons introduced by other plugins that are unsuitable for use in callouts
+- 🇺🇸 Improve the appearance preset logic so that style changes made when the appearance preset is set to "Default" can be reverted
+- 🇺🇸 Add compatibility for the Asri and Savor themes, including improvements to the completion/type menu style, removal of icon borders, button styles, etc.
+- 🇺🇸 Improve some prompt text in the settings interface
+- 🇺🇸 Update `TESTITEM.md`
+
 ## v0.2.6 2026-06-11
 
 - 🇨🇳 取消卸载插件时调用 `removeData()` 清理 `petal` 数据，避免由于配置文件删除导致相关匹配/清理能力失效
