@@ -47,7 +47,6 @@ export function focusMenuListItem(menu: HTMLElement, index: number) {
     const active = items[index];
     if (!active) return null;
     active.classList.add("b3-list-item--focus");
-    active.focus({ preventScroll: true });
     scrollMenuItemIntoViewIfNeeded(menu, active);
     return active;
 }

@@ -5,6 +5,7 @@
  * and subtype application flow. The plugin instance keeps the menu state so
  * index.ts can remain the lifecycle/event orchestration layer.
  */
+import { cloneEditorRange, restoreEditorRange } from "../utils/dom";
 import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
 import { CalloutTypeItem, equalsCalloutKeyCI } from "../utils/callout_types";
@@ -19,6 +20,7 @@ export type TypeMenuPluginLike = PluginWithGetEditor & {
     calloutTypeMenuElement: HTMLDivElement | null;
     calloutTypeMenuActiveBlock: HTMLElement | null;
     calloutTypeMenuIndex: number;
+    calloutTypeMenuSavedRange: Range | null;
     getCalloutTypes?: () => CalloutTypeItem[];
     syncBlock: (blockElement: HTMLElement, originalHtml?: string, reason?: "title" | "fold" | "type") => Promise<boolean>;
 };
@@ -31,7 +33,11 @@ export function ensureCalloutTypeMenu(plugin: TypeMenuPluginLike) {
     ensureCalloutMenuViewport(plugin.calloutTypeMenuElement);
 }
 
-export function hideCalloutTypeMenu(plugin: TypeMenuPluginLike) {
+export function hideCalloutTypeMenu(plugin: TypeMenuPluginLike, options?: { restoreSelection?: boolean }) {
+    if (options?.restoreSelection) {
+        restoreEditorRange(plugin.calloutTypeMenuSavedRange);
+    }
+    plugin.calloutTypeMenuSavedRange = null;
     if (plugin.calloutTypeMenuElement) {
         resetMenuScroll(plugin.calloutTypeMenuElement);
         plugin.calloutTypeMenuElement.style.visibility = "";
@@ -106,6 +112,7 @@ export function showCalloutTypeMenu(plugin: TypeMenuPluginLike, block: HTMLEleme
     attachCalloutMenuToHost(plugin.calloutTypeMenuElement, block);
     plugin.calloutTypeMenuActiveBlock = block;
     plugin.calloutTypeMenuIndex = 0;
+    plugin.calloutTypeMenuSavedRange = cloneEditorRange();
     renderCalloutTypeMenu(plugin);
     plugin.calloutTypeMenuElement.style.visibility = "hidden";
     plugin.calloutTypeMenuElement.classList.remove("fn__none");
@@ -176,6 +183,6 @@ export function handleCalloutTypeKeydown(plugin: TypeMenuPluginLike, e: Keyboard
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        hideCalloutTypeMenu(plugin);
+        hideCalloutTypeMenu(plugin, { restoreSelection: true });
     }
 }

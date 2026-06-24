@@ -28,6 +28,21 @@ export function placeCaretAtEnd(el: HTMLElement | null) {
     selection.addRange(range);
 }
 
+export function cloneEditorRange(): Range | null {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    return sel.getRangeAt(0).cloneRange();
+}
+
+/** Restore editor caret without moving DOM focus away from contenteditable (SiYuan focusByRange). */
+export function restoreEditorRange(range: Range | null) {
+    if (!range) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+    sel.removeAllRanges();
+    sel.addRange(range);
+}
+
 export function closestTitleFromTarget(target: EventTarget | null) {
     if (!target) return null;
     const source = target instanceof Node && target.nodeType === Node.TEXT_NODE ? target.parentElement : target;

@@ -62,6 +62,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     calloutTypeMenuElement: HTMLDivElement | null = null;
     calloutTypeMenuActiveBlock: HTMLElement | null = null;
     calloutTypeMenuIndex = -1;
+    calloutTypeMenuSavedRange: Range | null = null;
 
     completionMenuElement: HTMLDivElement | null = null;
     completionFiltered: CalloutTypeItem[] = [];
@@ -71,6 +72,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         active: false,
         quote: null,
         start: -1,
+        savedRange: null,
     };
 
     private listen(target: EventTarget, type: string, handler: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) {

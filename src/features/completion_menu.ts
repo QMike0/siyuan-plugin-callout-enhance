@@ -5,7 +5,7 @@
  * keyboard navigation, and completion transform handling for quote blocks.
  */
 import { showMessage } from "siyuan";
-import { getBlockquoteElement } from "../utils/dom";
+import { cloneEditorRange, getBlockquoteElement, restoreEditorRange } from "../utils/dom";
 import { PluginWithGetEditor } from "../core/api";
 import { isPublishService } from "../core/cl_api";
 import { CalloutTypeItem, calloutMatchesFilter } from "../utils/callout_types";
@@ -23,6 +23,7 @@ export type CompletionSession = {
     active: boolean;
     quote: HTMLElement | null;
     start: number;
+    savedRange: Range | null;
 };
 
 export type CompletionMenuPluginLike = PluginWithGetEditor & CompletionTypeProvider & {
@@ -126,12 +127,16 @@ export function ensureCompletionMenu(plugin: CompletionMenuPluginLike) {
     ensureCalloutMenuViewport(plugin.completionMenuElement);
 }
 
-export function hideCompletionMenu(plugin: CompletionMenuPluginLike) {
+export function hideCompletionMenu(plugin: CompletionMenuPluginLike, options?: { restoreSelection?: boolean }) {
     plugin.completionVisible = false;
     plugin.completionIndex = -1;
     plugin.completionSession.active = false;
     plugin.completionSession.quote = null;
     plugin.completionSession.start = -1;
+    if (options?.restoreSelection) {
+        restoreEditorRange(plugin.completionSession.savedRange);
+    }
+    plugin.completionSession.savedRange = null;
     if (plugin.completionMenuElement) {
         resetMenuScroll(plugin.completionMenuElement);
         plugin.completionMenuElement.style.visibility = "";
@@ -195,6 +200,7 @@ export function showCompletionMenu(plugin: CompletionMenuPluginLike, filterText:
     }
     plugin.completionVisible = true;
     plugin.completionIndex = 0;
+    plugin.completionSession.savedRange = cloneEditorRange();
     renderCompletionMenu(plugin, true);
     plugin.completionMenuElement.style.visibility = "hidden";
     plugin.completionMenuElement.classList.remove("fn__none");
@@ -329,7 +335,7 @@ export function handleCompletionKeydown(plugin: CompletionMenuPluginLike, e: Key
         applyCompletion(plugin);
     } else if (e.key === "Escape") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        hideCompletionMenu(plugin);
+        hideCompletionMenu(plugin, { restoreSelection: true });
     }
 }
 
