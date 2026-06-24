@@ -15,6 +15,7 @@
     /* 补全/类型菜单（.callout-enhance-callout-menu） */
     --callout-menu-shell-min-width: 180px;               /* 菜单外壳最小宽度；当各元素宽度总和超出本值时，菜单外壳会自动调整宽度 */
     --callout-menu-shell-padding-block: 8px;             /* 菜单外壳上下内边距（不随列表滚动，与思源 .protyle-hint 一致） */
+    --callout-menu-shell-border-width: 1px;              /* 外壳边框宽度（与思源 .protyle-hint border 一致；box-sizing:border-box 时需计入 max-height） */
     --callout-menu-item-margin-inline: 10px;             /* 菜单项左右外边距（菜单项边界至外壳边框，与思源 margin: 1px 8px 同理） */
     --callout-menu-scroll-max-rows: 8;                   /* 滚动区最多可见行数，超出后出现纵向滚动条 */
     --callout-menu-item-row-height: 28px;                /* 菜单项内容区高度（同时用于 line-height 与 min-height，与思源 .b3-list-item 默认一致） */
@@ -27,7 +28,8 @@
     --callout-menu-shell-max-height: calc(
         var(--callout-menu-scroll-area-max-height)
         + 2 * var(--callout-menu-shell-padding-block)
-    );                                                   /* 菜单外壳总高度上限 = 滚动区 + 上下留白 */
+        + 2 * var(--callout-menu-shell-border-width)
+    );                                                   /* 菜单外壳总高度上限 = 滚动区 + 上下留白 + 上下边框 */
     --callout-menu-item-icon-size: 16px;                 /* 菜单项内 callout 类型图标尺寸 */
     --callout-menu-item-padding-inline-start: 8px;       /* 菜单项左内边距（icon 至菜单项左边界） */
     --callout-menu-item-padding-inline-end: 6px;         /* 菜单项右内边距（勾号至菜单项右边界） */
@@ -704,6 +706,8 @@
     flex-direction: column !important;
     align-items: stretch !important;
     box-sizing: border-box;
+    border: var(--callout-menu-shell-border-width) solid var(--b3-theme-surface-lighter) !important;
+    border-radius: var(--b3-border-radius-b);
     width: var(--callout-menu-shell-min-width) !important;
     min-width: var(--callout-menu-shell-min-width) !important;
     max-width: var(--callout-menu-shell-min-width) !important;
