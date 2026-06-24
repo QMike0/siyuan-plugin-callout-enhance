@@ -148,7 +148,7 @@ export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: stri
     } else {
         delete block.dataset.subtype;
     }
-    debugLog(plugin, "[Type] Rollback: reverted to", previousSubtype || "(default)");
+    debugLog(`[Type] Rollback: reverted to ${previousSubtype || "(default)"}`);
     showMessage(t("calloutSubtypeSaveFailed"));
 }
 
