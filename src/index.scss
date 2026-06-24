@@ -267,9 +267,11 @@
         background: var(--callout-accent-layer, none), var(--callout-composite-background) !important;
     }
 
-    /* 水平布局超级块中的Callout块限制在交叉轴上向起始位置对齐，防止被拉伸或居中 */
-    .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] &,
-    .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] &[fold="1"] {
+    /* 水平布局超级块中的 Callout：仅对「直接子块」限制交叉轴对齐，防止被拉伸或居中。
+       不可使用后代选择器：嵌套在垂直超级块内的 callout 若也命中 flex-start，
+       会在垂直超级块的横向交叉轴上缩为内容宽（标题文字宽度）。 */
+    .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] > &,
+    .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] > &[fold="1"] {
         align-self: flex-start !important;
     }
 

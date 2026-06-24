@@ -62,7 +62,8 @@
   - Pressing Enter in the body creates new blocks normally.
   - Pressing Enter on an empty non-tail line can create a new block and supports undo/redo.
 - Arrow keys at the body boundary:
-  - When the cursor is at the far left of the body, pressing ArrowLeft returns to the title.
+  - When pressing ArrowLeft at the leftmost position of the first line in the body text, the cursor can return to the heading.
+  - When pressing ArrowLeft at the leftmost position of a non-first line in the body text, the cursor will move normally without jumping to the heading.
   - The cursor does not get lost or stuck.
 - Undo/redo:
   - Changes in the body area support undo/redo.
@@ -86,6 +87,7 @@
   - Home / End jump to the first / last item.
   - Enter / Tab confirm the selected type.
   - Escape closes the menu.
+  - It will not cause the cursor to disappear and will still display in its original position.
 - Enabled/disabled types:
   - Types disabled under **Settings → Callout Types** do not appear in the type menu.
   - Existing callout blocks of a disabled type keep their styling.
@@ -117,6 +119,7 @@
   - Home / End jump to the first / last item.
   - Enter / Tab confirm the selected type and automatically convert the quote block to a callout.
   - Escape closes the menu.
+  - It will not cause the cursor to disappear and will still display in its original position.
 - Enabled/disabled types:
   - Types disabled under **Settings → Callout Types** do not appear in the completion menu.
   - Past label names do not appear in the completion menu.
