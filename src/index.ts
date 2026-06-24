@@ -2,7 +2,7 @@ import { Plugin, IOperation, showMessage } from "siyuan";
 import "./index.scss";
 import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
 import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, isCalloutSettingsPreview } from "./utils/callout";
-import { getParentBlockLikeSiyuan } from "./utils/getBlock";
+import { getParentBlockLikeSiyuan, shouldFocusCalloutTitleOnBodyArrowLeft } from "./utils/getBlock";
 import { createTransaction, getCurrentProtyle } from "./core/api";
 import {
     countCalloutsBySubtypes,
@@ -379,13 +379,7 @@ export default class CalloutEnhancePlugin extends Plugin {
 
         const content = getCalloutBodyContainer(currentCallout);
         if (!content) return;
-
-        let node: Node | null = range.startContainer;
-        while (node && node.parentNode !== content) {
-            node = node.parentNode;
-        }
-        if (!node) return;
-        if (node !== content.firstChild || range.startOffset !== 0) return;
+        if (!shouldFocusCalloutTitleOnBodyArrowLeft(content, range)) return;
 
         const title = currentCallout.querySelector(".callout-title") as HTMLElement | null;
         if (!title) return;
