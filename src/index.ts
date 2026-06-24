@@ -18,7 +18,7 @@ import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
 import { CalloutTypeItem } from "./utils/callout_types";
 import { CalloutEnhanceSettings, createDefaultCalloutSettings, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings, prepareCalloutSettings, SETTINGS_SCHEMA_VERSION } from "./utils/settings";
-import { getCalloutHeaderHitAreas, isFoldButtonHit } from "./utils/callout_header_hit";
+import { getCalloutHeaderHitAreas, isFoldButtonHit, type CalloutHeaderHitAreas } from "./utils/callout_header_hit";
 import { CalloutLayoutSettings, normalizeCalloutLayout } from "./utils/callout_layout_vars";
 import {
     applyCalloutDynamicStylesheet,
@@ -38,6 +38,17 @@ import { setPluginI18n, t } from "./utils/i18n";
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 const PUBLISH_BODY_CLASS = "callout-enhance-publish-service";
 const STORAGE_NAME = "callout-enhance-settings";
+const POINTER_HIT_REUSE_MS = 800;
+
+type CachedCalloutPointerHit = {
+    block: HTMLElement;
+    clientX: number;
+    clientY: number;
+    timeStamp: number;
+    clickX: number;
+    clickY: number;
+    hit: CalloutHeaderHitAreas;
+};
 
 export default class CalloutEnhancePlugin extends Plugin {
     declare data: {
@@ -46,6 +57,7 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     private cleanupHandlers: Array<() => void> = [];
     private calloutCleanupAbort: AbortController | null = null;
+    private lastCalloutPointerHit: CachedCalloutPointerHit | null = null;
     settings: CalloutEnhanceSettings = createDefaultCalloutSettings();
     resolvedCalloutTypes: CalloutTypeItem[] = getResolvedCalloutTypes(this.settings);
     private appearancePreviewLayout: CalloutLayoutSettings | null = null;
@@ -433,6 +445,36 @@ export default class CalloutEnhancePlugin extends Plugin {
         return true;
     };
 
+    private readCalloutPointerHit(block: HTMLElement, e: MouseEvent | PointerEvent): CachedCalloutPointerHit {
+        const rect = block.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        const hit = getCalloutHeaderHitAreas(block);
+        return {
+            block,
+            clientX: e.clientX,
+            clientY: e.clientY,
+            timeStamp: e.timeStamp,
+            clickX,
+            clickY,
+            hit,
+        };
+    }
+
+    private getReusableCalloutPointerHit(block: HTMLElement, e: MouseEvent): CachedCalloutPointerHit {
+        const cached = this.lastCalloutPointerHit;
+        if (cached &&
+            cached.block === block &&
+            Math.abs(cached.clientX - e.clientX) <= 1 &&
+            Math.abs(cached.clientY - e.clientY) <= 1 &&
+            Math.abs(e.timeStamp - cached.timeStamp) <= POINTER_HIT_REUSE_MS) {
+            this.lastCalloutPointerHit = null;
+            return cached;
+        }
+        this.lastCalloutPointerHit = null;
+        return this.readCalloutPointerHit(block, e);
+    }
+
     private guardEmptyCalloutEnter = async (e: KeyboardEvent) => {
         if (e.key !== "Enter") return;
         if (closestTitleFromTarget(e.target)) return;
@@ -457,10 +499,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
         if (!callout || isCalloutSettingsPreview(callout)) return;
 
-        const rect = callout.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const clickY = e.clientY - rect.top;
-        const hit = getCalloutHeaderHitAreas(callout);
+        const { clickX, clickY, hit } = this.readCalloutPointerHit(callout, e);
         const onTypeIcon = clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight;
         const onFold = isFoldButtonHit(hit, clickX, clickY);
         const onTitle = !!(e.target as HTMLElement | null)?.closest?.(".callout-title");
@@ -476,10 +515,9 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (isPublishService()) return;
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
         if (!callout || isCalloutSettingsPreview(callout)) return;
-        const rect = callout.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const clickY = e.clientY - rect.top;
-        const hit = getCalloutHeaderHitAreas(callout);
+        const pointerHit = this.readCalloutPointerHit(callout, e);
+        this.lastCalloutPointerHit = pointerHit;
+        const { clickX, clickY, hit } = pointerHit;
         if ((clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight) || isFoldButtonHit(hit, clickX, clickY)) {
             e.preventDefault();
             e.stopPropagation();
@@ -499,12 +537,9 @@ export default class CalloutEnhancePlugin extends Plugin {
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
         if (!callout || isCalloutSettingsPreview(callout)) return;
 
-        const rect = callout.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const clickY = e.clientY - rect.top;
+        const pointerHit = this.getReusableCalloutPointerHit(callout, e);
+        const { clickX, clickY, hit } = pointerHit;
         const blockId = callout.dataset.nodeId;
-
-        const hit = getCalloutHeaderHitAreas(callout);
 
         if (clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight) {
             e.preventDefault();
