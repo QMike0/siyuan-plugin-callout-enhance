@@ -6,7 +6,7 @@
  */
 import { showMessage, IOperation } from "siyuan";
 import { closestTitleFromTarget, focusNewBlockEditableStart, placeCaretAtEnd } from "../utils/dom";
-import { ensureEmptyBodyPlaceholderForCallout, createEmptyParagraphElement, getCalloutBodyContainer } from "../utils/callout";
+import { cleanCalloutOuterHTML, ensureEmptyBodyPlaceholderForCallout, createEmptyParagraphElement, getCalloutBodyContainer } from "../utils/callout";
 import { normalizeCalloutTitleText } from "../utils/text";
 import { createTransaction, getCurrentProtyle, getNewNodeId, getSiyuanLute, getFirstBlockInnerHTMLFromMd, PluginWithGetEditor } from "../core/api";
 import { isPublishService } from "../core/cl_api";
@@ -173,7 +173,7 @@ export function handleTitleFocusIn(plugin: TitleEditPluginLike, e: FocusEvent) {
     const block = titleEl.closest(".callout") as HTMLElement | null;
     const protyle = getCurrentProtyle(plugin, block, titleEl);
     plugin.titleEditSnapshots.set(titleEl, normalizeCalloutTitlePlainText(titleEl, protyle));
-    if (block) plugin.calloutHtmlSnapshots.set(block, block.outerHTML);
+    if (block) plugin.calloutHtmlSnapshots.set(block, cleanCalloutOuterHTML(block));
     titleEl.classList.add("is-title-editing");
 }
 
@@ -198,7 +198,7 @@ export function handleTitleFocusOut(plugin: TitleEditPluginLike, e: FocusEvent) 
     cleanCalloutTitleEditable(titleEl, protyle);
     ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
 
-    const originalHtml = plugin.calloutHtmlSnapshots.get(block) || block.outerHTML;
+    const originalHtml = plugin.calloutHtmlSnapshots.get(block) || cleanCalloutOuterHTML(block);
     plugin.titleEditSnapshots.delete(titleEl);
     plugin.calloutHtmlSnapshots.delete(block);
     plugin.titleEditComposing.delete(titleEl);
@@ -225,13 +225,13 @@ export function handleTitleInput(plugin: TitleEditPluginLike, e: Event) {
         const protyle = getCurrentProtyle(plugin, block, titleEl);
         const previousTitle = plugin.titleEditSnapshots.get(titleEl) ?? "";
         const currentTitle = normalizeCalloutTitlePlainText(titleEl, protyle);
-        const originalHtml = plugin.calloutHtmlSnapshots.get(block) || block.outerHTML;
+        const originalHtml = plugin.calloutHtmlSnapshots.get(block) || cleanCalloutOuterHTML(block);
 
         if (currentTitle !== previousTitle) {
             plugin.titleEditSnapshots.set(titleEl, currentTitle);
             cleanCalloutTitleEditable(titleEl, protyle);
             ensureEmptyBodyPlaceholderForCallout(block, getNewNodeId);
-            plugin.calloutHtmlSnapshots.set(block, block.outerHTML);
+            plugin.calloutHtmlSnapshots.set(block, cleanCalloutOuterHTML(block));
             debugLog("[TitleInput] Auto-saving title change via debounce");
             plugin.syncBlock(block, originalHtml, "title");
         }

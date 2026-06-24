@@ -8,6 +8,7 @@
 import { cloneEditorRange, restoreEditorRange } from "../utils/dom";
 import { showMessage } from "siyuan";
 import { PluginWithGetEditor } from "../core/api";
+import { cleanCalloutOuterHTML } from "../utils/callout";
 import { CalloutTypeItem, equalsCalloutKeyCI } from "../utils/callout_types";
 import { renderCalloutMenuItem } from "../utils/menu_render";
 import { attachCalloutMenuToHost } from "../utils/menu_host";
@@ -131,7 +132,7 @@ export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: stri
 
     const nextSubtype = newType.toUpperCase();
     const previousSubtype = block.getAttribute("data-subtype") || "";
-    const originalHtml = block.outerHTML;
+    const originalHtml = cleanCalloutOuterHTML(block);
     debugLog(`[Type] Changing from ${previousSubtype || "(default)"} to ${nextSubtype}`);
     block.dataset.subtype = nextSubtype;
 

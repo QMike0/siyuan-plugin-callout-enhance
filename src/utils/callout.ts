@@ -7,8 +7,52 @@
  */
 import { focusNewBlockEditableStart } from "./dom";
 
+const CALLOUT_RUNTIME_CLASSES = ["protyle-shown"];
+const CALLOUT_RUNTIME_ATTRIBUTES = [
+    "data-enhanced",
+    "data-deleting",
+    "data-callout-html-snapshot",
+    "data-callout-title-html-snapshot",
+];
+const CALLOUT_TITLE_RUNTIME_CLASSES = ["is-title-editing"];
+const CALLOUT_TITLE_RUNTIME_ATTRIBUTES = [
+    "contenteditable",
+    "spellcheck",
+    "data-callout-title-bound",
+    "data-callout-title-snapshot",
+];
+
 export function isCalloutSettingsPreview(element: HTMLElement | null | undefined) {
     return !!element?.classList?.contains("callout-enhance-setting-preview");
+}
+
+function cleanSingleCalloutElement(callout: Element) {
+    CALLOUT_RUNTIME_CLASSES.forEach((className) => callout.classList.remove(className));
+    CALLOUT_RUNTIME_ATTRIBUTES.forEach((attr) => callout.removeAttribute(attr));
+}
+
+export function cleanCalloutElementForPersistence(block: HTMLElement) {
+    const clone = block.cloneNode(true) as HTMLElement;
+    cleanSingleCalloutElement(clone);
+    clone.querySelectorAll('.callout[data-type="NodeCallout"]').forEach(cleanSingleCalloutElement);
+    clone.querySelectorAll(".callout-title").forEach((title) => {
+        CALLOUT_TITLE_RUNTIME_CLASSES.forEach((className) => title.classList.remove(className));
+        CALLOUT_TITLE_RUNTIME_ATTRIBUTES.forEach((attr) => title.removeAttribute(attr));
+    });
+    return clone;
+}
+
+export function cleanCalloutOuterHTML(source: HTMLElement | string | null | undefined) {
+    if (!source) return "";
+    if (typeof source !== "string") {
+        return cleanCalloutElementForPersistence(source).outerHTML;
+    }
+
+    const template = document.createElement("template");
+    template.innerHTML = source.trim();
+    const block = template.content.firstElementChild as HTMLElement | null;
+    if (!block) return source;
+    return cleanCalloutElementForPersistence(block).outerHTML;
 }
 
 export function createEmptyParagraphElement(getNewNodeId: () => string, id?: string) {

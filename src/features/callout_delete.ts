@@ -3,6 +3,7 @@
  */
 import { IOperation } from "siyuan";
 import { createTransaction, getCurrentProtyle, PluginWithGetEditor } from "../core/api";
+import { cleanCalloutOuterHTML } from "../utils/callout";
 import { errorLog, warnLog } from "../utils/logger";
 
 export type CalloutDeletePluginLike = PluginWithGetEditor;
@@ -23,8 +24,8 @@ export async function deleteCallout(plugin: CalloutDeletePluginLike, block: HTML
     if (!protyle) return false;
 
     try {
+        const blockHTML = cleanCalloutOuterHTML(block);
         block.dataset.deleting = "true";
-        const blockHTML = block.outerHTML;
         const { parentID, previousID } = getCalloutParentAndPrevious(block);
         const doOperations: IOperation[] = [{ action: "delete", id: blockId }];
         const undoOperations: IOperation[] = [{

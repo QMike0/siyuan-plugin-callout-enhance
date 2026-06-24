@@ -1,7 +1,7 @@
 import { Plugin, IOperation, showMessage } from "siyuan";
 import "./index.scss";
 import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
-import { getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, isCalloutSettingsPreview } from "./utils/callout";
+import { cleanCalloutOuterHTML, getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, isCalloutSettingsPreview } from "./utils/callout";
 import { getParentBlockLikeSiyuan, shouldFocusCalloutTitleOnBodyArrowLeft } from "./utils/getBlock";
 import { createTransaction, getCurrentProtyle } from "./core/api";
 import {
@@ -311,27 +311,9 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (!protyle) return false;
 
         try {
-            // 保存原始 HTML 用于 undo
-            const previousHtml = originalHtml || blockElement.outerHTML;
-            
-            // 克隆块并清理临时属性和元素
-            const clone = blockElement.cloneNode(true) as HTMLElement;
-            const titleInClone = clone.querySelector(".callout-title") as HTMLElement | null;
-            if (titleInClone) {
-                titleInClone.classList.remove("is-title-editing");
-                titleInClone.removeAttribute("contenteditable");
-                titleInClone.removeAttribute("data-callout-title-bound");
-                titleInClone.removeAttribute("data-callout-title-snapshot");
-                titleInClone.spellcheck = false;
-            }
-            clone.classList.remove("protyle-shown");
-            clone.removeAttribute("data-enhanced");
-            clone.removeAttribute("data-callout-html-snapshot");
-
-            // 清理临时属性的快照字段
-            clone.removeAttribute("data-callout-title-html-snapshot");
-            
-            const newHtml = clone.outerHTML;
+            // 保存清理后的 HTML 用于 undo，避免运行时编辑态属性进入事务数据。
+            const previousHtml = cleanCalloutOuterHTML(originalHtml || blockElement);
+            const newHtml = cleanCalloutOuterHTML(blockElement);
             
             // 只在内容真正改变时才发送事务
             if (newHtml === previousHtml) {
@@ -410,7 +392,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             return false;
         }
 
-        const originalCalloutHtml = callout.outerHTML;
+        const originalCalloutHtml = cleanCalloutOuterHTML(callout);
         const originalBodyBlockHtml = bodyBlock.outerHTML;
         const parentBlockElement = getParentBlockLikeSiyuan(bodyBlock);
         const previousSibling = callout.previousElementSibling as HTMLElement | null;

@@ -2,6 +2,7 @@
  * Fold/unfold logic for callout blocks.
  */
 import { isPublishService } from "../core/cl_api";
+import { cleanCalloutOuterHTML } from "../utils/callout";
 import { debugLog, errorLog } from "../utils/logger";
 
 export type CalloutFoldPluginLike = {
@@ -213,7 +214,7 @@ export async function setFoldState(plugin: CalloutFoldPluginLike, block: HTMLEle
     const blockId = block.dataset.nodeId;
     try {
         const previousFold = block.getAttribute("fold");
-        const originalHtml = block.outerHTML;
+        const originalHtml = cleanCalloutOuterHTML(block);
 
         debugLog(`[${fold ? "Fold" : "Unfold"}] Callout block`, blockId);
 
