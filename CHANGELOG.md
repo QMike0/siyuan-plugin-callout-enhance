@@ -1,3 +1,20 @@
+## v0.2.8 2026-06-15
+
+- 🇨🇳 修复光标在callout内部列表块中的跳转问题
+- 🇨🇳 修复补全/类型菜单中使用方向键跳转菜单项会导致光标消失的问题
+- 🇨🇳 修复标题保存的 undo 数据 / HTML 快照包含编辑态临时属性的问题
+- 🇨🇳 修复callout块位于垂直布局+水平布局超级块嵌套结构下的宽度显示问题
+- 🇨🇳 修复类型菜单中DEBUGLOG输出的潜在问题
+- 🇨🇳 修复补全/类型菜单最大高度偏小的问题
+- 🇨🇳 优化快速多次点击场景的性能
+- 🇺🇸 Fixed cursor jump issue in list blocks inside callout
+- 🇺🇸 Fixed cursor disappearing issue when navigating menu items with arrow keys in completion/type menu
+- 🇺🇸 Fixed issue where undo data / HTML snapshot for heading saves contained temporary editing attributes
+- 🇺🇸 Fixed display width issue for callout blocks nested in super block structure with vertical + horizontal layout
+- 🇺🇸 Fixed potential issue with DEBUGLOG output in type menu
+- 🇺🇸 Fixed issue where the maximum height of completion/type menu was too small
+- 🇺🇸 Optimized performance for rapid repeated click scenarios
+
 ## v0.2.7 2026-06-15
 
 - 🇨🇳 修复补全/类型菜单在思源笔记浮窗中存在的鼠标点击导致退出浮窗的问题
