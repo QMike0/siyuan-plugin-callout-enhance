@@ -10,7 +10,7 @@ import {
     layoutFieldToInputValue,
     normalizeCalloutLayout,
 } from "../utils/callout_layout_vars";
-import { createPreviewHelpIcon, openConfirmDialog } from "./settings_ui";
+import { createHelpIcon, createPreviewHelpIcon, openConfirmDialog } from "./settings_ui";
 import { CalloutTypeItem } from "../utils/callout_types";
 import {
     CalloutAppearancePreset,
@@ -439,9 +439,16 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
             const row = document.createElement("label");
             row.className = "callout-enhance-layout-settings__field";
 
+            const labelRow = document.createElement("span");
+            labelRow.className = "callout-enhance-layout-settings__field-label-row";
+
             const label = document.createElement("span");
             label.className = "callout-enhance-layout-settings__field-label";
             label.textContent = layoutFieldLabel(field.varName, field.label);
+            labelRow.append(label);
+            if (field.helpTooltipKey) {
+                labelRow.append(createHelpIcon(t(field.helpTooltipKey)));
+            }
 
             const control = createLayoutFieldInput(
                 field,
@@ -458,9 +465,9 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
                 controlWrap.style.alignItems = "center";
                 controlWrap.style.gap = "6px";
                 controlWrap.append(control, unit);
-                row.append(label, controlWrap);
+                row.append(labelRow, controlWrap);
             } else {
-                row.append(label, control);
+                row.append(labelRow, control);
             }
 
             grid.appendChild(row);

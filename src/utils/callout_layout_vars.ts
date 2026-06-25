@@ -18,6 +18,8 @@ export type CalloutLayoutFieldDef = {
     min?: number;
     max?: number;
     options?: { value: string; label: string }[];
+    /** i18n key for optional help tooltip beside the field label */
+    helpTooltipKey?: string;
 };
 
 export const DEFAULT_CALLOUT_LAYOUT: CalloutLayoutSettings = {
@@ -43,6 +45,7 @@ export const DEFAULT_CALLOUT_LAYOUT: CalloutLayoutSettings = {
     "--callout-body-padding-bottom": "12px",
     "--callout-body-gap-top": "4px",
     "--callout-body-background": "var(--callout-surface-background)",
+    "--callout-scroll-max-height": "500px",
     "--callout-border-radius": "6px",
     "--callout-border-width": "0px",
     "--callout-fold-hit-width": "40px",
@@ -124,6 +127,7 @@ const CALLOUT_LAYOUT_FIELD_SPECS: CalloutLayoutFieldSpec[] = [
         { value: "var(--callout-surface-background)", label: "Tinted" },
         { value: "transparent", label: "Transparent" },
     ] },
+    { varName: "--callout-scroll-max-height", label: "Max height limit", group: "Body", kind: "length", unit: "px", step: 10, min: 100, max: 2000, helpTooltipKey: "helpScrollMaxHeight" },
 
     { varName: "--callout-fold-after-display", label: "Show fold button", group: "Fold", kind: "select", options: [
         { value: "block", label: "Show" },

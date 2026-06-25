@@ -195,6 +195,8 @@
   "layoutField_callout_body_padding_bottom": "下内边距",
   "layoutField_callout_body_gap_top": "标题下间距",
   "layoutField_callout_body_background": "背景",
+  "layoutField_callout_scroll_max_height": "最大高度限制",
+  "helpScrollMaxHeight": "Ctrl + 鼠标左键点击折叠/展开按钮可开启/关闭最大高度限制",
   "layoutField_callout_border_radius": "圆角",
   "layoutField_callout_border_width": "外边框宽度",
   "layoutField_callout_fold_hit_width": "点击区域宽度",

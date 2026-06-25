@@ -44,6 +44,7 @@
     --callout-enhance-setting-row-margin-bottom: 8px;    /* 设置页相邻类型列表行之间的间距 */
     --callout-enhance-setting-action-gap: 2px;           /* 设置页类型行右侧操作按钮之间的间距 */
     --callout-enhance-setting-edit-delete-gap: 0px;      /* 设置页编辑与删除按钮之间的间距 */
+    --callout-scroll-max-height: 500px;                  /* Ctrl+点击折叠按钮启用时，callout 正文区域最大高度 */
 }
 
 .callout[data-type="NodeCallout"] {
@@ -261,6 +262,28 @@
         max-height: none;
     }
 
+    &[custom-callout-scroll-limit="1"]:not([fold="1"]) > .callout-content {
+        max-height: var(--callout-scroll-max-height) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scrollbar-width: thin;
+        scrollbar-color: var(--b3-scroll-color) transparent;
+    }
+
+    &[custom-callout-scroll-limit="1"]:not([fold="1"]) > .callout-content::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    &[custom-callout-scroll-limit="1"]:not([fold="1"]) > .callout-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    &[custom-callout-scroll-limit="1"]:not([fold="1"]) > .callout-content::-webkit-scrollbar-thumb {
+        background: var(--b3-scroll-color);
+        border-radius: 3px;
+    }
+
     /* 折叠态仅保留静态兜底，避免刷新/重载后正文短暂露出；动画过程不依赖此处 */
     &[fold="1"] {
         height: auto !important;
@@ -318,6 +341,11 @@
         &>.callout-info::after {
             display: none !important;
         }
+
+        &[custom-callout-scroll-limit="1"] > .callout-content {
+            max-height: none !important;
+            overflow: visible !important;
+        }
     }
 
     /* 导出图片容器与导出 HTML/PDF 预览容器中隐藏折叠/展开按钮 */
@@ -325,6 +353,13 @@
     .export-img .protyle-wysiwyg &>.callout-info::after,
     body:not(.body--win32):not(.body--win32msg):not(.body--darwin):not(.body--linux):not(.body--mobile):not(.body--window):not(.callout-enhance-publish-service) &>.callout-info::after {
         display: none !important;
+    }
+
+    .export-img &[custom-callout-scroll-limit="1"] > .callout-content,
+    .export-img .protyle-wysiwyg &[custom-callout-scroll-limit="1"] > .callout-content,
+    body:not(.body--win32):not(.body--win32msg):not(.body--darwin):not(.body--linux):not(.body--mobile):not(.body--window):not(.callout-enhance-publish-service) &[custom-callout-scroll-limit="1"] > .callout-content {
+        max-height: none !important;
+        overflow: visible !important;
     }
 
     /* 发布服务：保留折叠按钮外观，禁止标题/折叠/icon 区交互（与 index.ts 一致） */
@@ -1513,6 +1548,12 @@
 
 .callout-enhance-layout-settings__slider {
     box-sizing: border-box;
+}
+
+.callout-enhance-layout-settings__field-label-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
 }
 
 .callout-enhance-layout-settings__field-label,

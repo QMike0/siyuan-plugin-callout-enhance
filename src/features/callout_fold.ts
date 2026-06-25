@@ -2,6 +2,7 @@
  * Fold/unfold logic for callout blocks.
  */
 import { isPublishService } from "../core/cl_api";
+import { isCalloutScrollLimited } from "./callout_scroll_limit";
 import { cleanCalloutOuterHTML } from "../utils/callout";
 import { debugLog, errorLog } from "../utils/logger";
 
@@ -75,10 +76,16 @@ function getFoldCollapsedTargetHeight(block: HTMLElement): number {
     return paddingTop + titleMarginTop + titleHeight + titleMarginBottom + paddingBottom;
 }
 
-function keepChildrenVisible(children: HTMLElement[], spacing: ChildSpacing[]) {
+function shouldPreserveScrollLimitMaxHeight(block: HTMLElement, child: HTMLElement) {
+    return isCalloutScrollLimited(block) && child.classList.contains("callout-content");
+}
+
+function keepChildrenVisible(block: HTMLElement, children: HTMLElement[], spacing: ChildSpacing[]) {
     for (let i = 0; i < children.length; i += 1) {
         const child = children[i];
-        child.style.setProperty("max-height", "none", "important");
+        if (!shouldPreserveScrollLimitMaxHeight(block, child)) {
+            child.style.setProperty("max-height", "none", "important");
+        }
         child.style.setProperty("margin-top", spacing[i]?.marginTop || "0px", "important");
         child.style.setProperty("margin-bottom", spacing[i]?.marginBottom || "0px", "important");
     }
@@ -177,12 +184,12 @@ async function animateBodyHeight(block: HTMLElement, fold: boolean): Promise<boo
 
     if (fold) {
         const spacing = readChildSpacing(children);
-        keepChildrenVisible(children, spacing);
+        keepChildrenVisible(block, children, spacing);
         forceReflow(block);
 
         block.setAttribute("fold", "1");
         preventFlexShrink(block, children);
-        keepChildrenVisible(children, spacing);
+        keepChildrenVisible(block, children, spacing);
         animateBlockHeight(block, getFoldCollapsedTargetHeight(block), durationMs, easing);
     } else {
         forceReflow(block);

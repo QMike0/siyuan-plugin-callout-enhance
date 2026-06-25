@@ -149,12 +149,21 @@
 - Nested callout / nested body blocks:
   - Folding is stable when blocks are nested inside a callout.
   - The callout can be unfolded normally after folding.
+- Max-height limit:
+  - Ctrl + left-click on the fold/unfold button only toggles the body max-height limit; it does not fold/unfold, and the arrow direction stays unchanged.
+  - When enabled in the expanded state, callouts taller than the configured max height (default 500px) scroll only in the body area while the title stays fixed.
+  - Enabling/disabling the limit in the folded state keeps the callout folded; after unfolding, the limit state is applied or cleared correctly.
+  - The enable/disable operation can be undone and redone.
+  - The limit state persists after refreshing the page or reopening the tab.
+  - Width and fold/unfold behavior remain correct in list items, horizontal super blocks, and nested callouts.
 
 ## 7. Image / PDF / HTML export
 - Exported HTML / PDF / images keep the customized callout styles.
 - The fold/unfold button does not appear in the exported result.
 - The fold/unfold button does not appear in the export preview.
 - The callout appearance in PDF / image preview matches the final PDF / image output.
+- The callouts in the exported HTML / PDF / images are all in expanded state.
+- Callouts with the max-height limit enabled are exported as fully expanded content without internal scrollbars.
 
 ## 8. Switching between the plugin and native callout
 - The plugin switch can control switching between native callout and plugin callout.
@@ -176,6 +185,8 @@
   - **Reset defaults** restores the built-in default layout and refreshes fields and preview.
 - Layout fields:
   - Shell, title, body, icon, and fold/unfold groups are adjustable.
+  - Under **Body**, **Max height limit** is controlled by a slider (default 500px, range 100–2000px); the help icon explains that Ctrl + left-click the fold/expand button toggles the limit on or off.
+  - After changing this value, callouts with the limit enabled should use the new height; the value persists after saving settings and reloading.
   - Changing sliders, selects, or inputs updates the preview callout in real time.
   - While settings are open, callouts in the editor should reflect appearance changes in real time.
 - Preview area:

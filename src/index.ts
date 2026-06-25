@@ -14,6 +14,7 @@ import {
 } from "./core/cl_api";
 import { deleteCallout } from "./features/callout_delete";
 import { setFoldState } from "./features/callout_fold";
+import { toggleCalloutScrollLimit } from "./features/callout_scroll_limit";
 import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
 import { CalloutTypeItem } from "./utils/callout_types";
@@ -314,7 +315,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         await this.saveData(STORAGE_NAME, this.settings);
     }
 
-    async syncBlock(blockElement: HTMLElement, originalHtml?: string, reason: "title" | "fold" | "type" = "title") {
+    async syncBlock(blockElement: HTMLElement, originalHtml?: string, reason: "title" | "fold" | "type" | "scroll" = "title") {
         if (!blockElement || !blockElement.dataset.nodeId) return false;
         if (blockElement.dataset.deleting === "true") return false;
         const blockId = blockElement.dataset.nodeId;
@@ -551,6 +552,11 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (isFoldButtonHit(hit, clickX, clickY) && blockId) {
             e.preventDefault();
             e.stopPropagation();
+            if ((e.ctrlKey || e.metaKey) && e.button === 0) {
+                e.stopImmediatePropagation();
+                toggleCalloutScrollLimit(this, callout);
+                return;
+            }
             const isCurrentlyFolded = callout.getAttribute("fold") === "1";
             const nextFold = !isCurrentlyFolded;
             setFoldState(this, callout, nextFold);

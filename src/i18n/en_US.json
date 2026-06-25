@@ -194,6 +194,8 @@
   "layoutField_callout_body_padding_bottom": "Padding bottom",
   "layoutField_callout_body_gap_top": "Gap below title",
   "layoutField_callout_body_background": "Background",
+  "layoutField_callout_scroll_max_height": "Max height limit",
+  "helpScrollMaxHeight": "Ctrl + left-click the fold/expand button to turn max height limit on or off",
   "layoutField_callout_border_radius": "Border radius",
   "layoutField_callout_border_width": "Outer border width",
   "layoutField_callout_fold_hit_width": "Click area width",
