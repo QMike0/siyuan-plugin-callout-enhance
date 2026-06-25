@@ -264,24 +264,8 @@
 
     &[custom-callout-scroll-limit="1"]:not([fold="1"]) > .callout-content {
         max-height: var(--callout-scroll-max-height) !important;
-        overflow-y: auto !important;
         overflow-x: hidden !important;
-        scrollbar-width: thin;
-        scrollbar-color: var(--b3-scroll-color) transparent;
-    }
-
-    &[custom-callout-scroll-limit="1"]:not([fold="1"]) > .callout-content::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-
-    &[custom-callout-scroll-limit="1"]:not([fold="1"]) > .callout-content::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    &[custom-callout-scroll-limit="1"]:not([fold="1"]) > .callout-content::-webkit-scrollbar-thumb {
-        background: var(--b3-scroll-color);
-        border-radius: 3px;
+        overflow-y: auto !important;
     }
 
     /* 折叠态仅保留静态兜底，避免刷新/重载后正文短暂露出；动画过程不依赖此处 */

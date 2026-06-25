@@ -19,6 +19,7 @@ type ChildSpacing = {
     marginBottom: string;
     maxHeight?: string;
     scrollTop?: number;
+    preserveScrollViewport?: boolean;
 };
 
 const foldAnimationStates = new WeakMap<HTMLElement, FoldAnimationState>();
@@ -63,6 +64,7 @@ function readChildSpacing(block: HTMLElement, children: HTMLElement[]): ChildSpa
             marginBottom: style.marginBottom,
             maxHeight: shouldPreserveScrollViewport ? `${child.getBoundingClientRect().height}px` : undefined,
             scrollTop: shouldPreserveScrollViewport ? child.scrollTop : undefined,
+            preserveScrollViewport: shouldPreserveScrollViewport,
         };
     });
 }
@@ -88,6 +90,10 @@ function keepChildrenVisible(children: HTMLElement[], spacing: ChildSpacing[]) {
         child.style.setProperty("max-height", spacing[i]?.maxHeight || "none", "important");
         child.style.setProperty("margin-top", spacing[i]?.marginTop || "0px", "important");
         child.style.setProperty("margin-bottom", spacing[i]?.marginBottom || "0px", "important");
+        if (spacing[i]?.preserveScrollViewport) {
+            child.style.setProperty("overflow-y", "auto", "important");
+            child.style.setProperty("overflow-x", "hidden", "important");
+        }
         if (spacing[i]?.scrollTop != null) {
             child.scrollTop = spacing[i].scrollTop;
         }
@@ -107,6 +113,8 @@ function clearChildOverrides(children: HTMLElement[]) {
         child.style.removeProperty("max-height");
         child.style.removeProperty("margin-top");
         child.style.removeProperty("margin-bottom");
+        child.style.removeProperty("overflow-y");
+        child.style.removeProperty("overflow-x");
         child.style.removeProperty("flex-shrink");
     }
 }
