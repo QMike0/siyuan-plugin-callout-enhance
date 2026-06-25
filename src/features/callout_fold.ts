@@ -17,6 +17,8 @@ type FoldAnimationState = {
 type ChildSpacing = {
     marginTop: string;
     marginBottom: string;
+    maxHeight?: string;
+    scrollTop?: number;
 };
 
 const foldAnimationStates = new WeakMap<HTMLElement, FoldAnimationState>();
@@ -52,12 +54,15 @@ function getAnimationState(block: HTMLElement): FoldAnimationState {
     return next;
 }
 
-function readChildSpacing(children: HTMLElement[]): ChildSpacing[] {
+function readChildSpacing(block: HTMLElement, children: HTMLElement[]): ChildSpacing[] {
     return children.map((child) => {
         const style = window.getComputedStyle(child);
+        const shouldPreserveScrollViewport = isCalloutScrollLimited(block) && child.classList.contains("callout-content");
         return {
             marginTop: style.marginTop,
             marginBottom: style.marginBottom,
+            maxHeight: shouldPreserveScrollViewport ? `${child.getBoundingClientRect().height}px` : undefined,
+            scrollTop: shouldPreserveScrollViewport ? child.scrollTop : undefined,
         };
     });
 }
@@ -76,18 +81,16 @@ function getFoldCollapsedTargetHeight(block: HTMLElement): number {
     return paddingTop + titleMarginTop + titleHeight + titleMarginBottom + paddingBottom;
 }
 
-function shouldPreserveScrollLimitMaxHeight(block: HTMLElement, child: HTMLElement) {
-    return isCalloutScrollLimited(block) && child.classList.contains("callout-content");
-}
-
-function keepChildrenVisible(block: HTMLElement, children: HTMLElement[], spacing: ChildSpacing[]) {
+function keepChildrenVisible(children: HTMLElement[], spacing: ChildSpacing[]) {
     for (let i = 0; i < children.length; i += 1) {
         const child = children[i];
-        if (!shouldPreserveScrollLimitMaxHeight(block, child)) {
-            child.style.setProperty("max-height", "none", "important");
-        }
+        // Inline max-height beats fold="1" static CSS so outer height animation can clip body content.
+        child.style.setProperty("max-height", spacing[i]?.maxHeight || "none", "important");
         child.style.setProperty("margin-top", spacing[i]?.marginTop || "0px", "important");
         child.style.setProperty("margin-bottom", spacing[i]?.marginBottom || "0px", "important");
+        if (spacing[i]?.scrollTop != null) {
+            child.scrollTop = spacing[i].scrollTop;
+        }
     }
 }
 
@@ -183,13 +186,13 @@ async function animateBodyHeight(block: HTMLElement, fold: boolean): Promise<boo
     preventFlexShrink(block, children);
 
     if (fold) {
-        const spacing = readChildSpacing(children);
-        keepChildrenVisible(block, children, spacing);
+        const spacing = readChildSpacing(block, children);
+        keepChildrenVisible(children, spacing);
         forceReflow(block);
 
         block.setAttribute("fold", "1");
         preventFlexShrink(block, children);
-        keepChildrenVisible(block, children, spacing);
+        keepChildrenVisible(children, spacing);
         animateBlockHeight(block, getFoldCollapsedTargetHeight(block), durationMs, easing);
     } else {
         forceReflow(block);
