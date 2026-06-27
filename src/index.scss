@@ -60,7 +60,7 @@
     /* --- 标题行 / header --- */
     --callout-header-width-offset: 2px; /* 头部整体右移：同时作用于 icon 与标题区 */
     --callout-header-height: 28px;
-    --callout-header-y-adjust: -4px; /* 负数上移，正数下移 */
+    --callout-header-y-adjust: -3px; /* 负数上移，正数下移 */
     --callout-header-x-shift: var(--callout-header-width-offset); /* index.ts 点击区域别名 */
     --callout-title-row-height: var(--callout-header-height); /* index.ts 点击区域别名 */
     --callout-info-user-select: none;
@@ -68,10 +68,12 @@
     /* --- 标题 typography（思源 native: 114% / 500 / opacity .86） --- */
     --callout-title-font-weight: bold;
     --callout-title-font-size: 12pt;
-    --callout-title-line-height: 1.2;
+    --callout-title-line-height: 1.625;
     --callout-title-opacity: 1;
     --callout-title-padding-right: 28px; /* 为折叠箭头预留空间 */
     --callout-title-edit-bg-mix: transparent 95%;
+    /* 首行标题中线（icon / 折叠按钮垂直对齐基准；与正文默认行距一致） */
+    --callout-first-line-center: calc(var(--callout-title-font-size) * var(--callout-title-line-height) / 2);
 
     /* --- 图标 mask（替代思源 ::before 左侧竖条） --- */
     --callout-icon-size: 16px; /* 须与 callout_layout_vars.ts → DEFAULT_CALLOUT_LAYOUT 保持一致 */
@@ -155,7 +157,7 @@
         height: var(--callout-icon-size);
         /* 覆盖思源 .callout::before 左侧色条样式，避免圆角裁切 mask 图标 */
         border-radius: 0 !important;
-        top: calc(var(--callout-shell-padding-top) + (var(--callout-header-height) / 2) + var(--callout-header-y-adjust));
+        top: calc(var(--callout-shell-padding-top) + var(--callout-header-y-adjust) + var(--callout-first-line-center));
         bottom: auto !important;
         right: auto;
         left: calc(var(--callout-icon-left) + var(--callout-header-width-offset));
@@ -180,18 +182,20 @@
         padding-left: calc(var(--callout-icon-left) + var(--callout-header-width-offset) + var(--callout-icon-size) + var(--callout-icon-title-gap) - var(--callout-shell-padding-left));
         min-height: var(--callout-header-height);
         transform: none;
+        /* 多行标题时覆盖父级固定高度渐变，保证标题区背景完整 */
+        background: var(--callout-header-background);
 
         .callout-title {
             font-size: var(--callout-title-font-size);
             padding-right: var(--callout-title-padding-right);
             opacity: var(--callout-title-opacity);
-            /* 多行标题压缩 */
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            word-break: break-word;
             display: block;
-            line-height: var(--callout-header-height);
-            /* 与icon/折叠按钮共享微调参数，保持同一视觉基线 */
+            line-height: var(--callout-title-line-height);
+            /* 与 icon / 折叠按钮共享微调参数，保持首行视觉基线一致 */
             transform: translateY(var(--callout-header-y-adjust));
         }
     }
@@ -304,7 +308,7 @@
         display: var(--callout-fold-after-display);
         position: absolute;
         right: var(--callout-fold-icon-right);
-        top: calc((var(--callout-header-height) / 2) + var(--callout-header-y-adjust));
+        top: calc(var(--callout-header-y-adjust) + var(--callout-first-line-center));
         width: var(--callout-fold-icon-size);
         height: var(--callout-fold-icon-size);
         mask-image: var(--callout-fold-icon-mask);
@@ -363,7 +367,7 @@
     /* 设置页专用样式 */
     .callout-enhance-setting-item {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: var(--callout-enhance-setting-row-gap);
         padding: 4px 0;
         box-sizing: border-box;
@@ -416,7 +420,9 @@
         min-width: var(--callout-icon-size);
         height: var(--callout-icon-size);
         margin-right: var(--callout-icon-before-margin-right);
-        transform: translateY(var(--callout-header-y-adjust));
+        flex-shrink: 0;
+        align-self: flex-start;
+        margin-top: calc(var(--callout-first-line-center) - (var(--callout-icon-size) / 2) + var(--callout-header-y-adjust));
         color: inherit;
         line-height: 1;
         pointer-events: none !important;

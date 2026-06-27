@@ -501,7 +501,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (!callout || isCalloutSettingsPreview(callout)) return;
 
         const { clickX, clickY, hit } = this.readCalloutPointerHit(callout, e);
-        const onTypeIcon = clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight;
+        const onTypeIcon = clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.firstLineBandBottom;
         const onFold = isFoldButtonHit(hit, clickX, clickY);
         const onTitle = !!(e.target as HTMLElement | null)?.closest?.(".callout-title");
 
@@ -519,7 +519,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         const pointerHit = this.readCalloutPointerHit(callout, e);
         this.lastCalloutPointerHit = pointerHit;
         const { clickX, clickY, hit } = pointerHit;
-        if ((clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight) || isFoldButtonHit(hit, clickX, clickY)) {
+        if ((clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.firstLineBandBottom) || isFoldButtonHit(hit, clickX, clickY)) {
             e.preventDefault();
             e.stopPropagation();
         }
@@ -542,7 +542,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         const { clickX, clickY, hit } = pointerHit;
         const blockId = callout.dataset.nodeId;
 
-        if (clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.headerHeight) {
+        if (clickX >= hit.typeMenuLeft && clickX <= hit.typeMenuRight && clickY <= hit.firstLineBandBottom) {
             e.preventDefault();
             e.stopPropagation();
             showCalloutTypeMenu(this, callout, e.clientX, e.clientY);
