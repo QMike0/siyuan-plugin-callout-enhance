@@ -525,6 +525,20 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
     };
 
+    /**
+     * 阻止思源 protyle mousedown 块级划选接管标题区拖拽。
+     * 仅 stopPropagation，保留浏览器原生文本选区行为。
+     */
+    private handleGlobalTitleMouseDown = (e: MouseEvent) => {
+        if (isPublishService()) return;
+        if (e.button !== 0) return;
+        const titleEl = closestTitleFromTarget(e.target);
+        if (!titleEl) return;
+        const callout = titleEl.closest('.callout[data-type="NodeCallout"]') as HTMLElement | null;
+        if (!callout || isCalloutSettingsPreview(callout)) return;
+        e.stopPropagation();
+    };
+
     private handleGlobalClick = (e: MouseEvent) => {
         if (this.calloutTypeMenuElement && !this.calloutTypeMenuElement.contains(e.target as Node)) {
             hideCalloutTypeMenu(this);
@@ -569,9 +583,18 @@ export default class CalloutEnhancePlugin extends Plugin {
             e.stopPropagation();
             e.stopImmediatePropagation();
             ensureCalloutTitleEditable(titleEl);
+            const sel = window.getSelection();
+            const hasTitleTextSelection = !!(sel?.rangeCount
+                && !sel.getRangeAt(0).collapsed
+                && titleEl.contains(sel.getRangeAt(0).commonAncestorContainer));
             if (document.activeElement !== titleEl) {
                 titleEl.focus();
-                placeCaretAtEnd(titleEl);
+            }
+            if (!hasTitleTextSelection && document.activeElement === titleEl) {
+                const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
+                if (!range?.collapsed || !titleEl.contains(range.commonAncestorContainer)) {
+                    placeCaretAtEnd(titleEl);
+                }
             }
         }
     };
@@ -654,6 +677,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             this.listen(document, "compositionend", (e) => handleTitleCompositionEnd(this, e as Event), true);
             this.listen(document, "compositionend", (e) => guardTitleEvents(this, e), true);
             this.listen(document, "pointerdown", this.handleGlobalPointerDown, true);
+            this.listen(document, "mousedown", this.handleGlobalTitleMouseDown, true);
             this.listen(document.body, "click", this.handleGlobalClick, true);
             this.listen(document.body, "input", (e) => handleCompletionInput(this, e as InputEvent), true);
             this.listen(document.body, "compositionstart", () => handleCompletionCompositionStart(this), true);

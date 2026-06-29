@@ -195,6 +195,9 @@
             word-break: break-word;
             display: block;
             line-height: var(--callout-title-line-height);
+            /* 覆盖 .callout-info 的 user-select:none，允许标题跨行划选 */
+            user-select: text;
+            -webkit-user-select: text;
             /* 与 icon / 折叠按钮共享微调参数，保持首行视觉基线一致 */
             transform: translateY(var(--callout-header-y-adjust));
         }
