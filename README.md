@@ -1,76 +1,92 @@
-# SiYuan Callout Enhance Plugin
+# SiYuan Note Callout Enhance Plugin
 
 [简体中文](https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/README_zh_CN.md)
 
 > [!important]
 >
-> In addition to the five native callout types in SiYuan, this plugin adds several new styles. Please note that when these new styles are converted back to official callouts (i.e., when this plugin is disabled), there will be display issues: they will become callout blocks with transparent backgrounds and missing icons. Use with caution if you mind this!
+> In addition to supporting the five built-in callout types in SiYuan Note, this plugin also allows you to customize new styles. Please note that after converting back to the official callout format (i.e., when this plugin is disabled), these new custom styles may have display issues, appearing as callouts with transparent backgrounds and missing icons. Please use with caution if this concerns you!
 
-## Main Features
+## Key Features
 
-> For more details, please refer to [here](https://github.com/QMike0/siyuan-plugin-callout-enhance/tree/main/assets/TESTITEM.md).
+> For more details, please refer to [this document](https://github.com/QMike0/siyuan-plugin-callout-enhance/tree/main/assets/TESTITEM_zh_CN.md).
 
-### (1) Callout Appearance Enhancement
+### (1) Callout Appearance Optimization
 
-Default appearance:
+Default Appearance:
 
-![callout_type](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type.png)
+![callout_types](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_types.png)
 
-After nesting:
+Nested Callouts:
 
-![callout_nesting](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nesting.png)
+![callout_nested](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nested.png)
 
-### (2) Quick Title Editing
+### (2) Callout Title Area
 
-![title_editing](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/title_editing.gif)
+#### Quick Edit
 
-### (3) Quick Fold/Unfold
+![callout_title_edit](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_title_edit.gif)
 
-![fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/fold%26unfold.gif)
+#### Multi-line Display
+
+![callout_title_multi-line](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_title_multi-line.png)
+
+### (3) Callout Body Area
+
+#### Quick Fold/Unfold
+
+- Left-click the fold/unfold button to collapse or expand the body area.
+
+![callout_fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_fold&unfold.gif)
+
+#### Maximum Height Limit
+
+- <kbd>Ctrl</kbd> + Left-click the fold/unfold button to enable/disable the maximum height limit for the body area.
+
+![callout_maximum_height](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_maximum_height.gif)
 
 ### (4) Completion Menu
 
-- Type `[` or `【` at the beginning of the first line of a quote block to open the completion menu.
-- Supports keyboard navigation or mouse click to select a type.
-- Supports auto-completion. Note: you do not need to type `!` after `[` / `【`; just type letters to trigger completion.
+- Type `[` at the beginning of the first line of a blockquote to summon the completion menu.
+- Supports keyboard navigation or mouse clicks to select the desired type.
+- Supports autocomplete. Note that you don't need to type `!` after `[`; simply type the letters directly to trigger the completion.
 
-![completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/completion_menu.gif)
+![callout_completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_completion_menu.gif)
 
 ### (5) Type Menu
 
-- Click the icon to open the type menu.
-- Supports keyboard navigation or mouse click to select a type.
+- Click the icon to summon the type menu.
+- Supports keyboard navigation or mouse clicks to select types.
 
-![type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/type_menu.gif)
+![callout_type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_menu.gif)
 
-### (6) Settings: Callout Appearance Customization
+### (6) Settings: Custom Callout Appearance
 
-- Customize callout appearance under **Settings → Appearance**, with preset save/load, preset management, and live preview.
+- Customize the Callout appearance under "Settings - Appearance". It supports saving and managing appearance presets with real-time style previews.
 
-- Example: GitHub-style callout appearance:
+- For example, creating a custom appearance styled after GitHub Callouts:
 
-  ![PixPin_2026-06-02_00-02-02](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-02-02.gif)
+  ![callout_appearance_set](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_appearance_set.gif)
 
 ### (7) Settings: Callout Type Management
 
-- Under **Settings → Callout Types**, add, delete, disable, reorder, and edit callout types. Built-in SiYuan types (NOTE, TIP, etc.) cannot be deleted.
+- Add, delete, disable, reorder, and edit Callout types under "Settings - Callout Type". Note that the five built-in Callout types in SiYuan Note (NOTE, TIP, etc.) cannot be deleted.
 
-  ![PixPin_2026-06-02_00-53-281](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-53-281.gif)
+  ![callout_type_manage](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_manage.gif)
 
-- The callout style edit dialog supports custom label, keywords, main color, and icon, with live preview while editing.
+- The Callout style editing modal supports customizing labels, keywords, primary colors, and icons, offering real-time previews during the editing process.
 
-  ![PixPin_2026-06-02_00-57-411](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-57-411.gif)
+  ![callout_type_edit](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_edit.gif)
 
-### (8) Settings: Other
+### (8) Settings: Miscellaneous
 
-- **Settings → About → Clean up legacy data**: Before using this feature, understand the effects of the following operations under **Settings → Callout Types**:
+- **"Settings - About - Clean History Data"**: Before explaining this feature, it is important to understand the impact of the following two operations in "Settings - Callout Type":
 
-  - **Rename label**: Callout blocks in your notes still keep the old `data-subtype`. The plugin automatically saves the pre-rename label as a *past label* so those blocks continue to match your styles.
-  - **Delete callout type**: Matching blocks keep their original `data-subtype` and fall back to the default (NOTE) styling. The deleted type’s *label* and *past labels* are recorded in the *tombstone* list.
+  - **Renaming a "Label"**: Callout blocks in your documents will still retain their old `data-subtype`. Therefore, the plugin automatically saves the pre-rename old *Label* as a *History Label* to ensure the correct style continues to match the corresponding Callout blocks.
+  - **Deleting a Callout Type**: The corresponding Callout blocks in documents retain their original `data-subtype` but fall back to the default style (NOTE style). The *Labels* and *History Labels* of deleted Callout types are recorded into the *Tombstone*.
 
-  **Clean up legacy data** migrates callout block `data-subtype` values in your notes to the new label or the NOTE label, so *past labels* and the *tombstone* can be cleared safely.
+  The purpose of **Clean History Data** is to migrate the `data-subtype` of Callout blocks in your documents to the new Label or the NOTE Label, allowing you to safely clear the *History Labels* and *Tombstones*.
 
-- **Settings → About → Debug log**: Show detailed plugin DEBUG logs in the SiYuan console.
+- **"Settings - About - Debug Logs"**: Displays detailed plugin DEBUG logs in the SiYuan Note console.
 
 ## Changelog
 
@@ -78,12 +94,12 @@ See [CHANGELOG.md](https://cdn.jsdelivr.net/gh/QMike0/siyuan-plugin-callout-enha
 
 ## Development
 
-Download the source code of this repository and package the plugin as follows:
+Download the source code of this repository and bundle the plugin using the following steps:
 
 1. Install Node.js and pnpm.
-2. Run `pnpm i` in the current directory.
-3. Run `pnpm run dev` for the development build.
-4. Run `pnpm run build` to package `package.zip`.
+2. Run `pnpm i` in the root directory.
+3. Run `pnpm run dev` for development builds.
+4. Run `pnpm run build` to package the plugin into `package.zip`.
 
 ## License
 
@@ -92,13 +108,13 @@ MIT License
 ## Acknowledgments
 
 - Developed based on the [SiYuan plugin sample](https://github.com/siyuan-note/plugin-sample) template.
-- Special thanks to [xqh042](https://github.com/wzj042) for the code snippets, which inspired this plugin.
-- [obsidian-callout-manager](https://github.com/eth-p/obsidian-callout-manager): referenced for callout type management.
-- [sy-bookmark-plus](https://github.com/frostime/sy-bookmark-plus): referenced for the icon picker UI.
-- [syplugin-hierarchyNavigate](https://github.com/OpaqueGlass/syplugin-hierarchyNavigate): referenced for draggable type list rows.
+- Special thanks to [xqh042](https://github.com/wzj042) for providing the original code snippets that inspired this plugin.
+- "[obsidian-callout-manager](https://github.com/eth-p/obsidian-callout-manager)": Referenced for its implementation of Callout type management.
+- "[sy-bookmark-plus](https://github.com/frostime/sy-bookmark-plus)": Referenced for its implementation of the icon filtering interface.
+- "[syplugin-hierarchyNavigate](https://github.com/OpaqueGlass/syplugin-hierarchyNavigate)": Referenced for its implementation of dragging type items.
 
-## Other
+## Others
 
-For simple usage, you can also base it on the code snippets [here](https://github.com/QMike0/Siyuan-ObsidianType-Callout) without adding this plugin.
+For simple usage, you can rely solely on the code snippets found [here](https://github.com/QMike0/Siyuan-ObsidianType-Callout) without installing this plugin.
 
-**However, please note that this plugin has received many optimizations on top of those snippets. Unless there are special circumstances, the code snippets will not be updated in the future. Therefore, it is strongly recommended to use the plugin directly.**
+**However, please note that this plugin has introduced extensive optimizations on top of those snippets. The standalone snippets will no longer be updated unless exceptional circumstances arise, so it is highly recommended to use the plugin directly!**

@@ -14,21 +14,37 @@
 
 默认外观：
 
-![callout_type](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type.png)
+![callout_types](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_types.png)
 
 嵌套后：
 
-![callout_nesting](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nesting.png)
+![callout_nested](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nested.png)
 
 
 
-### （2）标题快速编辑
+### （2）Callout标题区域
 
-![title_editing](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/title_editing.gif)
+#### 快速编辑
 
-### （3）快速折叠/展开
+![callout_title_edit](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_title_edit.gif)
 
-![fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/fold%26unfold.gif)
+#### 多行显示
+
+![callout_title_multi-line](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_title_multi-line.png)
+
+### （3）Callout正文区域
+
+#### 快速折叠/展开
+
+- 鼠标左键单击折叠/展开按钮，可实现正文区域的折叠/展开
+
+![callout_fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_fold&unfold.gif)
+
+#### 最大高度限制
+
+- <kbd>Ctrl</kbd> + 鼠标左键单击折叠/展开按钮，可开启/关闭正文区域最大高度限制
+
+![callout_maximum_height](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_maximum_height.gif)
 
 ### （4）补全菜单
 
@@ -36,14 +52,14 @@
 -  支持键盘切换或鼠标点击选择类型
 - 支持自动补全。注意`[`/`【`后无需输入`!`，直接输入字母即可触发补全
 
-![completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/completion_menu.gif)
+![callout_completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_completion_menu.gif)
 
 ### （5）类型菜单
 
 - 点击icon唤出类型菜单
 - 支持键盘切换或鼠标点击选择类型
 
-![type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/type_menu.gif)
+![callout_type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_menu.gif)
 
 ### （6）设置项：Callout外观自定义
 
@@ -51,17 +67,17 @@
 
 - 例如仿照Github Callout自定义外观：
 
-  ![PixPin_2026-06-02_00-02-02](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-02-02.gif)
+  ![callout_appearance_set](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_appearance_set.gif)
 
 ### （7）设置项：Callout 类型管理
 
 - 可在「设置-Callout类型」中新增、删除、禁用、排序与编辑Callout类型。注意思源笔记内置的五种callout类型（NOTE、TIP 等）不支持删除
 
-  ![PixPin_2026-06-02_00-53-281](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-53-281.gif)
+  ![callout_type_manage](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_manage.gif)
 
 - callout样式编辑弹窗中支持自定义callout的标签、关键词、主色与icon，并在编辑过程中提供实时预览
 
-  ![PixPin_2026-06-02_00-57-411](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/PixPin_2026-06-02_00-57-411.gif)
+  ![callout_type_edit](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_edit.gif)
   
 
 ### （8）设置项：其他
