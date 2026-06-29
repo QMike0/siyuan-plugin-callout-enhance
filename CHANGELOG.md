@@ -1,3 +1,14 @@
+## v0.2.9 2026-06-29
+
+- 🇨🇳 增加开启/关闭callout正文区域最大高度限制的功能，超出最大高度则滚动显示
+- 🇨🇳 callout标题支持多行显示，并确保callout icon、折叠/展开按钮始终与callout标题首行文字垂直居中对齐；
+- 🇨🇳 优化callout标题区域拖动鼠标选择文字的操作
+- 🇨🇳 更新`README.md`、`TESTITEM.md`、`preview.png`
+- 🇺🇸 Add functionality to enable/disable the maximum height limit for the callout body area; content exceeding the maximum height will be displayed with scrolling.
+- 🇺🇸 Support multi-line display for callout titles, and ensure that the callout icon and collapse/expand buttons remain vertically centered with the first line of the callout title text
+- 🇺🇸 Optimize the operation of dragging the mouse to select text in the callout title area
+- 🇺🇸 Update `README.md`, `TESTITEM.md`, and `preview.png`
+
 ## v0.2.8 2026-06-24
 
 - 🇨🇳 修复光标在callout内部列表块中的跳转问题
