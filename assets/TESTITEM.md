@@ -23,6 +23,15 @@
   - The modified title is still kept after reloading the page or closing and reopening the tab.
 - Empty callout behavior:
   - Editing/pasting in the title area does not make the callout body disappear.
+- Multi-line title display:
+  - Long titles wrap automatically when the container narrows; single-line ellipsis is not used.
+  - Multi-line titles remain fully visible in both expanded and folded states.
+  - With multiple lines, the icon and fold/unfold control stay vertically centered with the first title line.
+  - Clicking the title text on line 2 or below enters edit mode and does not accidentally trigger the type icon or fold control.
+  - Folded callout height grows with a multi-line title and is not clipped.
+- Unsupported title line breaks (negative cases):
+  - Pressing Enter in the title does not insert a line break; it follows the “Pressing Enter in the title area” new-block behavior above.
+  - After pasting text with line breaks and blurring to save, line breaks are merged into spaces (single-line semantics only; visual wrapping still comes from container width).
 
 ## 2. Fold/unfold functionality
 - Normal folding:
@@ -70,7 +79,9 @@
 - Persistence:
   - The modified body is still kept after reloading the page or closing and reopening the tab.
 - Empty callout behavior:
-  - Pressing Enter can delete an empty callout and supports undo/redo; pay special attention to empty callouts inside nested blocks.
+  - Pressing Enter on the sole empty paragraph in the callout body: first unwraps it below the callout (removes the callout shell, keeps the paragraph) and supports undo/redo.
+  - If unwrap fails (for example, nested structure disallows it): falls back to deleting the entire empty callout and supports undo/redo.
+  - Pay special attention to empty callouts inside nested blocks.
 
 ## 4. Type menu functionality
 - Opening the type menu:
@@ -146,6 +157,11 @@
 - Callout inside a horizontal super block:
   - It is not stretched or centered in the horizontal layout.
   - The width and height are as expected after folding/unfolding.
+- Callout inside a horizontal super block nested within a vertical super block:
+  - Callout width fills the available space correctly and is not wrongly shrunk to the title text width.
+  - Width and height remain as expected after folding/unfolding.
+- List blocks inside a callout:
+  - The cursor moves normally inside list items; ArrowLeft / ArrowRight and similar actions do not jump to the title or get lost.
 - Nested callout / nested body blocks:
   - Folding is stable when blocks are nested inside a callout.
   - The callout can be unfolded normally after folding.
@@ -169,6 +185,9 @@
 - The plugin switch can control switching between native callout and plugin callout.
 - Native callout and plugin callout can correctly recognize each other’s fold/unfold state.
 - Native callout and plugin callout can correctly recognize each other’s type (excluding custom types).
+- Custom types after disabling the plugin:
+  - After the plugin is disabled, callouts that still have a custom `data-subtype` fall back to the native SiYuan appearance (transparent background, missing icon, etc.).
+  - After re-enabling the plugin, the same subtype should restore plugin styling if that type still exists in plugin settings.
 
 ## 9. Settings: Callout appearance customization
 - Opening settings:
@@ -275,7 +294,7 @@
 - Progress and phases:
   - Open Notebook (→ Create Snapshot) → Index → Stage A (past label → current label) → Stage B (tombstone orphan → NOTE) → Close temporary notebook → Save Settings
   - Stage A: Merge the subtype of blocks corresponding to the past label with [!LABEL]
-  - Stage A: Merge the subtype of blocks corresponding to the past label with [!LABEL]
+  - Phase B: Merge tombstone labels without a corresponding type into NOTE
   - Unsaved draft of the Callout type list in the settings window should participate in the cleanup (consistent with the current draft)
 - During cleanup in settings:
   - **Callout Types**: red lock hint; search, add, edit, delete, enable toggle, and drag reorder disabled.
