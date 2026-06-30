@@ -2,12 +2,12 @@
 
 
 :root[data-theme-mode="dark"] {
-    --callout-bg-mix: transparent 85%;
+    --callout-bg-mix: var(--b3-theme-background) 85%;
     --callout-text-mix: white 10%;
 }
 
 :root[data-theme-mode="light"] {
-    --callout-bg-mix: white 92%;
+    --callout-bg-mix: var(--b3-theme-background) 92%;
     --callout-text-mix: black 10%;
 }
 
