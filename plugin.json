@@ -3,7 +3,7 @@
   "author": "QMike0",
   "url": "https://github.com/QMike0/siyuan-plugin-callout-enhance",
   "version": "0.2.9",
-  "minAppVersion": "3.6.0",
+  "minAppVersion": "3.7.0",
   "backends": [
     "all"
   ],
@@ -13,15 +13,15 @@
   "disabledInPublish": false,
   "displayName": {
     "default": "Callout Enhance",
-    "zh_CN": "Callout 增强"
+    "zh-CN": "Callout 增强"
   },
   "description": {
     "default": "Optimize the callout block style, and provide features such as quick title editing, collapse/expand, autocomplete menu, type menu, appearance customization, and type management",
-    "zh_CN": "优化callout块样式，并提供标题快速编辑、折叠/展开、补全菜单、类型菜单、外观自定义与类型管理等功能"
+    "zh-CN": "优化callout块样式，并提供标题快速编辑、折叠/展开、补全菜单、类型菜单、外观自定义与类型管理等功能"
   },
   "readme": {
     "default": "README.md",
-    "zh_CN": "README_zh_CN.md"
+    "zh-CN": "README.zh-CN.md"
   },
   "keywords": [
     "提示块",

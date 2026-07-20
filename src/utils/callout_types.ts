@@ -1,4 +1,4 @@
-import { hasSymbol, parseIconRef, renderSymbolUseHtml, SYMBOL_PREFIX, symbolToMaskUrl } from "./icons";
+import { parseIconRef, renderSymbolUseHtml, SYMBOL_PREFIX, symbolToPaintUrl } from "./icons";
 
 export type CalloutTypeItem = {
     id: string;
@@ -160,22 +160,35 @@ export function getCalloutIconMask(label: string) {
     return CALLOUT_ICON_MASKS[(label || "").trim().toUpperCase()] || DEFAULT_CALLOUT_ICON_MASK;
 }
 
-export function resolveCalloutIconMask(iconOrLabel: string, fallbackLabel = ""): string {
+/** How a callout icon should be painted in CSS (::before / mask spans). */
+export type CalloutIconPaint = {
+    /** `mask` = tint with currentColor; `image` = colorful as-is. */
+    mode: "mask" | "image";
+    /** CSS `url(...)` value. */
+    url: string;
+};
+
+export function resolveCalloutIconPaint(iconOrLabel: string, fallbackLabel = ""): CalloutIconPaint {
     const raw = (iconOrLabel || "").trim();
     if (raw.startsWith(SYMBOL_PREFIX)) {
         const symbolId = raw.slice(SYMBOL_PREFIX.length).trim();
-        const mask = symbolToMaskUrl(symbolId);
-        if (mask) return mask;
-        return getCalloutIconMask(fallbackLabel || "");
+        const paint = symbolToPaintUrl(symbolId);
+        if (paint) return paint;
+        return { mode: "mask", url: getCalloutIconMask(fallbackLabel || "") };
     }
-    if (raw.startsWith("url(")) return raw;
-    if (raw.startsWith("var(")) return resolveCalloutIconMask(resolveCssVarReference(raw), fallbackLabel);
-    if (raw.startsWith("data:image/svg+xml")) return `url("${raw}")`;
+    if (raw.startsWith("url(")) return { mode: "mask", url: raw };
+    if (raw.startsWith("var(")) return resolveCalloutIconPaint(resolveCssVarReference(raw), fallbackLabel);
+    if (raw.startsWith("data:image/svg+xml")) return { mode: "mask", url: `url("${raw}")` };
     if (raw) {
         const key = raw.toUpperCase();
-        if (CALLOUT_ICON_MASKS[key]) return CALLOUT_ICON_MASKS[key];
+        if (CALLOUT_ICON_MASKS[key]) return { mode: "mask", url: CALLOUT_ICON_MASKS[key] };
     }
-    return getCalloutIconMask(fallbackLabel || raw);
+    return { mode: "mask", url: getCalloutIconMask(fallbackLabel || raw) };
+}
+
+/** @deprecated Prefer {@link resolveCalloutIconPaint}; returns mask/image URL string only. */
+export function resolveCalloutIconMask(iconOrLabel: string, fallbackLabel = ""): string {
+    return resolveCalloutIconPaint(iconOrLabel, fallbackLabel).url;
 }
 
 function resolveCssVarReference(value: string) {
@@ -197,11 +210,11 @@ function resolveCssVarReference(value: string) {
     return resolved;
 }
 
-export function getEditorCalloutIconMask(label: string, fallbackIcon = "") {
-    if (typeof document === "undefined") return resolveCalloutIconMask(fallbackIcon || label, label);
+export function getEditorCalloutIconPaint(label: string, fallbackIcon = ""): CalloutIconPaint {
+    if (typeof document === "undefined") return resolveCalloutIconPaint(fallbackIcon || label, label);
 
     const subtype = normalizeCalloutLabel(label);
-    if (!subtype) return resolveCalloutIconMask(fallbackIcon || label, label);
+    if (!subtype) return resolveCalloutIconPaint(fallbackIcon || label, label);
 
     const host = document.createElement("div");
     host.className = "protyle-wysiwyg";
@@ -220,10 +233,24 @@ export function getEditorCalloutIconMask(label: string, fallbackIcon = "") {
 
     const computed = getComputedStyle(probe, "::before");
     const mask = computed.webkitMaskImage || computed.maskImage || "";
+    const bgImage = computed.backgroundImage || "";
     host.remove();
 
-    if (mask && mask !== "none") return mask;
-    return resolveCalloutIconMask(fallbackIcon || label, label);
+    const maskOk = !!mask && mask !== "none";
+    const imageOk = !!bgImage && bgImage !== "none";
+
+    // Colorful ::before uses background-image with mask cleared.
+    if (imageOk && !maskOk) {
+        return { mode: "image", url: bgImage };
+    }
+    if (maskOk) {
+        return { mode: "mask", url: mask };
+    }
+    return resolveCalloutIconPaint(fallbackIcon || label, label);
+}
+
+export function getEditorCalloutIconMask(label: string, fallbackIcon = "") {
+    return getEditorCalloutIconPaint(label, fallbackIcon).url;
 }
 
 type CalloutIconRenderOptions = {
@@ -232,39 +259,86 @@ type CalloutIconRenderOptions = {
     size?: string;
 };
 
-export function applyCalloutIconMask(element: HTMLElement, iconOrLabel: string, fallbackLabel = "", options: CalloutIconRenderOptions = {}) {
-    const mask = options.preferEditorIcon
-        ? getEditorCalloutIconMask(options.subtype || fallbackLabel || iconOrLabel, iconOrLabel)
-        : resolveCalloutIconMask(iconOrLabel, fallbackLabel);
-    element.style.backgroundColor = "currentColor";
-    element.style.webkitMaskImage = mask;
-    element.style.maskImage = mask;
-    element.style.webkitMaskRepeat = "no-repeat";
-    element.style.maskRepeat = "no-repeat";
-    element.style.webkitMaskSize = "contain";
-    element.style.maskSize = "contain";
-    element.style.webkitMaskPosition = "center";
-    element.style.maskPosition = "center";
+function clearCalloutIconPaintStyles(element: HTMLElement) {
+    element.style.removeProperty("background-image");
+    element.style.removeProperty("background-size");
+    element.style.removeProperty("background-repeat");
+    element.style.removeProperty("background-position");
+    element.style.removeProperty("-webkit-mask-image");
+    element.style.removeProperty("mask-image");
+    element.style.removeProperty("-webkit-mask-repeat");
+    element.style.removeProperty("mask-repeat");
+    element.style.removeProperty("-webkit-mask-size");
+    element.style.removeProperty("mask-size");
+    element.style.removeProperty("-webkit-mask-position");
+    element.style.removeProperty("mask-position");
+    element.classList.remove("callout-enhance-icon--native");
+}
+
+export function applyCalloutIconPaint(
+    element: HTMLElement,
+    iconOrLabel: string,
+    fallbackLabel = "",
+    options: CalloutIconRenderOptions = {},
+) {
+    const paint = options.preferEditorIcon
+        ? getEditorCalloutIconPaint(options.subtype || fallbackLabel || iconOrLabel, iconOrLabel)
+        : resolveCalloutIconPaint(iconOrLabel, fallbackLabel);
+
+    clearCalloutIconPaintStyles(element);
+
+    if (paint.mode === "image") {
+        element.classList.add("callout-enhance-icon--native");
+        element.style.backgroundColor = "transparent";
+        element.style.backgroundImage = paint.url;
+        element.style.backgroundRepeat = "no-repeat";
+        element.style.backgroundSize = "contain";
+        element.style.backgroundPosition = "center";
+        element.style.webkitMaskImage = "none";
+        element.style.maskImage = "none";
+    } else {
+        element.style.backgroundColor = "currentColor";
+        element.style.backgroundImage = "none";
+        element.style.webkitMaskImage = paint.url;
+        element.style.maskImage = paint.url;
+        element.style.webkitMaskRepeat = "no-repeat";
+        element.style.maskRepeat = "no-repeat";
+        element.style.webkitMaskSize = "contain";
+        element.style.maskSize = "contain";
+        element.style.webkitMaskPosition = "center";
+        element.style.maskPosition = "center";
+    }
+
     if (options.size) {
         element.style.width = options.size;
         element.style.height = options.size;
         element.style.minWidth = options.size;
         element.style.flexShrink = "0";
     }
-    return mask;
+    return paint;
+}
+
+export function applyCalloutIconMask(element: HTMLElement, iconOrLabel: string, fallbackLabel = "", options: CalloutIconRenderOptions = {}) {
+    return applyCalloutIconPaint(element, iconOrLabel, fallbackLabel, options).url;
 }
 
 export function renderCalloutIconSpan(iconOrLabel: string, className = "", fallbackLabel = "", options: CalloutIconRenderOptions = {}) {
     const span = document.createElement("span");
     if (className) span.className = className;
     const ref = parseIconRef(iconOrLabel);
-    if (ref.kind === "symbol" && hasSymbol(ref.id)) {
+    // Always use live <use> for symbol:* — even before the host sprite is injected —
+    // so third-party packs paint as soon as their <symbol> appears.
+    if (ref.kind === "symbol" && ref.id) {
         const size = options.size || "1em";
         span.style.display = "inline-flex";
         span.style.alignItems = "center";
         span.style.justifyContent = "center";
         span.style.color = "currentColor";
         span.style.backgroundColor = "transparent";
+        span.style.backgroundImage = "none";
+        span.style.webkitMaskImage = "none";
+        span.style.maskImage = "none";
+        span.classList.add("callout-enhance-icon--native");
         if (options.size) {
             span.style.width = options.size;
             span.style.height = options.size;
@@ -274,7 +348,7 @@ export function renderCalloutIconSpan(iconOrLabel: string, className = "", fallb
         span.innerHTML = renderSymbolUseHtml(ref.id, size);
         return span;
     }
-    applyCalloutIconMask(span, iconOrLabel, fallbackLabel, options);
+    applyCalloutIconPaint(span, iconOrLabel, fallbackLabel, options);
     return span;
 }
 

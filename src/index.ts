@@ -35,6 +35,11 @@ import { openSettingsDialog } from "./components/settings_panel";
 import { runCleanup, clearLegacyCalloutMetadata, type CleanupResult, type RunCleanupOptions } from "./utils/migration";
 import { registerPluginIcons } from "./utils/icons";
 import { setPluginI18n, t } from "./utils/i18n";
+import {
+    syncAllCalloutLiveIcons,
+    syncCalloutLiveIcon,
+    watchSiYuanIconScripts,
+} from "./utils/callout_live_icon";
 
 const STARTUP_FLAG = "__calloutEnhancePluginInitialized";
 const PUBLISH_BODY_CLASS = "callout-enhance-publish-service";
@@ -112,12 +117,14 @@ export default class CalloutEnhancePlugin extends Plugin {
         const titleEl = block.querySelector(".callout-title") as HTMLElement | null;
         if (!titleEl) {
             block.dataset.enhanced = "true";
+            syncCalloutLiveIcon(block, this.settings);
             return;
         }
         if (isPublishService()) {
             ensureCalloutTitleEditable(titleEl);
             this.titleBoundEls.add(titleEl);
             block.dataset.enhanced = "true";
+            syncCalloutLiveIcon(block, this.settings);
             return;
         }
         if (!this.titleBoundEls.has(titleEl)) {
@@ -125,12 +132,43 @@ export default class CalloutEnhancePlugin extends Plugin {
             this.titleBoundEls.add(titleEl);
         }
         block.dataset.enhanced = "true";
+        syncCalloutLiveIcon(block, this.settings);
     }
 
     private scanAllCallouts() {
         document.querySelectorAll('.callout[data-type="NodeCallout"]').forEach((node) => {
             this.initCallout(node as HTMLElement);
         });
+    }
+
+    private updateDynamicCalloutStyles() {
+        const layout = this.getEffectiveCalloutLayout();
+        // Editor: do not bake symbol:* into CSS — live <use> hosts follow icon pack swaps.
+        const editorCss = buildCalloutDynamicStylesheet({
+            settings: this.settings,
+            layout,
+            bakeSymbolIcons: false,
+        });
+        applyCalloutDynamicStylesheet(editorCss, DYNAMIC_STYLE_ID);
+
+        // Export windows have no plugin DOM injection; bake symbol snapshots there.
+        const exportCss = buildCalloutDynamicStylesheet({
+            settings: this.settings,
+            layout,
+            bakeSymbolIcons: true,
+        });
+        syncCalloutExportStylesheet(exportCss);
+
+        syncAllCalloutLiveIcons(this.settings);
+    }
+
+    /** Re-run after sprites/layout settle so live paint mode (fill/stroke/native) is correct. */
+    private refreshDynamicCalloutStylesAfterPaint() {
+        if (typeof requestAnimationFrame === "undefined") {
+            this.updateDynamicCalloutStyles();
+            return;
+        }
+        requestAnimationFrame(() => this.updateDynamicCalloutStyles());
     }
 
     getCalloutTypes() {
@@ -207,24 +245,6 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     private getEffectiveCalloutLayout() {
         return normalizeCalloutLayout(this.appearancePreviewLayout || this.settings.layout);
-    }
-
-    private updateDynamicCalloutStyles() {
-        const css = buildCalloutDynamicStylesheet({
-            settings: this.settings,
-            layout: this.getEffectiveCalloutLayout(),
-        });
-        applyCalloutDynamicStylesheet(css, DYNAMIC_STYLE_ID);
-        syncCalloutExportStylesheet(css);
-    }
-
-    /** Re-run after sprites/layout settle so `symbol:*` icons resolve reliably. */
-    private refreshDynamicCalloutStylesAfterPaint() {
-        if (typeof requestAnimationFrame === "undefined") {
-            this.updateDynamicCalloutStyles();
-            return;
-        }
-        requestAnimationFrame(() => this.updateDynamicCalloutStyles());
     }
 
     previewCalloutLayout(layout: Partial<CalloutLayoutSettings>) {
@@ -651,6 +671,20 @@ export default class CalloutEnhancePlugin extends Plugin {
 
         // Phase A: inject defaults before async settings load to reduce first-paint flash.
         this.updateDynamicCalloutStyles();
+
+        // Third-party icon packs load after litheness; refresh live paint mode when scripts settle.
+        this.cleanupHandlers.push(
+            watchSiYuanIconScripts(() => {
+                syncAllCalloutLiveIcons(this.settings);
+                // Re-bake export snapshots once sprites are final.
+                const exportCss = buildCalloutDynamicStylesheet({
+                    settings: this.settings,
+                    layout: this.getEffectiveCalloutLayout(),
+                    bakeSymbolIcons: true,
+                });
+                syncCalloutExportStylesheet(exportCss);
+            }),
+        );
 
         await this.loadSettings();
         this.refreshDynamicCalloutStylesAfterPaint();

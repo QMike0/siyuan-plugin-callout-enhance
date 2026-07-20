@@ -1,6 +1,6 @@
 # SiYuan Note Callout Enhance Plugin
 
-[简体中文](https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/README_zh_CN.md)
+[简体中文](https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/README.zh-CN.md)
 
 > [!important]
 >

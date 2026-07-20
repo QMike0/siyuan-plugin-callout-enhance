@@ -292,9 +292,67 @@ export function hasSymbol(id: string) {
     return !!getSymbolElement(id);
 }
 
-function maskUrlFromSymbolMarkup(viewBox: string, innerHtml: string) {
-    const inner = innerHtml.replace(/currentColor/g, "black");
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${inner}</svg>`;
+/** Presentation attrs commonly set on Lucide/litheness `<symbol>` roots (SiYuan 3.7+). */
+const SYMBOL_PRESENTATION_ATTRS = [
+    "fill",
+    "stroke",
+    "stroke-width",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "stroke-miterlimit",
+    "stroke-dasharray",
+    "stroke-dashoffset",
+    "stroke-opacity",
+    "fill-opacity",
+    "opacity",
+    "fill-rule",
+    "clip-rule",
+] as const;
+
+function readPresentationAttrString(el: Element): string {
+    const parts: string[] = [];
+    for (const name of SYMBOL_PRESENTATION_ATTRS) {
+        const value = el.getAttribute(name);
+        if (value != null && value !== "") {
+            parts.push(`${name}="${value}"`);
+        }
+    }
+    return parts.join(" ");
+}
+
+function parseSymbolTagAttrs(symbolMarkup: string): string {
+    const openTag = symbolMarkup.match(/<symbol\b([^>]*)>/i)?.[1] || "";
+    const parts: string[] = [];
+    for (const name of SYMBOL_PRESENTATION_ATTRS) {
+        const match = openTag.match(new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i"));
+        if (!match) continue;
+        const value = match[2] ?? match[3] ?? "";
+        if (value !== "") parts.push(`${name}="${value}"`);
+    }
+    return parts.join(" ");
+}
+
+/**
+ * Build a CSS-mask data URL from SVG symbol contents.
+ *
+ * SiYuan 3.7+ default pack `litheness` (Lucide) puts `fill="none" stroke="..."
+ * stroke-width="..."` on the `<symbol>` element itself. Taking only
+ * `innerHTML` drops those attrs, so closed paths default to `fill=black` and
+ * render as solid blobs under CSS mask. Always re-apply symbol presentation
+ * attrs onto the wrapper `<svg>`.
+ */
+function maskUrlFromSymbolMarkup(viewBox: string, innerHtml: string, symbolAttrs = "") {
+    let attrs = (symbolAttrs || "").replace(/currentColor/gi, "black").trim();
+    const inner = (innerHtml || "").replace(/currentColor/gi, "black");
+
+    // Stroke-based icons without an explicit fill must stay unfilled in the mask.
+    const hasStroke = /\bstroke\s*=/.test(attrs) || /\bstroke\s*=/.test(inner);
+    const hasFillAttr = /\bfill\s*=/.test(attrs);
+    if (hasStroke && !hasFillAttr) {
+        attrs = `fill="none"${attrs ? ` ${attrs}` : ""}`;
+    }
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"${attrs ? ` ${attrs}` : ""}>${inner}</svg>`;
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
@@ -304,7 +362,11 @@ function pluginSymbolToMaskUrl(id: string): string | null {
     const viewBoxMatch = markup.match(/\bviewBox="([^"]+)"/);
     const innerMatch = markup.match(/<symbol\b[^>]*>([\s\S]*?)<\/symbol>/i);
     if (!innerMatch) return null;
-    return maskUrlFromSymbolMarkup(viewBoxMatch?.[1] || "0 0 24 24", innerMatch[1]);
+    return maskUrlFromSymbolMarkup(
+        viewBoxMatch?.[1] || "0 0 24 24",
+        innerMatch[1],
+        parseSymbolTagAttrs(markup),
+    );
 }
 
 /**
@@ -319,47 +381,183 @@ export function symbolToMaskUrl(id: string): string | null {
         if (el) {
             const viewBox = el.getAttribute("viewBox") || "0 0 24 24";
             const inner = (el as unknown as SVGSymbolElement).innerHTML;
-            return maskUrlFromSymbolMarkup(viewBox, inner);
+            return maskUrlFromSymbolMarkup(viewBox, inner, readPresentationAttrString(el));
         }
     }
     return pluginSymbolToMaskUrl(id);
 }
 
+/**
+ * Heuristic: symbol markup carries fixed paints (hex / rgb / hsl…), typical of
+ * colorful packs such as color-icon / QYL-Icons-Colorful. Monochrome packs use
+ * `currentColor` / `none` and should keep callout tinting via CSS mask.
+ */
+export function markupLooksColorful(markup: string): boolean {
+    if (!markup) return false;
+    // Any hex color in the SVG (fill/stroke/stop-color/style).
+    if (/#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})\b/i.test(markup)) {
+        return true;
+    }
+    if (/\b(?:fill|stroke|stop-color)\s*(?:=|:)\s*["']?\s*(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\(/i.test(markup)) {
+        return true;
+    }
+    return false;
+}
+
+function getSymbolMarkupForDetect(id: string): string {
+    if (!id) return "";
+    if (typeof document !== "undefined") {
+        const el = getSymbolElement(id);
+        if (el) return el.outerHTML || "";
+    }
+    return PLUGIN_SVG_SYMBOLS[id] || "";
+}
+
+/** True when the registered symbol should be shown as-is (no callout recolor). */
+export function isColorfulSymbol(id: string): boolean {
+    if (!id || isPluginSymbol(id)) return false;
+    return markupLooksColorful(getSymbolMarkupForDetect(id));
+}
+
+/**
+ * Flatten `var(--token, #fallback)` → `#fallback` so colorful SVGs keep paints
+ * when used as `background-image` data URLs (no access to page CSS variables).
+ */
+function flattenCssColorVars(svgMarkup: string): string {
+    return svgMarkup.replace(/var\(\s*--[^,)]+\s*,\s*([^)]+?)\)/gi, "$1");
+}
+
+/**
+ * Build a full-color CSS `url(...)` data URL (not a mask) from a symbol.
+ * Preserves fixed fills/strokes for colorful icon packs.
+ */
+function imageUrlFromSymbolMarkup(viewBox: string, innerHtml: string, symbolAttrs = "") {
+    let attrs = flattenCssColorVars(symbolAttrs || "").trim();
+    const inner = flattenCssColorVars(innerHtml || "");
+
+    const hasStroke = /\bstroke\s*=/.test(attrs) || /\bstroke\s*=/.test(inner);
+    const hasFillAttr = /\bfill\s*=/.test(attrs);
+    if (hasStroke && !hasFillAttr) {
+        attrs = `fill="none"${attrs ? ` ${attrs}` : ""}`;
+    }
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"${attrs ? ` ${attrs}` : ""}>${inner}</svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+function pluginSymbolToImageUrl(id: string): string | null {
+    const markup = PLUGIN_SVG_SYMBOLS[id];
+    if (!markup) return null;
+    const viewBoxMatch = markup.match(/\bviewBox="([^"]+)"/);
+    const innerMatch = markup.match(/<symbol\b[^>]*>([\s\S]*?)<\/symbol>/i);
+    if (!innerMatch) return null;
+    return imageUrlFromSymbolMarkup(
+        viewBoxMatch?.[1] || "0 0 24 24",
+        innerMatch[1],
+        parseSymbolTagAttrs(markup),
+    );
+}
+
+/** Full-color `url(...)` for a symbol (keeps hex/rgb paints). */
+export function symbolToImageUrl(id: string): string | null {
+    if (!id) return null;
+    if (typeof document !== "undefined") {
+        const el = getSymbolElement(id);
+        if (el) {
+            const viewBox = el.getAttribute("viewBox") || "0 0 24 24";
+            const inner = (el as unknown as SVGSymbolElement).innerHTML;
+            return imageUrlFromSymbolMarkup(viewBox, inner, readPresentationAttrString(el));
+        }
+    }
+    return pluginSymbolToImageUrl(id);
+}
+
+/**
+ * Mask URL for tintable icons, or image URL for colorful icons (as-is).
+ */
+export function symbolToPaintUrl(id: string): { mode: "mask" | "image"; url: string } | null {
+    if (!id) return null;
+    if (isColorfulSymbol(id)) {
+        const url = symbolToImageUrl(id);
+        return url ? { mode: "image", url } : null;
+    }
+    const url = symbolToMaskUrl(id);
+    return url ? { mode: "mask", url } : null;
+}
+
 export type SymbolRenderMeta = {
     source: "plugin" | "host";
-    /** Lucide-style outline icons use stroke; SiYuan material icons use fill. */
-    paint: "fill" | "stroke";
+    /**
+     * Lucide-style outline icons use stroke; classic Material icons use fill.
+     * Colorful packs keep author paints (`native`) — do not force currentColor.
+     */
+    paint: "fill" | "stroke" | "native";
 };
+
+function elementHasPaint(el: Element, attr: "fill" | "stroke") {
+    const value = (el.getAttribute(attr) || "").trim();
+    return !!value && value !== "none";
+}
 
 /**
  * Decide how a symbol should be painted when referenced through `<use>`.
  *
  * Plugin icons are Lucide outlines (`fill="none" stroke-width="2"`). SiYuan
- * host icons are mostly Material-style filled paths. Applying both
- * `fill:currentColor` and `stroke:currentColor` on the outer `<svg>` makes
- * host icons look artificially bold/thick.
+ * host icons were mostly Material-style filled paths before 3.7; the default
+ * `litheness` pack is Lucide stroke icons whose paint attrs live on `<symbol>`
+ * (not on child paths). CSS `fill:currentColor` on the outer `<svg>` would
+ * override presentation attributes and fill closed shapes solid.
  */
 export function getSymbolRenderMeta(id: string): SymbolRenderMeta {
     if (isPluginSymbol(id)) {
         return { source: "plugin", paint: "stroke" };
     }
+    if (isColorfulSymbol(id)) {
+        return { source: "host", paint: "native" };
+    }
     const sym = getSymbolElement(id);
     if (!sym) {
         return { source: "host", paint: "fill" };
     }
-    const hasStroke = !!sym.querySelector("[stroke]:not([stroke='none'])");
-    const hasFill = !!sym.querySelector("[fill]:not([fill='none'])");
-    if (hasStroke && !hasFill) {
+
+    const selfStroke = elementHasPaint(sym, "stroke");
+    const selfFill = elementHasPaint(sym, "fill");
+    const selfFillNone = (sym.getAttribute("fill") || "").trim() === "none";
+    const childStroke = !!sym.querySelector("[stroke]:not([stroke='none'])");
+    const childFill = !!sym.querySelector("[fill]:not([fill='none'])");
+
+    const hasStroke = selfStroke || childStroke;
+    const hasFill = selfFill || childFill;
+
+    if (hasStroke && (selfFillNone || !hasFill)) {
         return { source: "host", paint: "stroke" };
     }
     return { source: "host", paint: "fill" };
 }
 
 function symbolPaintStyle(meta: SymbolRenderMeta) {
+    if (meta.paint === "native") {
+        return "";
+    }
     if (meta.paint === "stroke") {
         return "fill:none;stroke:currentColor;";
     }
     return "fill:currentColor;stroke:none;";
+}
+
+function applySymbolPaintToSvg(svg: SVGSVGElement, meta: SymbolRenderMeta) {
+    if (meta.paint === "native") {
+        svg.style.removeProperty("fill");
+        svg.style.removeProperty("stroke");
+        return;
+    }
+    if (meta.paint === "stroke") {
+        svg.style.fill = "none";
+        svg.style.stroke = "currentColor";
+        return;
+    }
+    svg.style.fill = "currentColor";
+    svg.style.stroke = "none";
 }
 
 /**
@@ -385,8 +583,14 @@ export function renderSymbolUseHtml(id: string, size = "20px", extraClass = "") 
 export function createSymbolUseElement(id: string, size = "20px", extraClass = ""): SVGSVGElement {
     const svgNs = "http://www.w3.org/2000/svg";
     const xlinkNs = "http://www.w3.org/1999/xlink";
+    const meta = getSymbolRenderMeta(id);
     const svg = document.createElementNS(svgNs, "svg");
-    const cls = ["callout-enhance-symbol-icon", extraClass].filter(Boolean).join(" ");
+    const cls = [
+        "callout-enhance-symbol-icon",
+        `callout-enhance-symbol-icon--${meta.source}`,
+        `callout-enhance-symbol-icon--${meta.paint}`,
+        extraClass,
+    ].filter(Boolean).join(" ");
     svg.setAttribute("class", cls);
     svg.setAttribute("viewBox", getSymbolViewBox(id));
     svg.setAttribute("aria-hidden", "true");
@@ -394,17 +598,13 @@ export function createSymbolUseElement(id: string, size = "20px", extraClass = "
     svg.style.width = size;
     svg.style.height = size;
     svg.style.color = "inherit";
-    svg.style.fill = "currentColor";
-    svg.style.stroke = "currentColor";
+    applySymbolPaintToSvg(svg, meta);
     const use = document.createElementNS(svgNs, "use");
     use.setAttribute("href", `#${id}`);
     use.setAttribute("xlink:href", `#${id}`);
     use.setAttributeNS(xlinkNs, "href", `#${id}`);
     use.setAttribute("width", "100%");
     use.setAttribute("height", "100%");
-    use.style.color = "inherit";
-    use.style.fill = "currentColor";
-    use.style.stroke = "currentColor";
     svg.appendChild(use);
     return svg;
 }
@@ -419,8 +619,14 @@ export function createSymbolUseElement(id: string, size = "20px", extraClass = "
  */
 export function createSymbolPreviewElement(id: string, size = "20px", extraClass = ""): SVGSVGElement {
     const svgNs = "http://www.w3.org/2000/svg";
+    const meta = getSymbolRenderMeta(id);
     const svg = document.createElementNS(svgNs, "svg");
-    const cls = ["callout-enhance-symbol-icon", extraClass].filter(Boolean).join(" ");
+    const cls = [
+        "callout-enhance-symbol-icon",
+        `callout-enhance-symbol-icon--${meta.source}`,
+        `callout-enhance-symbol-icon--${meta.paint}`,
+        extraClass,
+    ].filter(Boolean).join(" ");
     svg.setAttribute("class", cls);
     svg.setAttribute("viewBox", getSymbolViewBox(id));
     svg.setAttribute("aria-hidden", "true");
@@ -428,11 +634,18 @@ export function createSymbolPreviewElement(id: string, size = "20px", extraClass
     svg.style.width = size;
     svg.style.height = size;
     svg.style.color = "inherit";
-    svg.style.fill = "currentColor";
-    svg.style.stroke = "currentColor";
+    applySymbolPaintToSvg(svg, meta);
 
     const symbol = getSymbolElement(id);
     if (!symbol) return svg;
+
+    // Preserve Lucide/litheness attrs that live on <symbol>, not on children.
+    for (const name of SYMBOL_PRESENTATION_ATTRS) {
+        const value = symbol.getAttribute(name);
+        if (value != null && value !== "") {
+            svg.setAttribute(name, value);
+        }
+    }
 
     Array.from(symbol.childNodes).forEach((node) => {
         svg.appendChild(node.cloneNode(true));
@@ -453,8 +666,6 @@ function getSymbolViewBox(id: string) {
         const viewBox = symbol.getAttribute("viewBox");
         if (viewBox) return viewBox;
     }
-    // SiYuan's built-in icon sprite commonly uses 32x32; bundled plugin icons
-    // declare their own 24x24 viewBox, so this fallback mainly protects host
-    // symbols that do not expose one.
-    return "0 0 32 32";
+    // litheness/Lucide and plugin icons use 24x24; unknown host symbols fall back here.
+    return "0 0 24 24";
 }

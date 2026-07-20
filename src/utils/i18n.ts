@@ -1,15 +1,15 @@
-import enUS from "../i18n/en_US.json";
+import en from "../i18n/en.json";
 
 export type I18nDict = Record<string, string>;
 
-let activeI18n: I18nDict = enUS as I18nDict;
+let activeI18n: I18nDict = en as I18nDict;
 
 export function setPluginI18n(i18n: I18nDict | undefined) {
-    activeI18n = { ...(enUS as I18nDict), ...(i18n || {}) };
+    activeI18n = { ...(en as I18nDict), ...(i18n || {}) };
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
-    let text = activeI18n[key] ?? (enUS as I18nDict)[key] ?? key;
+    let text = activeI18n[key] ?? (en as I18nDict)[key] ?? key;
     if (!vars) return text;
     Object.entries(vars).forEach(([name, value]) => {
         text = text.split(`\${${name}}`).join(String(value));

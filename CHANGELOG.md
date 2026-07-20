@@ -1,3 +1,14 @@
+## Unreleased
+
+- 🇨🇳 `symbol:*` callout 图标改为与思源工具栏一致的 `<use>` 活引用，避免第三方图标包异步加载时被默认包快照锁死
+- 🇨🇳 彩色图标（如 color-icon / QYL-Icons-Colorful）按 symbol 内容启发检测后原样显示，不再用 CSS mask / currentColor 上色；覆盖编辑器、设置预览与菜单
+- 🇨🇳 修复思源 3.7+ 默认图标包（litheness/Lucide）在 callout 中被 CSS mask 实心填满、丢失描边细节的问题
+- 🇨🇳 适配思源 3.7.0+ 界面语言 BCP 47：`plugin.json` / i18n / README 由 `zh_CN`、`en_US` 迁移为 `zh-CN`、`en`；`minAppVersion` 升至 `3.7.0`
+- 🇺🇸 Render `symbol:*` callout icons via live `<use>` refs (like SiYuan toolbar) so third-party icon packs apply without restart/UI reload
+- 🇺🇸 Detect colorful host SVG symbols heuristically and render them as-is (no CSS mask / currentColor tint) in editor, settings preview, and menus
+- 🇺🇸 Fix SiYuan 3.7+ default icon pack (litheness/Lucide) rendering as solid filled blobs under CSS mask, losing stroke details
+- 🇺🇸 Migrate locale codes to BCP 47 for SiYuan 3.7.0+: `plugin.json` / i18n / README from `zh_CN`/`en_US` to `zh-CN`/`en`; bump `minAppVersion` to `3.7.0`
+
 ## v0.2.9 2026-06-29
 
 - 🇨🇳 增加开启/关闭callout正文区域最大高度限制的功能，超出最大高度则滚动显示

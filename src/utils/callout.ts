@@ -7,7 +7,9 @@
  */
 import { focusNewBlockEditableStart } from "./dom";
 
-const CALLOUT_RUNTIME_CLASSES = ["protyle-shown"];
+import { LIVE_ICON_CLASS, stripCalloutLiveIconRuntime } from "./callout_live_icon";
+
+const CALLOUT_RUNTIME_CLASSES = ["protyle-shown", LIVE_ICON_CLASS];
 const CALLOUT_RUNTIME_ATTRIBUTES = [
     "data-enhanced",
     "data-deleting",
@@ -27,6 +29,7 @@ export function isCalloutSettingsPreview(element: HTMLElement | null | undefined
 }
 
 function cleanSingleCalloutElement(callout: Element) {
+    stripCalloutLiveIconRuntime(callout);
     CALLOUT_RUNTIME_CLASSES.forEach((className) => callout.classList.remove(className));
     CALLOUT_RUNTIME_ATTRIBUTES.forEach((attr) => callout.removeAttribute(attr));
 }

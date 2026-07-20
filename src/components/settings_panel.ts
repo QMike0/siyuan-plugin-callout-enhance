@@ -23,7 +23,8 @@ import {
 } from "../utils/callout_type_crud";
 import { formatLabelOccupancyError, validateLabelOccupancy } from "../utils/callout_resolver";
 import { applyPreviewCalloutInlineStyle, BUILTIN_LABEL_COLOR_VAR } from "../utils/callout_dynamic_styles";
-import { CalloutTypeItem, calloutMatchesListSearch, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, isProtectedCalloutType, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
+import { CalloutTypeItem, calloutMatchesListSearch, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, getEditorCalloutIconPaint, isProtectedCalloutType, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
+import { syncPreviewLiveIcon } from "../utils/callout_live_icon";
 import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
 import { openIconPicker } from "./icon_picker";
 import { setPreviewFoldState } from "../features/callout_fold";
@@ -947,8 +948,14 @@ function createPreviewItem(item: DraftItem, options: PreviewOptions = {}) {
 
     applyPreviewCalloutInlineStyle(preview, item, {
         source: options.iconSource || "editor",
+        editorPaintResolver: getEditorCalloutIconPaint,
         editorMaskResolver: getEditorCalloutIconMask,
     });
+
+    const iconForPreview = (options.iconSource === "draft" && item.icon?.trim())
+        ? item.icon
+        : (item.icon || "");
+    syncPreviewLiveIcon(preview, iconForPreview);
 
     const info = document.createElement("div");
     info.className = "callout-info";

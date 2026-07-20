@@ -2,16 +2,20 @@
  * Unified callout appearance stylesheet builder (Phase A–C).
  *
  * Produces `#callout-enhance-dynamic-styles` content: layout vars + per-subtype
- * --local-color and ::before icon masks. Empty type color resolves to the same
- * built-in CSS variables as index.scss fallback rules.
+ * --local-color and ::before icon masks/images. Empty type color resolves to the
+ * same built-in CSS variables as index.scss fallback rules.
+ *
+ * Editor `symbol:*` icons use live `<use>` DOM (see callout_live_icon.ts) and are
+ * not baked into ::before. Export stylesheet still bakes symbols for PDF/HTML.
  *
  * `buildCalloutStaticStylesheet()` is emitted at build time into
  * `src/callout_defaults.css` (palette + default built-in subtype rules).
  */
 
-import { CalloutTypeItem, DEFAULT_CALLOUT_ICON_MASK, getCalloutStyleSubtypes, normalizeCalloutLabel, resolveCalloutIconMask } from "./callout_types";
+import { CalloutTypeItem, DEFAULT_CALLOUT_ICON_MASK, getCalloutStyleSubtypes, normalizeCalloutLabel, resolveCalloutIconPaint } from "./callout_types";
 import { buildCalloutLayoutStylesheet, CalloutLayoutSettings, normalizeCalloutLayout } from "./callout_layout_vars";
 import { CalloutEnhanceSettings, createDefaultCalloutSettings, getAllResolvedCalloutTypes } from "./settings";
+import { getLiveSymbolIdFromIcon } from "./callout_live_icon";
 
 export type PreviewIconSource = "editor" | "draft";
 
@@ -54,6 +58,11 @@ export const BUILTIN_LABEL_COLOR_VAR: Record<string, string> = BUILTIN_CALLOUT_P
 export type BuildCalloutDynamicStylesheetOptions = {
     settings: Partial<CalloutEnhanceSettings> | null | undefined;
     layout: CalloutLayoutSettings;
+    /**
+     * When true (export), bake `symbol:*` into ::before mask/image URLs.
+     * Editor uses live `<use>` DOM instead so third-party packs can hot-swap.
+     */
+    bakeSymbolIcons?: boolean;
 };
 
 function escapeCssString(value: string) {
@@ -88,10 +97,39 @@ export function resolveCalloutTypeColorValue(item: Pick<CalloutTypeItem, "label"
     return `var(${resolveBuiltinColorVarForLabel(item.label)})`;
 }
 
-/** Per-subtype color + ::before icon mask rules (shared by runtime + build snapshot). */
+function buildCalloutIconBeforeRule(selector: string, paint: { mode: "mask" | "image"; url: string }) {
+    const url = safeCssValue(paint.url);
+    if (paint.mode === "image") {
+        return (
+            `${selector}::before{` +
+            `background-color:transparent;` +
+            `background-image:${url};` +
+            `background-size:contain;` +
+            `background-repeat:no-repeat;` +
+            `background-position:center;` +
+            `-webkit-mask-image:none;` +
+            `mask-image:none;` +
+            `-webkit-mask:none;` +
+            `mask:none` +
+            `}`
+        );
+    }
+    return (
+        `${selector}::before{` +
+        `background-color:currentColor;` +
+        `background-image:none;` +
+        `-webkit-mask:${url} center / contain no-repeat;` +
+        `mask:${url} center / contain no-repeat` +
+        `}`
+    );
+}
+
+/** Per-subtype color + ::before icon rules (shared by runtime + build snapshot). */
 export function buildCalloutTypeAppearanceStylesheet(
     settings: Partial<CalloutEnhanceSettings> | null | undefined,
+    options: { bakeSymbolIcons?: boolean } = {},
 ): string {
+    const bakeSymbolIcons = options.bakeSymbolIcons === true;
     const rules: string[] = [];
 
     getAllResolvedCalloutTypes(settings).forEach((item) => {
@@ -100,12 +138,17 @@ export function buildCalloutTypeAppearanceStylesheet(
 
         const colorValue = resolveCalloutTypeColorValue(item);
         const colorDecl = `--local-color:${colorValue}`;
-        const mask = safeCssValue(resolveCalloutIconMask(item.icon || item.label, item.label));
+        const liveSymbolId = getLiveSymbolIdFromIcon(item.icon);
+        const paint = (!liveSymbolId || bakeSymbolIcons)
+            ? resolveCalloutIconPaint(item.icon || item.label, item.label)
+            : null;
 
         for (const subtype of subtypes) {
             const selector = `.callout[data-type="NodeCallout"][data-subtype="${escapeCssString(subtype)}" i]`;
             rules.push(`${selector}{${colorDecl}}`);
-            rules.push(`${selector}::before{-webkit-mask:${mask} center / contain no-repeat;mask:${mask} center / contain no-repeat}`);
+            if (paint) {
+                rules.push(buildCalloutIconBeforeRule(selector, paint));
+            }
         }
     });
 
@@ -123,7 +166,8 @@ export function buildCalloutPaletteStylesheet(): string {
 
 /** Default built-in types only — per-subtype `--local-color` and icon masks. */
 export function buildDefaultCalloutTypesStylesheet(): string {
-    return buildCalloutTypeAppearanceStylesheet(createDefaultCalloutSettings());
+    // Build-time snapshot has no live DOM; bake keyword masks only (defaults are not symbol:*).
+    return buildCalloutTypeAppearanceStylesheet(createDefaultCalloutSettings(), { bakeSymbolIcons: true });
 }
 
 /** Palette + default subtype rules — written to `callout_defaults.css` at build time. */
@@ -134,21 +178,41 @@ export function buildCalloutStaticStylesheet(): string {
 export type ResolvePreviewCalloutIconMaskOptions = {
     source?: PreviewIconSource;
     editorMaskResolver?: (label: string, icon?: string) => string;
+    editorPaintResolver?: (label: string, icon?: string) => { mode: "mask" | "image"; url: string };
 };
 
-/** Settings preview icon mask — same resolution order as dynamic sheet, with draft/editor nuance. */
+/** Settings preview icon paint — same resolution order as dynamic sheet, with draft/editor nuance. */
+export function resolvePreviewCalloutIconPaint(
+    item: Pick<CalloutTypeItem, "label" | "icon">,
+    options: ResolvePreviewCalloutIconMaskOptions = {},
+) {
+    const source = options.source || "editor";
+    if (source === "draft" && item.icon?.trim()) {
+        return resolveCalloutIconPaint(item.icon, item.label);
+    }
+    if (options.editorPaintResolver) {
+        return options.editorPaintResolver(item.label, item.icon);
+    }
+    if (options.editorMaskResolver) {
+        return { mode: "mask" as const, url: options.editorMaskResolver(item.label, item.icon) };
+    }
+    return resolveCalloutIconPaint(item.icon || item.label, item.label);
+}
+
+/** @deprecated Prefer {@link resolvePreviewCalloutIconPaint}. */
 export function resolvePreviewCalloutIconMask(
     item: Pick<CalloutTypeItem, "label" | "icon">,
     options: ResolvePreviewCalloutIconMaskOptions = {},
 ): string {
-    const source = options.source || "editor";
-    if (source === "draft" && item.icon?.trim()) {
-        return resolveCalloutIconMask(item.icon, item.label);
-    }
-    if (options.editorMaskResolver) {
-        return options.editorMaskResolver(item.label, item.icon);
-    }
-    return resolveCalloutIconMask(item.icon || item.label, item.label);
+    return resolvePreviewCalloutIconPaint(item, options).url;
+}
+
+function resolvePreviewIconString(
+    item: Pick<CalloutTypeItem, "label" | "icon">,
+    options: ResolvePreviewCalloutIconMaskOptions = {},
+) {
+    if (options.source === "draft" && item.icon?.trim()) return item.icon;
+    return item.icon || "";
 }
 
 /** Inline preview tokens (Phase C): keeps instant updates without touching the dynamic sheet. */
@@ -158,10 +222,29 @@ export function applyPreviewCalloutInlineStyle(
     options: ResolvePreviewCalloutIconMaskOptions = {},
 ) {
     element.style.setProperty("--local-color", resolveCalloutTypeColorValue(item));
-    element.style.setProperty(
-        "--callout-enhance-preview-icon-mask",
-        safeCssValue(resolvePreviewCalloutIconMask(item, options)),
-    );
+
+    const iconForLive = resolvePreviewIconString(item, options);
+    if (getLiveSymbolIdFromIcon(iconForLive)) {
+        element.classList.add("callout-enhance-live-icon");
+        element.classList.remove("callout-enhance-icon--native");
+        element.style.setProperty("--callout-enhance-preview-icon-mask", "none");
+        element.style.removeProperty("--callout-enhance-preview-icon-image");
+        return;
+    }
+
+    const paint = resolvePreviewCalloutIconPaint(item, options);
+    element.classList.remove("callout-enhance-live-icon");
+    element.classList.toggle("callout-enhance-icon--native", paint.mode === "image");
+    if (paint.mode === "image") {
+        element.style.setProperty("--callout-enhance-preview-icon-image", safeCssValue(paint.url));
+        element.style.setProperty("--callout-enhance-preview-icon-mask", "none");
+    } else {
+        element.style.removeProperty("--callout-enhance-preview-icon-image");
+        element.style.setProperty(
+            "--callout-enhance-preview-icon-mask",
+            safeCssValue(paint.url),
+        );
+    }
 }
 
 export function buildCalloutDynamicStylesheet(options: BuildCalloutDynamicStylesheetOptions): string {
@@ -171,7 +254,9 @@ export function buildCalloutDynamicStylesheet(options: BuildCalloutDynamicStyles
     const layoutCss = buildCalloutLayoutStylesheet(layout);
     if (layoutCss) rules.push(layoutCss);
 
-    const appearanceCss = buildCalloutTypeAppearanceStylesheet(options.settings);
+    const appearanceCss = buildCalloutTypeAppearanceStylesheet(options.settings, {
+        bakeSymbolIcons: options.bakeSymbolIcons === true,
+    });
     if (appearanceCss) rules.push(appearanceCss);
 
     return rules.join("\n");
