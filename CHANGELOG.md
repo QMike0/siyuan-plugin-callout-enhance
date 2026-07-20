@@ -1,13 +1,15 @@
-## Unreleased
+## v0.3.0 2026-07-21
 
-- 🇨🇳 `symbol:*` callout 图标改为与思源工具栏一致的 `<use>` 活引用，避免第三方图标包异步加载时被默认包快照锁死
-- 🇨🇳 彩色图标（如 color-icon / QYL-Icons-Colorful）按 symbol 内容启发检测后原样显示，不再用 CSS mask / currentColor 上色；覆盖编辑器、设置预览与菜单
-- 🇨🇳 修复思源 3.7+ 默认图标包（litheness/Lucide）在 callout 中被 CSS mask 实心填满、丢失描边细节的问题
-- 🇨🇳 适配思源 3.7.0+ 界面语言 BCP 47：`plugin.json` / i18n / README 由 `zh_CN`、`en_US` 迁移为 `zh-CN`、`en`；`minAppVersion` 升至 `3.7.0`
-- 🇺🇸 Render `symbol:*` callout icons via live `<use>` refs (like SiYuan toolbar) so third-party icon packs apply without restart/UI reload
-- 🇺🇸 Detect colorful host SVG symbols heuristically and render them as-is (no CSS mask / currentColor tint) in editor, settings preview, and menus
-- 🇺🇸 Fix SiYuan 3.7+ default icon pack (litheness/Lucide) rendering as solid filled blobs under CSS mask, losing stroke details
-- 🇺🇸 Migrate locale codes to BCP 47 for SiYuan 3.7.0+: `plugin.json` / i18n / README from `zh_CN`/`en_US` to `zh-CN`/`en`; bump `minAppVersion` to `3.7.0`
+- 🇨🇳 适配思源笔记v3.7.0之后的界面语言 `lang` 值变更，当前版本最低支持思源笔记版本为 v3.7.0
+- 🇨🇳 修复暗黑模式下callout标题区域存在异常色块的问题
+- 🇨🇳 优化对第三方图标包的加载机制
+- 🇨🇳 优化图标描边显示，并支持彩色图标原样显示
+- 🇨🇳 调整 `preview.png` 大小，以满足集市要求
+- 🇺🇸 Adapted to the interface language `lang` value changes after SiYuan v3.7.0; the current minimum supported SiYuan version is now v3.7.0
+- 🇺🇸 Fixed the issue of abnormal color blocks in the callout title area under dark mode
+- 🇺🇸 Optimized the loading mechanism for third-party icon packs
+- 🇺🇸 Optimized icon stroke rendering and added support for displaying color icons as-is
+- 🇺🇸 Adjusted `preview.png` size to meet marketplace requirements
 
 ## v0.2.9 2026-06-29
 
