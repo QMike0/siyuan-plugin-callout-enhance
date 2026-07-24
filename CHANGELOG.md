@@ -1,9 +1,13 @@
-## Unreleased
+## v0.3.1 2026-07-24
 
-- 🇨🇳 callout `symbol:*` 图标改回 CSS 快照渲染，并在图标包脚本加载后再刷新；移除块内 live-icon 注入，避免禁用插件后残留巨大图标
-- 🇨🇳 设置-外观中切换图标包后，立即重烘焙 callout 图标样式（监听 `setAppearance` + 图标脚本增删）
-- 🇺🇸 Revert callout `symbol:*` icons to CSS snapshots rebaked after icon-pack scripts load; remove in-block live-icon hosts that could remain as huge SVGs after disable
-- 🇺🇸 Rebake callout icon CSS immediately after switching icon packs in Settings → Appearance (`setAppearance` + icon script add/remove)
+- 🇨🇳 优化callout icon跟随思源笔记图标切换的逻辑
+- 🇨🇳 修改README.md中的图片路径
+- 🇨🇳 修复鼠标悬浮自定义callout icon时的异常判别问题
+- 🇨🇳 修复自定义样式的callout icon注入dom所引起的编辑器污染问题
+- 🇺🇸 Optimized the logic for callout icons to follow SiYuan's icon switching behavior
+- 🇺🇸 Modified image paths in README.md
+- 🇺🇸 Fixed the abnormal discrimination issue when hovering over custom callout icons
+- 🇺🇸 Fixed the editor pollution issue caused by injecting custom-styled callout icons into the DOM
 
 ## v0.3.0 2026-07-21
 
