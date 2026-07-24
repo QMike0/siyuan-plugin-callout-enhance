@@ -16,15 +16,12 @@ import { ensureCalloutMenuViewport, focusMenuListItem, resetMenuScroll } from ".
 import { isPublishService } from "../core/cl_api";
 import { debugLog } from "../utils/logger";
 import { t } from "../utils/i18n";
-import { syncCalloutLiveIcon } from "../utils/callout_live_icon";
-import { CalloutEnhanceSettings } from "../utils/settings";
 
 export type TypeMenuPluginLike = PluginWithGetEditor & {
     calloutTypeMenuElement: HTMLDivElement | null;
     calloutTypeMenuActiveBlock: HTMLElement | null;
     calloutTypeMenuIndex: number;
     calloutTypeMenuSavedRange: Range | null;
-    settings: CalloutEnhanceSettings;
     getCalloutTypes?: () => CalloutTypeItem[];
     syncBlock: (blockElement: HTMLElement, originalHtml?: string, reason?: "title" | "fold" | "type") => Promise<boolean>;
 };
@@ -142,7 +139,6 @@ export async function applyCalloutType(plugin: TypeMenuPluginLike, newType: stri
     const ok = await plugin.syncBlock(block, originalHtml, "type");
     if (ok) {
         debugLog(`[Type] Success: changed to ${nextSubtype}`);
-        syncCalloutLiveIcon(block, plugin.settings);
         hideCalloutTypeMenu(plugin);
         return;
     }

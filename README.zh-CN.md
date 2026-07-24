@@ -14,23 +14,21 @@
 
 默认外观：
 
-![callout_types](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_types.png)
+![callout_types](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_types.png)
 
 嵌套后：
 
-![callout_nested](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nested.png)
-
-
+![callout_nested](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_nested.png)
 
 ### （2）Callout标题区域
 
 #### 快速编辑
 
-![callout_title_edit](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_title_edit.gif)
+![callout_title_edit](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_title_edit.gif)
 
 #### 多行显示
 
-![callout_title_multi-line](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_title_multi-line.png)
+![callout_title_multi-line](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_title_multi-line.png)
 
 ### （3）Callout正文区域
 
@@ -38,13 +36,13 @@
 
 - 鼠标左键单击折叠/展开按钮，可实现正文区域的折叠/展开
 
-![callout_fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_fold&unfold.gif)
+![callout_fold&unfold](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_fold%26unfold.gif)
 
 #### 最大高度限制
 
 - <kbd>Ctrl</kbd> + 鼠标左键单击折叠/展开按钮，可开启/关闭正文区域最大高度限制
 
-![callout_maximum_height](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_maximum_height.gif)
+![callout_maximum_height](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_maximum_height.gif)
 
 ### （4）补全菜单
 
@@ -52,14 +50,14 @@
 -  支持键盘切换或鼠标点击选择类型
 - 支持自动补全。注意`[`/`【`后无需输入`!`，直接输入字母即可触发补全
 
-![callout_completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_completion_menu.gif)
+![callout_completion_menu](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_completion_menu.gif)
 
 ### （5）类型菜单
 
 - 点击icon唤出类型菜单
 - 支持键盘切换或鼠标点击选择类型
 
-![callout_type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_menu.gif)
+![callout_type_menu](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_type_menu.gif)
 
 ### （6）设置项：Callout外观自定义
 
@@ -67,18 +65,17 @@
 
 - 例如仿照Github Callout自定义外观：
 
-  ![callout_appearance_set](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_appearance_set.gif)
+  ![callout_appearance_set](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_appearance_set.gif)
 
 ### （7）设置项：Callout 类型管理
 
 - 可在「设置-Callout类型」中新增、删除、禁用、排序与编辑Callout类型。注意思源笔记内置的五种callout类型（NOTE、TIP 等）不支持删除
 
-  ![callout_type_manage](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_manage.gif)
+  ![callout_type_manage](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_type_manage.gif)
 
 - callout样式编辑弹窗中支持自定义callout的标签、关键词、主色与icon，并在编辑过程中提供实时预览
 
-  ![callout_type_edit](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_edit.gif)
-  
+  ![callout_type_edit](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_type_edit.gif)
 
 ### （8）设置项：其他
 

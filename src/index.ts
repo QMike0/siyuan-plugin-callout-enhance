@@ -36,8 +36,9 @@ import { runCleanup, clearLegacyCalloutMetadata, type CleanupResult, type RunCle
 import { registerPluginIcons } from "./utils/icons";
 import { setPluginI18n, t } from "./utils/i18n";
 import {
-    syncAllCalloutLiveIcons,
-    syncCalloutLiveIcon,
+    removeAllCalloutLiveIconHosts,
+    stripCalloutLiveIconRuntime,
+    watchSiYuanAppearanceForIconPack,
     watchSiYuanIconScripts,
 } from "./utils/callout_live_icon";
 
@@ -114,17 +115,17 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (block.dataset?.nodeId) {
             delete block.dataset.deleting;
         }
+        // Strip legacy live-icon hosts that may have been persisted into the block HTML.
+        stripCalloutLiveIconRuntime(block);
         const titleEl = block.querySelector(".callout-title") as HTMLElement | null;
         if (!titleEl) {
             block.dataset.enhanced = "true";
-            syncCalloutLiveIcon(block, this.settings);
             return;
         }
         if (isPublishService()) {
             ensureCalloutTitleEditable(titleEl);
             this.titleBoundEls.add(titleEl);
             block.dataset.enhanced = "true";
-            syncCalloutLiveIcon(block, this.settings);
             return;
         }
         if (!this.titleBoundEls.has(titleEl)) {
@@ -132,7 +133,6 @@ export default class CalloutEnhancePlugin extends Plugin {
             this.titleBoundEls.add(titleEl);
         }
         block.dataset.enhanced = "true";
-        syncCalloutLiveIcon(block, this.settings);
     }
 
     private scanAllCallouts() {
@@ -142,27 +142,15 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     private updateDynamicCalloutStyles() {
-        const layout = this.getEffectiveCalloutLayout();
-        // Editor: do not bake symbol:* into CSS — live <use> hosts follow icon pack swaps.
-        const editorCss = buildCalloutDynamicStylesheet({
+        const css = buildCalloutDynamicStylesheet({
             settings: this.settings,
-            layout,
-            bakeSymbolIcons: false,
+            layout: this.getEffectiveCalloutLayout(),
         });
-        applyCalloutDynamicStylesheet(editorCss, DYNAMIC_STYLE_ID);
-
-        // Export windows have no plugin DOM injection; bake symbol snapshots there.
-        const exportCss = buildCalloutDynamicStylesheet({
-            settings: this.settings,
-            layout,
-            bakeSymbolIcons: true,
-        });
-        syncCalloutExportStylesheet(exportCss);
-
-        syncAllCalloutLiveIcons(this.settings);
+        applyCalloutDynamicStylesheet(css, DYNAMIC_STYLE_ID);
+        syncCalloutExportStylesheet(css);
     }
 
-    /** Re-run after sprites/layout settle so live paint mode (fill/stroke/native) is correct. */
+    /** Re-run after sprites/layout settle so `symbol:*` CSS snapshots match the active icon pack. */
     private refreshDynamicCalloutStylesAfterPaint() {
         if (typeof requestAnimationFrame === "undefined") {
             this.updateDynamicCalloutStyles();
@@ -669,20 +657,21 @@ export default class CalloutEnhancePlugin extends Plugin {
 
         registerPluginIcons(this);
 
+        // Remove leftover live-icon hosts from older builds (may exist in open docs).
+        removeAllCalloutLiveIconHosts();
+
         // Phase A: inject defaults before async settings load to reduce first-paint flash.
         this.updateDynamicCalloutStyles();
 
-        // Third-party icon packs load after litheness; refresh live paint mode when scripts settle.
+        // Rebake when icon scripts load/unload, and when Settings → Appearance changes icon pack.
         this.cleanupHandlers.push(
             watchSiYuanIconScripts(() => {
-                syncAllCalloutLiveIcons(this.settings);
-                // Re-bake export snapshots once sprites are final.
-                const exportCss = buildCalloutDynamicStylesheet({
-                    settings: this.settings,
-                    layout: this.getEffectiveCalloutLayout(),
-                    bakeSymbolIcons: true,
-                });
-                syncCalloutExportStylesheet(exportCss);
+                this.updateDynamicCalloutStyles();
+            }),
+        );
+        this.cleanupHandlers.push(
+            watchSiYuanAppearanceForIconPack(this.eventBus, () => {
+                this.updateDynamicCalloutStyles();
             }),
         );
 
@@ -767,6 +756,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.completionMenuElement = null;
         removeCalloutDynamicStylesheet(DYNAMIC_STYLE_ID);
         removeCalloutExportStylesheet();
+        // Ensure no leftover live-icon DOM remains after disable (avoids huge orphan SVGs).
+        removeAllCalloutLiveIconHosts();
         document.body.classList.remove(PUBLISH_BODY_CLASS);
         delete (window as any)[STARTUP_FLAG];
     }

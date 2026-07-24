@@ -1,167 +1,204 @@
 /**
- * Live callout icons via `<svg><use href="#symbolId">` (same model as SiYuan toolbar buttons).
+ * Icon-pack load watching + cleanup of legacy live-icon DOM.
  *
- * Symbol icons must not be baked into CSS mask data-URLs: third-party packs load
- * asynchronously after litheness, and snapshots would freeze the default shapes.
+ * Editor callout icons are CSS ::before masks/images. Rebake after SiYuan's
+ * icon scripts settle, and whenever appearance / icon pack changes
+ * (`setAppearance` → `loadAssets`).
  */
-
-import { parseIconRef, createSymbolUseElement, getSymbolRenderMeta } from "./icons";
-import { CalloutEnhanceSettings } from "./settings";
-import { resolveCalloutTypeBySubtype } from "./callout_resolver";
 
 export const LIVE_ICON_CLASS = "callout-enhance-live-icon";
 export const LIVE_ICON_HOST_CLASS = "callout-enhance-live-icon-host";
 
-/** True when the configured icon should be rendered as a live sprite reference. */
-export function getLiveSymbolIdFromIcon(icon: string | null | undefined): string | null {
-    const ref = parseIconRef(icon);
-    if (ref.kind !== "symbol" || !ref.id) return null;
-    return ref.id;
-}
+const ICON_SCRIPT_IDS = new Set(["iconDefaultScript", "iconScript"]);
+const ICON_SCRIPT_SRC_RE = /\/appearance\/icons\//i;
 
-export function resolveLiveSymbolIdForCallout(
-    block: HTMLElement,
-    settings: Partial<CalloutEnhanceSettings> | null | undefined,
-): string | null {
-    const subtype = (block.dataset.subtype || "").trim();
-    if (!subtype) return null;
-    const item = resolveCalloutTypeBySubtype(settings, subtype);
-    if (!item) return null;
-    return getLiveSymbolIdFromIcon(item.icon);
-}
-
-function getLiveIconHost(block: HTMLElement): HTMLElement | null {
-    return block.querySelector(`:scope > .${LIVE_ICON_HOST_CLASS}`);
-}
-
-function paintKeyForSymbol(symbolId: string) {
-    return getSymbolRenderMeta(symbolId).paint;
-}
-
-/**
- * Ensure the callout either has a live `<use>` icon host, or falls back to CSS ::before masks.
- */
-export function syncCalloutLiveIcon(
-    block: HTMLElement,
-    settings: Partial<CalloutEnhanceSettings> | null | undefined,
-) {
-    if (typeof document === "undefined") return;
-    if (!block?.classList?.contains("callout")) return;
-    // Settings previews manage their own host via syncPreviewLiveIcon (draft icons).
-    if (block.classList.contains("callout-enhance-setting-preview")) return;
-
-    const symbolId = resolveLiveSymbolIdForCallout(block, settings);
-    let host = getLiveIconHost(block);
-
-    if (!symbolId) {
-        block.classList.remove(LIVE_ICON_CLASS);
-        host?.remove();
-        return;
-    }
-
-    block.classList.add(LIVE_ICON_CLASS);
-    if (!host) {
-        host = document.createElement("span");
-        host.className = LIVE_ICON_HOST_CLASS;
-        host.setAttribute("aria-hidden", "true");
-        block.insertBefore(host, block.firstChild);
-    }
-
-    const nextPaint = paintKeyForSymbol(symbolId);
-    if (host.dataset.symbolId === symbolId && host.dataset.paint === nextPaint && host.querySelector("svg")) {
-        return;
-    }
-
-    host.dataset.symbolId = symbolId;
-    host.dataset.paint = nextPaint;
-    host.replaceChildren(createSymbolUseElement(symbolId, "100%", "callout-enhance-live-icon-svg"));
-}
-
-export function syncAllCalloutLiveIcons(settings: Partial<CalloutEnhanceSettings> | null | undefined) {
-    if (typeof document === "undefined") return;
-    document.querySelectorAll('.callout[data-type="NodeCallout"]').forEach((node) => {
-        const block = node as HTMLElement;
-        // Settings previews are synced by the panel when built; still safe to update.
-        syncCalloutLiveIcon(block, settings);
-    });
-}
-
-/** Strip live-icon runtime nodes/classes from a callout clone before persistence / undo HTML. */
+/** Strip live-icon runtime nodes/classes from a callout (clone or live element). */
 export function stripCalloutLiveIconRuntime(callout: Element) {
     callout.classList.remove(LIVE_ICON_CLASS);
     callout.querySelectorAll(`.${LIVE_ICON_HOST_CLASS}`).forEach((el) => el.remove());
 }
 
+/** Remove leftover live-icon hosts from the editor (polluted docs / previous plugin builds). */
+export function removeAllCalloutLiveIconHosts(root: ParentNode = document) {
+    if (typeof document === "undefined") return;
+    root.querySelectorAll(`.${LIVE_ICON_HOST_CLASS}`).forEach((el) => el.remove());
+    root.querySelectorAll(`.${LIVE_ICON_CLASS}`).forEach((el) => {
+        el.classList.remove(LIVE_ICON_CLASS);
+    });
+}
+
+function isHtmlScript(node: Node): node is HTMLScriptElement {
+    return node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === "SCRIPT";
+}
+
+/** SiYuan `addScript` appends the tag without `id`; id is assigned in `onload`. */
+function isSiYuanIconPackScript(el: HTMLScriptElement): boolean {
+    const id = el.id || "";
+    if (ICON_SCRIPT_IDS.has(id)) return true;
+    const src = el.getAttribute("src") || el.src || "";
+    return ICON_SCRIPT_SRC_RE.test(src);
+}
+
 /**
- * Watch SiYuan icon script tags. When the third-party pack finishes loading,
- * refresh paint mode on live icons (litheness → colorful etc.).
+ * Schedule several rebakes so we catch SiYuan's async `loadAssets` chain
+ * (default pack may already be present → no reload; third-party add/remove is async).
+ */
+export function scheduleIconPackStyleRefresh(onReady: () => void, delaysMs: number[] = [0, 80, 200, 450, 900, 1600]): () => void {
+    if (typeof window === "undefined") {
+        onReady();
+        return () => {};
+    }
+    const timers = delaysMs.map((ms) => window.setTimeout(onReady, ms));
+    return () => timers.forEach((id) => clearTimeout(id));
+}
+
+/**
+ * Watch SiYuan icon script tags / removals. When packs finish loading or a
+ * third-party script is removed (switch back to built-in), rebake CSS snapshots.
  */
 export function watchSiYuanIconScripts(onIconsReady: () => void): () => void {
     if (typeof document === "undefined") return () => {};
 
     let cancelled = false;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const watched = new WeakSet<HTMLScriptElement>();
+    const loadHandlers = new Map<HTMLScriptElement, () => void>();
+
     const notify = () => {
         if (cancelled) return;
-        onIconsReady();
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            debounceTimer = null;
+            if (!cancelled) onIconsReady();
+        }, 60);
+    };
+
+    const unbindScript = (el: HTMLScriptElement) => {
+        const handler = loadHandlers.get(el);
+        if (!handler) return;
+        el.removeEventListener("load", handler);
+        el.removeEventListener("error", handler);
+        loadHandlers.delete(el);
     };
 
     const bindScript = (el: HTMLScriptElement | null) => {
-        if (!el) return;
-        if ((el as any).dataset.calloutEnhanceIconWatch === "1") return;
-        (el as any).dataset.calloutEnhanceIconWatch = "1";
-        if ((el as HTMLScriptElement).dataset.loaded === "true" || (el as any).complete) {
-            // addScript may mark loaded; still schedule after current pack chain.
-            queueMicrotask(notify);
-        }
-        el.addEventListener("load", notify);
-        el.addEventListener("error", notify);
+        if (!el || !isSiYuanIconPackScript(el)) return;
+        if (watched.has(el)) return;
+        watched.add(el);
+        const handler = () => notify();
+        loadHandlers.set(el, handler);
+        el.addEventListener("load", handler);
+        el.addEventListener("error", handler);
+        // Cached / already-present scripts often skip a new `load` event.
+        notify();
     };
 
-    bindScript(document.getElementById("iconDefaultScript") as HTMLScriptElement | null);
-    bindScript(document.getElementById("iconScript") as HTMLScriptElement | null);
+    const bindCurrent = () => {
+        document.querySelectorAll("script").forEach((node) => {
+            bindScript(node as HTMLScriptElement);
+        });
+    };
 
-    const observer = new MutationObserver(() => {
-        bindScript(document.getElementById("iconDefaultScript") as HTMLScriptElement | null);
-        bindScript(document.getElementById("iconScript") as HTMLScriptElement | null);
+    bindCurrent();
+
+    const observer = new MutationObserver((mutations) => {
+        let touched = false;
+        for (const mutation of mutations) {
+            if (mutation.type === "attributes" && isHtmlScript(mutation.target)) {
+                const el = mutation.target;
+                if (isSiYuanIconPackScript(el)) {
+                    bindScript(el);
+                    touched = true;
+                }
+                continue;
+            }
+            mutation.addedNodes.forEach((node) => {
+                if (!isHtmlScript(node)) return;
+                // Match by src even before SiYuan assigns id in onload.
+                if (isSiYuanIconPackScript(node) || ICON_SCRIPT_SRC_RE.test(node.getAttribute("src") || node.src || "")) {
+                    bindScript(node);
+                    touched = true;
+                }
+            });
+            mutation.removedNodes.forEach((node) => {
+                if (!isHtmlScript(node)) return;
+                if (ICON_SCRIPT_IDS.has(node.id) || ICON_SCRIPT_SRC_RE.test(node.getAttribute("src") || node.src || "")) {
+                    unbindScript(node);
+                    touched = true;
+                }
+            });
+        }
+        if (touched) {
+            bindCurrent();
+            notify();
+        }
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    observer.observe(document.head, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["id", "src"],
+    });
 
-    // Fallback: third-party pack is nested after default; poll briefly after startup.
-    const timers = [0, 100, 300, 800, 1600, 3200].map((ms) =>
-        window.setTimeout(notify, ms),
-    );
+    // Cold-start fallback: nested addScript(default → third) after plugin onload.
+    const startupTimers = [0, 100, 300, 800, 1600, 3200].map((ms) => window.setTimeout(notify, ms));
 
     return () => {
         cancelled = true;
         observer.disconnect();
-        timers.forEach((id) => clearTimeout(id));
+        if (debounceTimer) clearTimeout(debounceTimer);
+        startupTimers.forEach((id) => clearTimeout(id));
+        loadHandlers.forEach((_, el) => unbindScript(el));
     };
 }
 
-/** Preview helper: attach live icon host for symbol:* draft/editor icons. */
-export function syncPreviewLiveIcon(
-    preview: HTMLElement,
-    icon: string | null | undefined,
-) {
-    const symbolId = getLiveSymbolIdFromIcon(icon);
-    let host = getLiveIconHost(preview);
-    if (!symbolId) {
-        preview.classList.remove(LIVE_ICON_CLASS);
-        host?.remove();
-        return false;
-    }
-    preview.classList.add(LIVE_ICON_CLASS);
-    if (!host) {
-        host = document.createElement("span");
-        host.className = LIVE_ICON_HOST_CLASS;
-        host.setAttribute("aria-hidden", "true");
-        preview.insertBefore(host, preview.firstChild);
-    }
-    const nextPaint = paintKeyForSymbol(symbolId);
-    if (host.dataset.symbolId !== symbolId || host.dataset.paint !== nextPaint || !host.querySelector("svg")) {
-        host.dataset.symbolId = symbolId;
-        host.dataset.paint = nextPaint;
-        host.replaceChildren(createSymbolUseElement(symbolId, "100%", "callout-enhance-live-icon-svg"));
-    }
-    return true;
+type AppearanceWsDetail = {
+    cmd?: string;
+    data?: { icon?: string; iconVer?: string };
+};
+
+/**
+ * Listen for SiYuan appearance updates (settings → 外观 → 图标).
+ * `ws-main` / `setAppearance` is emitted before `loadAssets` finishes, so we
+ * schedule staggered rebakes in addition to script-tag watching.
+ *
+ * Only icon / iconVer changes trigger rebake (theme-only appearance updates are ignored).
+ */
+export function watchSiYuanAppearanceForIconPack(
+    eventBus: {
+        on: (type: "ws-main", listener: (event: CustomEvent<AppearanceWsDetail>) => void) => void;
+        off: (type: "ws-main", listener: (event: CustomEvent<AppearanceWsDetail>) => void) => void;
+    },
+    onAppearanceIconChange: () => void,
+): () => void {
+    let cancelScheduled: (() => void) | null = null;
+
+    const handler = (event: CustomEvent<AppearanceWsDetail>) => {
+        const detail = event?.detail;
+        if (detail?.cmd !== "setAppearance") return;
+
+        const next = detail.data;
+        const prev = (window as any)?.siyuan?.config?.appearance as
+            | { icon?: string; iconVer?: string }
+            | undefined;
+        // ws-main runs before onSetAppearance assigns config; compare payload vs current.
+        if (
+            next &&
+            prev &&
+            next.icon === prev.icon &&
+            String(next.iconVer ?? "") === String(prev.iconVer ?? "")
+        ) {
+            return;
+        }
+
+        cancelScheduled?.();
+        cancelScheduled = scheduleIconPackStyleRefresh(onAppearanceIconChange);
+    };
+
+    eventBus.on("ws-main", handler);
+    return () => {
+        eventBus.off("ws-main", handler);
+        cancelScheduled?.();
+        cancelScheduled = null;
+    };
 }

@@ -14,21 +14,21 @@
 
 Default Appearance:
 
-![callout_types](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_types.png)
+![callout_types](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_types.png)
 
 Nested Callouts:
 
-![callout_nested](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_nested.png)
+![callout_nested](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_nested.png)
 
 ### (2) Callout Title Area
 
 #### Quick Edit
 
-![callout_title_edit](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_title_edit.gif)
+![callout_title_edit](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_title_edit.gif)
 
 #### Multi-line Display
 
-![callout_title_multi-line](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_title_multi-line.png)
+![callout_title_multi-line](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_title_multi-line.png)
 
 ### (3) Callout Body Area
 
@@ -36,13 +36,13 @@ Nested Callouts:
 
 - Left-click the fold/unfold button to collapse or expand the body area.
 
-![callout_fold&unfold](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_fold&unfold.gif)
+![callout_fold&unfold](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_fold%26unfold.gif)
 
 #### Maximum Height Limit
 
 - <kbd>Ctrl</kbd> + Left-click the fold/unfold button to enable/disable the maximum height limit for the body area.
 
-![callout_maximum_height](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_maximum_height.gif)
+![callout_maximum_height](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_maximum_height.gif)
 
 ### (4) Completion Menu
 
@@ -50,14 +50,14 @@ Nested Callouts:
 - Supports keyboard navigation or mouse clicks to select the desired type.
 - Supports autocomplete. Note that you don't need to type `!` after `[`; simply type the letters directly to trigger the completion.
 
-![callout_completion_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_completion_menu.gif)
+![callout_completion_menu](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_completion_menu.gif)
 
 ### (5) Type Menu
 
 - Click the icon to summon the type menu.
 - Supports keyboard navigation or mouse clicks to select types.
 
-![callout_type_menu](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_menu.gif)
+![callout_type_menu](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_type_menu.gif)
 
 ### (6) Settings: Custom Callout Appearance
 
@@ -65,17 +65,17 @@ Nested Callouts:
 
 - For example, creating a custom appearance styled after GitHub Callouts:
 
-  ![callout_appearance_set](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_appearance_set.gif)
+  ![callout_appearance_set](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_appearance_set.gif)
 
 ### (7) Settings: Callout Type Management
 
 - Add, delete, disable, reorder, and edit Callout types under "Settings - Callout Type". Note that the five built-in Callout types in SiYuan Note (NOTE, TIP, etc.) cannot be deleted.
 
-  ![callout_type_manage](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_manage.gif)
+  ![callout_type_manage](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_type_manage.gif)
 
 - The Callout style editing modal supports customizing labels, keywords, primary colors, and icons, offering real-time previews during the editing process.
 
-  ![callout_type_edit](https://mikepicture.oss-cn-chengdu.aliyuncs.com/picture/callout_type_edit.gif)
+  ![callout_type_edit](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_type_edit.gif)
 
 ### (8) Settings: Miscellaneous
 

@@ -1,3 +1,10 @@
+## Unreleased
+
+- 🇨🇳 callout `symbol:*` 图标改回 CSS 快照渲染，并在图标包脚本加载后再刷新；移除块内 live-icon 注入，避免禁用插件后残留巨大图标
+- 🇨🇳 设置-外观中切换图标包后，立即重烘焙 callout 图标样式（监听 `setAppearance` + 图标脚本增删）
+- 🇺🇸 Revert callout `symbol:*` icons to CSS snapshots rebaked after icon-pack scripts load; remove in-block live-icon hosts that could remain as huge SVGs after disable
+- 🇺🇸 Rebake callout icon CSS immediately after switching icon packs in Settings → Appearance (`setAppearance` + icon script add/remove)
+
 ## v0.3.0 2026-07-21
 
 - 🇨🇳 适配思源笔记v3.7.0之后的界面语言 `lang` 值变更，当前版本最低支持思源笔记版本为 v3.7.0
