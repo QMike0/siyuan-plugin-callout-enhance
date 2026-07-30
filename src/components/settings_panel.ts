@@ -26,7 +26,7 @@ import { applyPreviewCalloutInlineStyle, BUILTIN_LABEL_COLOR_VAR } from "../util
 import { CalloutTypeItem, calloutMatchesListSearch, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, getEditorCalloutIconPaint, isProtectedCalloutType, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
 import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
 import { openIconPicker } from "./icon_picker";
-import { setPreviewFoldState } from "../features/callout_fold";
+import { isCalloutLogicallyFolded, setPreviewFoldState } from "../features/callout_fold";
 import { getCalloutHeaderHitAreas, isFoldButtonHit } from "../utils/callout_header_hit";
 import { renderLayoutSettingsPanel } from "./layout_settings_panel";
 import { renderAboutSettingsPanel } from "./about_settings_panel";
@@ -894,11 +894,7 @@ function createPreviewBodyParagraph(text: string) {
 }
 
 function wireFoldableAppearancePreview(preview: HTMLElement) {
-    let folding = false;
-
     preview.addEventListener("click", (event) => {
-        if (folding) return;
-
         const rect = preview.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
@@ -909,11 +905,10 @@ function wireFoldableAppearancePreview(preview: HTMLElement) {
         event.stopPropagation();
         event.stopImmediatePropagation();
 
-        const isFolded = preview.getAttribute("fold") === "1";
-        folding = true;
-        void setPreviewFoldState(preview, !isFolded).then(() => {
-            folding = false;
-        });
+        // Use logical fold (in-flight target) so rapid clicks reverse mid-animation
+        // the same way as the editor — do not gate on a folding lock.
+        const isFolded = isCalloutLogicallyFolded(preview);
+        void setPreviewFoldState(preview, !isFolded);
     }, true);
 }
 

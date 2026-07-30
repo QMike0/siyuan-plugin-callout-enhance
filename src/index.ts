@@ -13,7 +13,11 @@ import {
     isWorkspaceReadOnly,
 } from "./core/cl_api";
 import { deleteCallout } from "./features/callout_delete";
-import { setFoldState } from "./features/callout_fold";
+import {
+    isCalloutLogicallyFolded,
+    setFoldState,
+    settleAllCalloutFoldAnimations,
+} from "./features/callout_fold";
 import { toggleCalloutScrollLimit } from "./features/callout_scroll_limit";
 import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
@@ -334,6 +338,43 @@ export default class CalloutEnhancePlugin extends Plugin {
         try {
             // 保存清理后的 HTML 用于 undo，避免运行时编辑态属性进入事务数据。
             const previousHtml = cleanCalloutOuterHTML(originalHtml || blockElement);
+
+            // 与思源原生 setFold 保持一致：折叠只更新当前块的 fold 属性，
+            // 不用整块 update 覆盖其子树。否则外层 callout 动画结束时提交的
+            // HTML 可能覆盖正在折叠/展开的内层 callout，造成箭头和持久化状态回跳。
+            if (reason === "fold") {
+                const template = document.createElement("template");
+                template.innerHTML = previousHtml.trim();
+                const previousRoot = template.content.firstElementChild;
+                const previousFold = previousRoot?.getAttribute("fold") === "1" ? "1" : "";
+                const nextFold = blockElement.getAttribute("fold") === "1" ? "1" : "";
+                if (nextFold === previousFold) {
+                    debugLog("[Block/fold] No changes for block", blockId);
+                    return true;
+                }
+
+                const ok = createTransaction(
+                    protyle,
+                    [{
+                        action: "setAttrs",
+                        id: blockId,
+                        data: JSON.stringify({ fold: nextFold }),
+                    }],
+                    [{
+                        action: "setAttrs",
+                        id: blockId,
+                        data: JSON.stringify({ fold: previousFold }),
+                    }],
+                );
+                if (!ok) {
+                    warnLog("[WARN] Transaction API unavailable during block save (fold)", { blockId });
+                    errorLog("[ERROR] Block save transaction failed (fold) for block", blockId);
+                    showMessage(t("transactionBlockSaveFailed"));
+                    return false;
+                }
+                return true;
+            }
+
             const newHtml = cleanCalloutOuterHTML(blockElement);
             
             // 只在内容真正改变时才发送事务
@@ -579,9 +620,9 @@ export default class CalloutEnhancePlugin extends Plugin {
                 toggleCalloutScrollLimit(this, callout);
                 return;
             }
-            const isCurrentlyFolded = callout.getAttribute("fold") === "1";
+            const isCurrentlyFolded = isCalloutLogicallyFolded(callout);
             const nextFold = !isCurrentlyFolded;
-            setFoldState(this, callout, nextFold);
+            void setFoldState(this, callout, nextFold);
             return;
         }
 
@@ -650,6 +691,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         if ((window as any)[STARTUP_FLAG]) return;
         (window as any)[STARTUP_FLAG] = true;
         setPluginI18n(this.i18n);
+        // Recover stale inline clipping/classes left by an interrupted hot reload.
+        settleAllCalloutFoldAnimations();
 
         if (isPublishService()) {
             document.body.classList.add(PUBLISH_BODY_CLASS);
@@ -739,6 +782,9 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     async onunload() {
+        // Invalidate pending fold continuations and remove inline clipping
+        // before plugin styles/listeners are detached.
+        settleAllCalloutFoldAnimations();
         this.clearAppearancePreview();
         this.cleanupHandlers.forEach((fn) => fn());
         this.cleanupHandlers = [];

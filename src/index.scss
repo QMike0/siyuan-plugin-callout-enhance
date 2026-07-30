@@ -293,12 +293,27 @@
         overflow-y: auto !important;
     }
 
-    /* 折叠态仅保留静态兜底，避免刷新/重载后正文短暂露出；动画过程不依赖此处 */
+    /* 折叠态仅保留静态兜底，避免刷新/重载后正文短暂露出；动画过程不依赖此处。
+       覆盖思源 `[fold="1"]` 通用规则（text-clamp / -webkit-box / 固定矮高度），
+       以免破坏本插件的 flex 布局与多行标题。 */
     &[fold="1"] {
+        display: flex !important;
+        flex-direction: column !important;
+        -webkit-line-clamp: unset !important;
+        line-clamp: unset !important;
+        -webkit-box-orient: initial !important;
+        word-break: normal !important;
         height: auto !important;
         overflow: visible !important;
         opacity: 1 !important;
+        font-size: inherit !important;
+        line-height: inherit !important;
         background: var(--callout-accent-layer, none), var(--callout-composite-background) !important;
+    }
+
+    /* 折叠动画期间尚未写入 fold="1"：用 class 驱动箭头旋转，避免提前触发思源折叠布局 */
+    &.callout-enhance-fold-collapsing > .callout-info::after {
+        transform: translateY(-50%) rotate(0deg);
     }
 
     /* 水平布局超级块中的 Callout：仅对「直接子块」限制交叉轴对齐，防止被拉伸或居中。

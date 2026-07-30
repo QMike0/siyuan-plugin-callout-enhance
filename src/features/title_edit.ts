@@ -12,6 +12,7 @@ import { createTransaction, getCurrentProtyle, getNewNodeId, getSiyuanLute, getF
 import { isPublishService } from "../core/cl_api";
 import { debugLog, warnLog, errorLog } from "../utils/logger";
 import { t } from "../utils/i18n";
+import { isCalloutLogicallyFolded } from "./callout_fold";
 
 export type TitleEditPluginLike = PluginWithGetEditor & {
     titleEditSnapshots: WeakMap<HTMLElement, string>;
@@ -281,7 +282,7 @@ export function handleTitleKeydown(plugin: TitleEditPluginLike, e: KeyboardEvent
 
         try {
             plugin.titleEnterInFlight.add(blockId);
-            const isFolded = block.getAttribute("fold") === "1";
+            const isFolded = isCalloutLogicallyFolded(block);
             const newBlockId = getNewNodeId();
             if (!newBlockId) {
                 showMessage(t("titleEnterInvalidBlockId"));

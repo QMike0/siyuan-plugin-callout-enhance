@@ -53,6 +53,10 @@
   - After multiple rapid clicks, the final state matches the last click.
   - The fold/unfold animation matches the last click.
   - The body height is not stuck at a fixed value.
+- Concurrent nested callout animations:
+  - While the outer callout is folding/unfolding, operating the inner callout keeps its arrow, body, and `fold` state consistent after animation without jumping back.
+  - Reversing which inner/outer animation finishes first still leaves each callout matching its own last click.
+  - Editing the outer title, changing its type, or toggling its height limit during the inner animation does not persist temporary animation styles or overwrite the inner state.
 - Undo/redo:
   - Folding/unfolding state supports undo/redo.
 - Persistence:

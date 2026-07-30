@@ -9,7 +9,12 @@ import { focusNewBlockEditableStart } from "./dom";
 
 import { LIVE_ICON_CLASS, stripCalloutLiveIconRuntime } from "./callout_live_icon";
 
-const CALLOUT_RUNTIME_CLASSES = ["protyle-shown", LIVE_ICON_CLASS];
+const CALLOUT_RUNTIME_CLASSES = [
+    "protyle-shown",
+    LIVE_ICON_CLASS,
+    "callout-enhance-fold-animating",
+    "callout-enhance-fold-collapsing",
+];
 const CALLOUT_RUNTIME_ATTRIBUTES = [
     "data-enhanced",
     "data-deleting",
@@ -23,12 +28,50 @@ const CALLOUT_TITLE_RUNTIME_ATTRIBUTES = [
     "data-callout-title-bound",
     "data-callout-title-snapshot",
 ];
+const FOLD_ANIMATION_BLOCK_STYLES = ["height", "overflow", "transition", "will-change"];
+const FOLD_ANIMATION_CHILD_STYLES = [
+    "max-height",
+    "margin-top",
+    "margin-bottom",
+    "overflow-y",
+    "overflow-x",
+    "flex-shrink",
+];
+
+function removeEmptyStyleAttribute(element: HTMLElement) {
+    if (element.style.length === 0) element.removeAttribute("style");
+}
 
 export function isCalloutSettingsPreview(element: HTMLElement | null | undefined) {
     return !!element?.classList?.contains("callout-enhance-setting-preview");
 }
 
 function cleanSingleCalloutElement(callout: Element) {
+    const htmlCallout = callout as HTMLElement;
+    const isFoldAnimating = htmlCallout.classList.contains("callout-enhance-fold-animating");
+    if (isFoldAnimating) {
+        // An ancestor may be persisted while this nested callout is mid-animation.
+        // Serialize its logical target, not the temporarily deferred DOM `fold`.
+        if (htmlCallout.classList.contains("callout-enhance-fold-collapsing")) {
+            htmlCallout.setAttribute("fold", "1");
+        } else {
+            htmlCallout.removeAttribute("fold");
+        }
+
+        FOLD_ANIMATION_BLOCK_STYLES.forEach((property) => htmlCallout.style.removeProperty(property));
+        removeEmptyStyleAttribute(htmlCallout);
+        Array.from(htmlCallout.children).forEach((child) => {
+            const htmlChild = child as HTMLElement;
+            if (htmlChild.classList.contains("callout-info")) {
+                htmlChild.style.removeProperty("flex-shrink");
+                removeEmptyStyleAttribute(htmlChild);
+                return;
+            }
+            FOLD_ANIMATION_CHILD_STYLES.forEach((property) => htmlChild.style.removeProperty(property));
+            removeEmptyStyleAttribute(htmlChild);
+        });
+    }
+
     stripCalloutLiveIconRuntime(callout);
     CALLOUT_RUNTIME_CLASSES.forEach((className) => callout.classList.remove(className));
     CALLOUT_RUNTIME_ATTRIBUTES.forEach((attr) => callout.removeAttribute(attr));
