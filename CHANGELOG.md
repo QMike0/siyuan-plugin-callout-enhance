@@ -1,11 +1,13 @@
-## Unreleased
+## v0.3.2 2026-07-31
 
-- 🇨🇳 修复折叠动画：折叠过程中延迟写入 `fold="1"`，避免思源折叠样式导致正文后续块先上移再收起
+- 🇨🇳 修复折叠动画：折叠过程中延迟写入 `fold="1"`，避免思源折叠样式导致正文非首块先消失/上移再收起
 - 🇨🇳 修复快速连点折叠/展开：按动画目标态切换，并用 syncEpoch 避免被中断的旧事务覆盖最终状态
 - 🇨🇳 折叠状态改用思源原生同款 `setAttrs` 事务，避免外层 callout 整块更新覆盖动画中的内层 callout；持久化时规范化嵌套动画临时状态
-- 🇺🇸 Fix fold animation by deferring `fold="1"` until after the height transition so SiYuan fold CSS cannot shift trailing body blocks first
+- 🇨🇳 加强动画异常、插件禁用及热重载时的清理，避免残留固定高度或临时 class
+- 🇺🇸 Fixed the collapse animation: delayed writing `fold="1"` during the collapsing process to prevent SiYuan's collapse styles from causing non-first blocks in the body to disappear/move up before being fully collapsed.
 - 🇺🇸 Fix rapid fold/unfold clicks by toggling the in-flight logical target and guarding persistence with syncEpoch
 - 🇺🇸 Persist fold state with SiYuan-style `setAttrs` transactions and normalize nested in-flight animation state to prevent ancestor updates from overwriting nested callouts
+- 🇺🇸 Enhanced cleanup during animation anomalies, plugin disabling, and hot-reloading to prevent residual fixed heights or temporary classes.
 
 ## v0.3.1 2026-07-24
 
