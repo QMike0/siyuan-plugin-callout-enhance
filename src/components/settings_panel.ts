@@ -33,6 +33,7 @@ import { renderAboutSettingsPanel } from "./about_settings_panel";
 import {
     createHelpIcon,
     createPreviewHelpIcon,
+    decoratePluginDialog,
     formatCleanupForceClearMessage,
     formatDeleteCalloutTypeMessage,
     formatTombstoneReclaimConfirmMessage,
@@ -43,6 +44,7 @@ import {
     type CleanupStartMode,
     type CleanupProgressDialogHandle,
 } from "./settings_ui";
+import { dialogWidth, isMobileUi } from "../utils/env";
 import { ClApiError, CLEANUP_SNAPSHOT_PROGRESS_END, createRepoSnapshot, type CalloutBlockCountResult } from "../core/cl_api";
 import type { CleanupProgress, CleanupResult } from "../utils/migration";
 import { Plugin } from "siyuan";
@@ -140,7 +142,7 @@ function openAppearanceUnsavedConfirm(options: AppearanceCloseConfirmOptions) {
 
     const confirmDialog = new Dialog({
         title: isSaveNew ? t("saveNewPreset") : t("unsavedAppearanceChanges"),
-        width: window.innerWidth < 768 ? "88vw" : "420px",
+        width: dialogWidth("420px", "88vw"),
         content: `<div class="callout-enhance-appearance-close-body"></div>`,
         destroyCallback: () => {
             if (!resolved) {
@@ -149,6 +151,7 @@ function openAppearanceUnsavedConfirm(options: AppearanceCloseConfirmOptions) {
             }
         },
     });
+    decoratePluginDialog(confirmDialog);
 
     const body = confirmDialog.element.querySelector(".callout-enhance-appearance-close-body") as HTMLElement | null;
     if (!body) return confirmDialog;
@@ -564,13 +567,14 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
         : t("editCalloutType", { title: getCalloutPreviewTitle(item) });
     const dialog = new Dialog({
         title: dialogTitle,
-        width: window.innerWidth < 768 ? "92vw" : "560px",
+        width: dialogWidth("560px"),
         content: `<div class="callout-enhance-edit-body"></div>`,
         destroyCallback: () => {
             if (committed) return;
             if (options.isNew) options.onDiscardNew?.();
         },
     });
+    decoratePluginDialog(dialog);
 
     const body = dialog.element.querySelector(".callout-enhance-edit-body") as HTMLElement | null;
     if (!body) return dialog;
@@ -770,7 +774,7 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
             }),
             confirmLabel: t("saveAndApplyStyle"),
             cancelLabel: t("backToEdit"),
-            width: window.innerWidth < 768 ? "92vw" : "440px",
+            width: dialogWidth("440px"),
             onConfirm: () => {
                 const currentTombstone = options.settingsContext?.getTombstone() ?? [];
                 commitSave(reclaimTombstoneLabel(currentTombstone, reclaimedLabel));
@@ -982,8 +986,8 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
     const dialog = new Dialog({
         title: t("settingsTitle"),
-        width: window.innerWidth < 768 ? "92vw" : "980px",
-        height: window.innerWidth < 768 ? "90vh" : "76vh",
+        width: isMobileUi() ? "92vw" : "980px",
+        height: isMobileUi() ? "90vh" : "76vh",
         disableClose: true,
         content: `
             <div class="fn__flex callout-enhance-settings-shell">
@@ -1001,7 +1005,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         },
     });
 
-    dialog.element.querySelector(".b3-dialog__container")?.classList.add("callout-enhance-settings-dialog");
+    decoratePluginDialog(dialog, "callout-enhance-settings-dialog");
 
     dialog.element.querySelector(".b3-dialog__scrim")?.addEventListener("click", (event) => {
         event.preventDefault();
@@ -1457,10 +1461,17 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
     const renderNav = () => {
         nav.innerHTML = "";
+        nav.setAttribute("role", "tablist");
+        nav.setAttribute("aria-label", t("settingsTitle"));
 
         const createNavItem = (label: string, iconId: string, active: boolean, onClick: () => void) => {
             const item = document.createElement("div");
             item.className = `callout-enhance-nav-item${active ? " callout-enhance-nav-item--active" : ""}`;
+            item.title = label;
+            item.setAttribute("aria-label", label);
+            item.setAttribute("role", "tab");
+            item.setAttribute("aria-selected", active ? "true" : "false");
+            if (isMobileUi()) item.classList.add("ariaLabel");
             item.innerHTML = `<svg class="callout-enhance-nav-item__icon"><use href="#${iconId}"></use></svg><span class="callout-enhance-nav-item__text b3-label__text">${label}</span>`;
             item.addEventListener("click", onClick);
             nav.appendChild(item);
@@ -1851,7 +1862,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                 message: options.message,
                 confirmLabel: options.confirmLabel,
                 cancelLabel: options.cancelLabel ?? t("continue"),
-                width: window.innerWidth < 768 ? "92vw" : "420px",
+                width: dialogWidth("420px"),
                 disableClose: true,
                 onConfirm: () => resolve(true),
                 onCancel: () => resolve(false),
@@ -1909,7 +1920,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
                 message: formatCleanupForceClearMessage(result),
                 confirmLabel: t("cleanupForceClearMetadata"),
                 cancelLabel: t("close"),
-                width: window.innerWidth < 768 ? "92vw" : "440px",
+                width: dialogWidth("440px"),
                 onConfirm: () => {
                     void plugin.clearLegacyCalloutMetadata?.({
                         getSettings: getCleanupSettings,
@@ -2060,7 +2071,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
         openCleanupStartConfirmDialog({
             title: t("cleanupTitle"),
             message: `${t("cleanupConfirm")}${editorNote}`,
-            width: window.innerWidth < 768 ? "92vw" : "480px",
+            width: dialogWidth("480px"),
             onSnapshotThenCleanup: () => {
                 void runCleanupFlow("snapshot-then-cleanup");
             },

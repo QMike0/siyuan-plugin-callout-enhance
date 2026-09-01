@@ -10,7 +10,8 @@ import {
     layoutFieldToInputValue,
     normalizeCalloutLayout,
 } from "../utils/callout_layout_vars";
-import { createHelpIcon, createPreviewHelpIcon, openConfirmDialog } from "./settings_ui";
+import { createHelpIcon, createPreviewHelpIcon, decoratePluginDialog, openConfirmDialog } from "./settings_ui";
+import { dialogWidth } from "../utils/env";
 import { CalloutTypeItem } from "../utils/callout_types";
 import {
     CalloutAppearancePreset,
@@ -81,9 +82,10 @@ function openAppearancePresetNameDialog(options: AppearancePresetNameDialogOptio
 
     const dialog = new Dialog({
         title,
-        width: window.innerWidth < 768 ? "88vw" : "320px",
+        width: dialogWidth("320px", "88vw"),
         content: "<div class=\"callout-enhance-preset-save-body\"></div>",
     });
+    decoratePluginDialog(dialog);
 
     const body = dialog.element.querySelector(".callout-enhance-preset-save-body") as HTMLElement | null;
     if (!body) return dialog;
@@ -336,7 +338,7 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
                 name: isDefaultAppearancePreset(preset.id) ? t("defaultPresetName") : preset.name,
             }),
             confirmLabel: t("delete"),
-            width: window.innerWidth < 768 ? "88vw" : "360px",
+            width: dialogWidth("360px", "88vw"),
             onConfirm: () => onPresetDelete(preset.id),
         });
     });

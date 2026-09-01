@@ -1325,7 +1325,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    width: 220px;
+    width: 168px;
     flex-shrink: 0;
     padding-top: 12px;
     padding-right: 4px;
@@ -1339,7 +1339,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-radius: var(--b3-border-radius);
     cursor: pointer;
     color: var(--b3-theme-on-background);
@@ -1877,4 +1877,181 @@
     line-height: 1.5;
     color: var(--b3-theme-on-surface);
     white-space: pre-line;
+}
+
+/* Mobile settings: icon-only nav + narrow-width layout.
+   Scoped to mobile UI so desktop settings stay unchanged. */
+body.body--mobile .callout-enhance-settings-dialog,
+.callout-enhance-settings-dialog--mobile {
+    min-height: 0;
+    max-width: 100%;
+    max-height: 100%;
+    overflow-x: hidden;
+
+    > .b3-dialog__body {
+        min-height: 0;
+    }
+
+    .callout-enhance-settings-shell {
+        gap: 0;
+        padding: 0;
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .callout-enhance-nav {
+        width: auto;
+        min-width: 44px;
+        padding: 8px 2px 8px 4px;
+        align-items: stretch;
+    }
+
+    .callout-enhance-nav-item {
+        justify-content: center;
+        gap: 0;
+        min-height: 44px;
+        padding: 10px 8px;
+    }
+
+    .callout-enhance-nav-item__text {
+        display: none;
+    }
+
+    .callout-enhance-nav-item__icon {
+        width: 18px;
+        height: 18px;
+    }
+
+    .callout-enhance-detail {
+        padding: 12px 10px 12px 8px;
+    }
+
+    .callout-enhance-layout-settings__sticky {
+        gap: 12px;
+        padding-bottom: 10px;
+    }
+
+    .callout-enhance-layout-settings__preset-label-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .callout-enhance-layout-settings__preset-bar {
+        flex-wrap: wrap;
+    }
+
+    .callout-enhance-layout-settings__preset-select {
+        flex: 1 1 100%;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .callout-enhance-layout-settings__preset-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .callout-enhance-layout-settings__grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px 0;
+    }
+
+    .callout-enhance-layout-settings__fields-scroll {
+        padding-top: 12px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+    }
+
+    .callout-enhance-list-topbar {
+        padding-bottom: 10px;
+    }
+
+    .callout-enhance-list-top-actions {
+        flex: 1;
+        min-width: 0;
+        margin-right: 0;
+    }
+
+    .callout-enhance-list-search {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+    }
+
+    .callout-enhance-setting-item {
+        min-width: 0;
+    }
+
+    .callout-enhance-setting-item > .callout-enhance-preview-host {
+        margin-left: 4px;
+    }
+
+    .callout-enhance-about__row--cleanup,
+    .callout-enhance-about__row--switch {
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .callout-enhance-about__cleanup-btn {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+body.body--mobile .b3-dialog__container:has(.callout-enhance-edit-body),
+body.body--mobile .b3-dialog__container:has(.callout-enhance-confirm-body),
+body.body--mobile .b3-dialog__container:has(.callout-enhance-appearance-close-body),
+body.body--mobile .b3-dialog__container:has(.callout-enhance-preset-save-body),
+body.body--mobile .b3-dialog__container:has(.callout-enhance-cleanup-progress),
+.callout-enhance-dialog--mobile {
+    max-width: 100%;
+
+    .callout-enhance-edit-body {
+        padding: 8px 12px 0;
+        gap: 12px;
+    }
+
+    .callout-enhance-edit-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .callout-enhance-edit-row__label-col {
+        width: auto;
+    }
+
+    .callout-enhance-color-field,
+    .callout-enhance-icon-field {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    .callout-enhance-dialog-footer,
+    .callout-enhance-edit-footer,
+    .callout-enhance-appearance-close-body__actions,
+    .callout-enhance-cleanup-start-footer {
+        flex-wrap: wrap;
+        justify-content: stretch;
+        row-gap: 8px;
+        padding-left: 0;
+        padding-right: 0;
+
+        .b3-button {
+            flex: 1 1 calc(50% - 8px);
+            min-width: 0;
+        }
+    }
+
+    .callout-enhance-cleanup-start-footer .b3-button,
+    .callout-enhance-appearance-close-body__actions .b3-button {
+        flex: 1 1 100%;
+    }
+
+    .callout-enhance-appearance-close-body,
+    .callout-enhance-confirm-body,
+    .callout-enhance-preset-save-body,
+    .callout-enhance-cleanup-progress {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
 }

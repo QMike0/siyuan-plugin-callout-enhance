@@ -292,7 +292,8 @@ function positionPopover(popover: HTMLElement, anchor: HTMLElement) {
         Math.max(160, window.innerHeight - rect.bottom - padding * 2),
     );
 
-    popover.style.width = `${POPOVER_WIDTH_PX}px`;
+    const width = Math.min(POPOVER_WIDTH_PX, window.innerWidth - padding * 2);
+    popover.style.width = `${width}px`;
     popover.style.maxHeight = `${maxHeight}px`;
 
     let left = rect.left;

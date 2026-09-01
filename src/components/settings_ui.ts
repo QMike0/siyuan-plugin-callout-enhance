@@ -1,7 +1,19 @@
 import { Dialog } from "siyuan";
 import type { CleanupProgress, CleanupResult } from "../utils/migration";
+import { dialogWidth, isMobileUi } from "../utils/env";
 import { t } from "../utils/i18n";
 import { warnLog } from "../utils/logger";
+
+/** Mark a plugin dialog so mobile CSS can tighten layout without touching desktop. */
+export function decoratePluginDialog(dialog: Dialog, className?: string) {
+    const container = dialog.element.querySelector(".b3-dialog__container");
+    if (!container) return;
+    if (className) container.classList.add(className);
+    if (isMobileUi()) {
+        container.classList.add("callout-enhance-dialog--mobile");
+        if (className) container.classList.add(`${className}--mobile`);
+    }
+}
 
 export type CleanupStartMode = "snapshot-then-cleanup" | "cleanup-only";
 
@@ -85,10 +97,11 @@ export function openCleanupProgressDialog(options: {
 
     const dialog = new Dialog({
         title: t("cleanupProgressTitle"),
-        width: window.innerWidth < 768 ? "92vw" : "480px",
+        width: dialogWidth("480px"),
         disableClose: true,
         content: "<div class=\"callout-enhance-cleanup-progress\"></div>",
     });
+    decoratePluginDialog(dialog);
     bindDialogModalDismiss(dialog);
 
     const root = dialog.element.querySelector(".callout-enhance-cleanup-progress") as HTMLElement | null;
@@ -231,7 +244,7 @@ export function openConfirmDialog(options: ConfirmDialogOptions) {
         message,
         confirmLabel = t("confirm"),
         cancelLabel = t("cancel"),
-        width = window.innerWidth < 768 ? "88vw" : "360px",
+        width = dialogWidth("360px", "88vw"),
         disableClose = false,
         onConfirm,
         onCancel,
@@ -243,6 +256,7 @@ export function openConfirmDialog(options: ConfirmDialogOptions) {
         disableClose,
         content: "<div class=\"callout-enhance-confirm-body\"></div>",
     });
+    decoratePluginDialog(dialog);
     if (disableClose) {
         bindDialogModalDismiss(dialog);
     }
@@ -291,7 +305,7 @@ export function openCleanupStartConfirmDialog(options: {
     const {
         title,
         message,
-        width = window.innerWidth < 768 ? "92vw" : "480px",
+        width = dialogWidth("480px"),
         onSnapshotThenCleanup,
         onCleanupOnly,
         onCancel,
@@ -302,6 +316,7 @@ export function openCleanupStartConfirmDialog(options: {
         width,
         content: "<div class=\"callout-enhance-confirm-body\"></div>",
     });
+    decoratePluginDialog(dialog);
 
     const body = dialog.element.querySelector(".callout-enhance-confirm-body") as HTMLElement | null;
     if (!body) return dialog;
@@ -356,7 +371,7 @@ export function openSnapshotFailedContinueDialog(options: {
         message,
         confirmLabel: t("cleanupContinueWithoutSnapshot"),
         cancelLabel: t("cancel"),
-        width: window.innerWidth < 768 ? "92vw" : "440px",
+        width: dialogWidth("440px"),
         disableClose: true,
         onConfirm: options.onContinue,
         onCancel: options.onCancel,
