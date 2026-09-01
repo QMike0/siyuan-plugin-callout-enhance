@@ -372,16 +372,19 @@
         }
     }
 
-    /* 导出图片容器与导出 HTML/PDF 预览容器中隐藏折叠/展开按钮 */
+    /* 仅在导出图片（.export-img）和导出 HTML/PDF 预览页（#preview）隐藏折叠按钮。
+       不要用 body 平台 class 反选：官方手机端 body 没有 body--mobile，会被误藏。 */
     .export-img &>.callout-info::after,
     .export-img .protyle-wysiwyg &>.callout-info::after,
-    body:not(.body--win32):not(.body--win32msg):not(.body--darwin):not(.body--linux):not(.body--mobile):not(.body--window):not(.callout-enhance-publish-service) &>.callout-info::after {
+    #preview &>.callout-info::after,
+    #preview .protyle-wysiwyg &>.callout-info::after {
         display: none !important;
     }
 
     .export-img &[custom-callout-scroll-limit="1"] > .callout-content,
     .export-img .protyle-wysiwyg &[custom-callout-scroll-limit="1"] > .callout-content,
-    body:not(.body--win32):not(.body--win32msg):not(.body--darwin):not(.body--linux):not(.body--mobile):not(.body--window):not(.callout-enhance-publish-service) &[custom-callout-scroll-limit="1"] > .callout-content {
+    #preview &[custom-callout-scroll-limit="1"] > .callout-content,
+    #preview .protyle-wysiwyg &[custom-callout-scroll-limit="1"] > .callout-content {
         max-height: none !important;
         overflow: visible !important;
     }

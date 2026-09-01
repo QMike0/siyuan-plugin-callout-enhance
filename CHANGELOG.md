@@ -1,3 +1,10 @@
+## v0.3.3 2026-09-01
+
+- 🇨🇳 优化本插件在手机端的设置窗口
+- 🇨🇳 修复手机端不显示折叠/展开按钮的问题
+- 🇺🇸 Optimize the plugin's settings window on mobile devices
+- 🇺🇸 Fix the issue where the collapse/expand button does not appear on mobile devices
+
 ## v0.3.2 2026-07-31
 
 - 🇨🇳 修复折叠动画：折叠过程中延迟写入 `fold="1"`，避免思源折叠样式导致正文非首块先消失/上移再收起
