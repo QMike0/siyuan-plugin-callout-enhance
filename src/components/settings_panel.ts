@@ -24,7 +24,7 @@ import {
 import { formatLabelOccupancyError, validateLabelOccupancy } from "../utils/callout_resolver";
 import { applyPreviewCalloutInlineStyle, BUILTIN_LABEL_COLOR_VAR } from "../utils/callout_dynamic_styles";
 import { CalloutTypeItem, calloutMatchesListSearch, formatCalloutKeywordsForInput, getCalloutPreviewTitle, getEditorCalloutIconMask, getEditorCalloutIconPaint, isProtectedCalloutType, normalizeCalloutLabel, parseCalloutKeywordsInput, renderCalloutIconSpan, resolveCalloutIconMask } from "../utils/callout_types";
-import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
+import { CALLOUT_LAYOUT_CSS_VARS, CALLOUT_TITLE_COMPUTED_PROPS, CalloutLayoutSettings, applyEditorFontContext, areCalloutLayoutsEqual, normalizeCalloutLayout } from "../utils/callout_layout_vars";
 import { openIconPicker } from "./icon_picker";
 import { isCalloutLogicallyFolded, setPreviewFoldState } from "../features/callout_fold";
 import { getCalloutHeaderHitAreas, isFoldButtonHit } from "../utils/callout_header_hit";
@@ -656,6 +656,7 @@ function openEditDialog(item: DraftItem, onSave: (next: DraftItem) => void, opti
 
     const previewHost = document.createElement("div");
     previewHost.className = "callout-enhance-edit-preview__host";
+    applyEditorFontContext(previewHost);
 
     const readPreviewFolded = () => {
         const current = previewHost.querySelector('.callout[data-type="NodeCallout"]') as HTMLElement | null;
@@ -1628,6 +1629,7 @@ async function openSettingsDialogAsync(plugin: SettingsEditorPluginLike) {
 
             const listBody = document.createElement("div");
             listBody.className = `callout-enhance-list-body${typesEditLocked ? " callout-enhance-list-body--cleanup-locked" : ""}`;
+            applyEditorFontContext(listBody);
             listBody.addEventListener("dragover", (e) => {
                 if (cleanupRunning || draggingIndex < 0) return;
                 e.preventDefault();

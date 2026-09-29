@@ -13,8 +13,6 @@ export type PluginWithGetEditor = object & {
 
 export type LuteLike = {
     NewNodeID?: () => string;
-    Md2BlockDOM?: (markdown: string) => string;
-    BlockDOM2StdMd?: (html: string) => string;
 };
 
 export type ProtyleLike = {
@@ -51,17 +49,6 @@ export function getNewNodeId() {
         return lute.NewNodeID();
     }
     return "";
-}
-
-export function getSiyuanLute(protyle?: ProtyleLike | null) {
-    return protyle?.lute || (window as Window & { Lute?: LuteLike })?.Lute || null;
-}
-
-export function getFirstBlockInnerHTMLFromMd(lute: LuteLike | null | undefined, markdown: string) {
-    if (!lute || typeof lute.Md2BlockDOM !== "function") return "";
-    const template = document.createElement("template");
-    template.innerHTML = lute.Md2BlockDOM(markdown);
-    return template.content.firstElementChild?.firstElementChild?.innerHTML || "";
 }
 
 export function getEditorInstance(plugin: PluginWithGetEditor): { protyle?: ProtyleLike | null } | null {

@@ -31,12 +31,12 @@ export const DEFAULT_CALLOUT_LAYOUT: CalloutLayoutSettings = {
     "--callout-header-height": "28px",
     "--callout-header-y-adjust": "-3px",
     "--callout-title-font-weight": "bold",
-    "--callout-title-font-size": "12pt",
+    "--callout-title-font-size": "1em",
     "--callout-title-line-height": "1.625",
     "--callout-title-opacity": "1",
     "--callout-title-padding-right": "28px",
     "--callout-header-background": "var(--callout-surface-background)",
-    "--callout-icon-size": "16px",
+    "--callout-icon-size": "1em",
     "--callout-icon-left": "20px",
     "--callout-icon-title-gap": "2px",
     "--callout-icon-before-display": "inline-block",
@@ -93,7 +93,7 @@ const CALLOUT_LAYOUT_FIELD_SPECS: CalloutLayoutFieldSpec[] = [
     { varName: "--callout-border-width", label: "Outer border width", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 8 },
     { varName: "--callout-left-accent-width", label: "Left bar width", group: "Shell", kind: "length", unit: "px", step: 1, min: 0, max: 12 },
 
-    { varName: "--callout-title-font-size", label: "Font size", group: "Title", kind: "length", unit: "pt", step: 0.5, min: 6, max: 36 },
+    { varName: "--callout-title-font-size", label: "Font scale", group: "Title", kind: "length", unit: "em", step: 0.05, min: 0.5, max: 3, helpTooltipKey: "helpTitleFontScale" },
     { varName: "--callout-title-font-weight", label: "Font weight", group: "Title", kind: "select", options: [
         { value: "normal", label: "Normal" },
         { value: "500", label: "500" },
@@ -112,7 +112,7 @@ const CALLOUT_LAYOUT_FIELD_SPECS: CalloutLayoutFieldSpec[] = [
         { value: "transparent", label: "Transparent" },
     ] },
 
-    { varName: "--callout-icon-size", label: "Icon size", group: "Icon", kind: "length", unit: "px", step: 1, min: 8, max: 32 },
+    { varName: "--callout-icon-size", label: "Icon scale", group: "Icon", kind: "length", unit: "em", step: 0.05, min: 0.5, max: 3, helpTooltipKey: "helpIconScale" },
     { varName: "--callout-icon-left", label: "Icon–left edge gap", group: "Icon", kind: "length", unit: "px", step: 1, min: 0, max: 64 },
     { varName: "--callout-icon-title-gap", label: "Icon–title gap", group: "Icon", kind: "length", unit: "px", step: 1, min: 0, max: 24 },
     { varName: "--callout-icon-before-display", label: "Show icon", group: "Icon", kind: "select", options: [
@@ -154,19 +154,44 @@ function safeCssValue(value: string) {
     return (value || "").trim().replace(/[;{}\n\r\f]/g, "");
 }
 
-function migrateTitleFontSize(value: string) {
+/** 12pt title and 16px icon both match 1em at SiYuan's default 16px editor font. */
+const TITLE_PT_PER_EDITOR_EM = 12;
+const PX_PER_EDITOR_EM = 16;
+
+function roundEditorScale(value: number) {
+    return Math.round(value * 1000) / 1000;
+}
+
+function migrateEditorRelativeLength(value: string, fallback: string) {
     const trimmed = (value || "").trim();
+    if (/^[\d.]+em$/.test(trimmed)) return trimmed;
+
     const percentMatch = trimmed.match(/^([\d.]+)%$/);
     if (percentMatch) {
-        const pct = Number(percentMatch[1]);
-        if (!Number.isNaN(pct)) {
-            const pt = Math.round((pct * 12 / 100) * 10) / 10;
-            return `${pt}pt`;
-        }
+        const percent = Number(percentMatch[1]);
+        if (Number.isFinite(percent) && percent > 0) return `${roundEditorScale(percent / 100)}em`;
     }
     const ptMatch = trimmed.match(/^([\d.]+)pt$/);
-    if (ptMatch) return trimmed;
-    return DEFAULT_CALLOUT_LAYOUT["--callout-title-font-size"];
+    if (ptMatch) {
+        const pt = Number(ptMatch[1]);
+        if (Number.isFinite(pt) && pt > 0) return `${roundEditorScale(pt / TITLE_PT_PER_EDITOR_EM)}em`;
+    }
+    const pxMatch = trimmed.match(/^([\d.]+)px$/);
+    if (pxMatch) {
+        const px = Number(pxMatch[1]);
+        if (Number.isFinite(px) && px > 0) return `${roundEditorScale(px / PX_PER_EDITOR_EM)}em`;
+    }
+    return fallback;
+}
+
+/** Settings previews sit outside the editor, so give them the editor font size for em scales. */
+export function applyEditorFontContext(host: HTMLElement) {
+    const fontSize = Number((window as Window & {
+        siyuan?: { config?: { editor?: { fontSize?: number } } };
+    }).siyuan?.config?.editor?.fontSize);
+    if (Number.isFinite(fontSize) && fontSize > 0) {
+        host.style.fontSize = `${fontSize}px`;
+    }
 }
 
 export type CalloutLayoutVarName = keyof typeof DEFAULT_CALLOUT_LAYOUT;
@@ -176,18 +201,32 @@ export type CalloutLayoutVarName = keyof typeof DEFAULT_CALLOUT_LAYOUT;
  * Optional legacyVar covers SCSS aliases (e.g. --callout-header-x-shift).
  * Valid 0 is preserved; only missing/invalid values fall back to legacy then DEFAULT.
  */
+export function resolveSpecifiedCssLengthPx(styles: CSSStyleDeclaration, raw: string): number | null {
+    const trimmed = (raw || "").trim();
+    const num = parseFloat(trimmed);
+    if (!Number.isFinite(num)) return null;
+    if (trimmed.endsWith("em")) {
+        const fontSize = parseFloat(styles.fontSize);
+        return num * (Number.isFinite(fontSize) && fontSize > 0 ? fontSize : PX_PER_EDITOR_EM);
+    }
+    if (trimmed.endsWith("pt")) {
+        return num * (96 / 72);
+    }
+    return num;
+}
+
 export function resolveCalloutLayoutLength(
     styles: CSSStyleDeclaration,
     varName: CalloutLayoutVarName,
     legacyVar?: string,
 ): number {
-    const primary = parseFloat(styles.getPropertyValue(varName));
-    if (Number.isFinite(primary)) return primary;
+    const primary = resolveSpecifiedCssLengthPx(styles, styles.getPropertyValue(varName));
+    if (primary != null) return primary;
     if (legacyVar) {
-        const legacy = parseFloat(styles.getPropertyValue(legacyVar));
-        if (Number.isFinite(legacy)) return legacy;
+        const legacy = resolveSpecifiedCssLengthPx(styles, styles.getPropertyValue(legacyVar));
+        if (legacy != null) return legacy;
     }
-    return parseFloat(DEFAULT_CALLOUT_LAYOUT[varName]);
+    return resolveSpecifiedCssLengthPx(styles, DEFAULT_CALLOUT_LAYOUT[varName]) ?? 0;
 }
 
 export function normalizeCalloutLayout(raw?: CalloutLayoutSettings | null): CalloutLayoutSettings {
@@ -196,8 +235,8 @@ export function normalizeCalloutLayout(raw?: CalloutLayoutSettings | null): Call
     Object.entries(raw).forEach(([key, value]) => {
         const trimmed = (value || "").trim();
         if (trimmed && key in DEFAULT_CALLOUT_LAYOUT) {
-            merged[key] = key === "--callout-title-font-size"
-                ? migrateTitleFontSize(trimmed)
+            merged[key] = key === "--callout-title-font-size" || key === "--callout-icon-size"
+                ? migrateEditorRelativeLength(trimmed, DEFAULT_CALLOUT_LAYOUT[key])
                 : trimmed;
         }
     });

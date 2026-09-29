@@ -1,3 +1,10 @@
+## v0.3.4 2026-09-29
+
+- 🇨🇳 Callout 标题编辑改为思源原生行为：支持行级元素，Enter / Tab 离开标题，行级格式、粘贴与撤销由思源处理
+- 🇨🇳 标题字号与 icon 大小改为相对编辑器字号的倍率，编辑器缩放时一起变化
+- 🇺🇸 Change the Callout title editing to Siyuan's native behavior: support inline elements, leave the title with Enter / Tab, and let Siyuan handle inline formatting, pasting, and undo.
+- 🇺🇸 Title font size and icon size are now scales of the editor font size, so they follow editor font scaling
+
 ## v0.3.3 2026-09-01
 
 - 🇨🇳 优化本插件在手机端的设置窗口

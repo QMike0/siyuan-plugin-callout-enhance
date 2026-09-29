@@ -23,8 +23,6 @@ const CALLOUT_RUNTIME_ATTRIBUTES = [
 ];
 const CALLOUT_TITLE_RUNTIME_CLASSES = ["is-title-editing"];
 const CALLOUT_TITLE_RUNTIME_ATTRIBUTES = [
-    "contenteditable",
-    "spellcheck",
     "data-callout-title-bound",
     "data-callout-title-snapshot",
 ];

@@ -1,26 +1,26 @@
 > *Please pay special attention to behavior in nested blocks. The state where the callout body is empty and contains only one empty line is referred to as an "empty callout".*
 
 ## 1. Title editing area
+Title input, paste, shortcuts, and saving are handled by SiYuan's native title editing, available since v3.8.2.
 - Single-click in the title area: the cursor is placed correctly, and the type menu or fold/unfold button is not triggered accidentally.
-- Pressing Enter in the title area:
-  - When the callout is expanded: a new block is created on the first line of the body area.
-  - When the callout is folded: a new block is created below the callout block without expanding the callout.
+- Keys in the title area:
+  - Enter / Tab leaves the title and focuses the callout. No new block is inserted in the body or after a folded callout.
+  - Enter does not insert a line break inside the title.
+  - Ctrl+A selects only the title area instead of the entire callout block.
+  - Inline-format shortcuts are handled by SiYuan's toolbar.
 - Text input in the title area:
   - Input works correctly with Chinese IME.
-  - The title text is saved correctly after the title area loses focus.
-  - Toolbar is not triggered by shortcut keys.
-  - Ctrl+A selects only the title area instead of the entire callout block.
-  - The title area keeps plain text only and does not preserve rich-text formatting.
+  - Inline formatting such as bold is kept and saved by SiYuan.
+  - Blurring the title does not flatten it to plain text.
 - Pasting into the title area:
   - Pasting plain text works correctly.
-  - Pasting formatted text is correctly converted to plain text.
+  - Line breaks in pasted text are collapsed to spaces by SiYuan.
   - Pasting does not break the callout title structure.
 - Undo/redo:
-  - Title text input supports undo/redo.
-  - Title text paste supports undo/redo.
-  - New blocks created by pressing Enter in the title area support undo/redo.
+  - Title input, paste, and inline formatting support undo/redo through SiYuan transactions.
 - Persistence:
   - The modified title is still kept after reloading the page or closing and reopening the tab.
+  - After a type change or scroll-limit save, the title remains natively editable.
 - Empty callout behavior:
   - Editing/pasting in the title area does not make the callout body disappear.
 - Multi-line title display:
@@ -28,10 +28,8 @@
   - Multi-line titles remain fully visible in both expanded and folded states.
   - With multiple lines, the icon and fold/unfold control stay vertically centered with the first title line.
   - Clicking the title text on line 2 or below enters edit mode and does not accidentally trigger the type icon or fold control.
+  - Dragging across title lines selects title text only, not the whole callout block.
   - Folded callout height grows with a multi-line title and is not clipped.
-- Unsupported title line breaks (negative cases):
-  - Pressing Enter in the title does not insert a line break; it follows the “Pressing Enter in the title area” new-block behavior above.
-  - After pasting text with line breaks and blurring to save, line breaks are merged into spaces (single-line semantics only; visual wrapping still comes from container width).
 
 ## 2. Fold/unfold functionality
 - Normal folding:

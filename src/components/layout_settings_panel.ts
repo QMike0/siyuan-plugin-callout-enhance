@@ -8,6 +8,7 @@ import {
     DEFAULT_CALLOUT_LAYOUT,
     inputValueToLayoutField,
     layoutFieldToInputValue,
+    applyEditorFontContext,
     normalizeCalloutLayout,
 } from "../utils/callout_layout_vars";
 import { createHelpIcon, createPreviewHelpIcon, decoratePluginDialog, openConfirmDialog } from "./settings_ui";
@@ -387,6 +388,7 @@ export function renderLayoutSettingsPanel(options: LayoutSettingsPanelOptions) {
     previewHint.textContent = t("layoutPreviewHint");
     const previewHost = document.createElement("div");
     previewHost.className = "callout-enhance-layout-preview-host";
+    applyEditorFontContext(previewHost);
 
     const readPreviewFolded = () => {
         const current = previewHost.querySelector('.callout[data-type="NodeCallout"]') as HTMLElement | null;

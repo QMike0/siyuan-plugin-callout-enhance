@@ -19,7 +19,7 @@ import {
     settleAllCalloutFoldAnimations,
 } from "./features/callout_fold";
 import { toggleCalloutScrollLimit } from "./features/callout_scroll_limit";
-import { ensureCalloutTitleEditable, guardTitleEvents, handleTitleCompositionEnd, handleTitleCompositionStart, handleTitleFocusIn, handleTitleFocusOut, handleTitleInput, handleTitleKeydown, hideProtyleToolbarForTitle, preventTitleToolbarRender, preventTitleToolbarShortcut, selectCalloutTitleText } from "./features/title_edit";
+import { ensureCalloutTitleEditable } from "./features/title_edit";
 import { CompletionSession, handleCompletionCompositionEnd, handleCompletionCompositionStart, handleCompletionInput, handleCompletionKeydown, handleCompletionMousedown, handleSelectionChange, hideCompletionMenu } from "./features/completion_menu";
 import { CalloutTypeItem } from "./utils/callout_types";
 import { CalloutEnhanceSettings, createDefaultCalloutSettings, getResolvedCalloutTypes, isDefaultAppearancePreset, normalizeCalloutSettings, prepareCalloutSettings, SETTINGS_SCHEMA_VERSION } from "./utils/settings";
@@ -76,11 +76,6 @@ export default class CalloutEnhancePlugin extends Plugin {
     private observer: MutationObserver | null = null;
     isComposing = false;
     private titleBoundEls = new WeakSet<HTMLElement>();
-    titleEnterInFlight = new Set<string>();
-    titleEditSnapshots = new WeakMap<HTMLElement, string>();
-    calloutHtmlSnapshots = new WeakMap<HTMLElement, string>();
-    titleEditDebounceTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
-    titleEditComposing = new Set<HTMLElement>();
 
     calloutTypeMenuElement: HTMLDivElement | null = null;
     calloutTypeMenuActiveBlock: HTMLElement | null = null;
@@ -101,14 +96,6 @@ export default class CalloutEnhancePlugin extends Plugin {
     private listen(target: EventTarget, type: string, handler: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) {
         target.addEventListener(type, handler, options as any);
         this.cleanupHandlers.push(() => target.removeEventListener(type, handler, options as any));
-    }
-
-
-    isUndoRedoShortcut(e: KeyboardEvent) {
-        const key = (e.key || "").toLowerCase();
-        const withModifier = e.ctrlKey || e.metaKey;
-        if (!withModifier) return false;
-        return key === "z" || key === "y";
     }
 
     private initCallout(block: HTMLElement) {
@@ -623,28 +610,6 @@ export default class CalloutEnhancePlugin extends Plugin {
             const isCurrentlyFolded = isCalloutLogicallyFolded(callout);
             const nextFold = !isCurrentlyFolded;
             void setFoldState(this, callout, nextFold);
-            return;
-        }
-
-        const titleEl = (e.target as HTMLElement | null)?.closest?.(".callout-title") as HTMLElement | null;
-        if (titleEl) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            ensureCalloutTitleEditable(titleEl);
-            const sel = window.getSelection();
-            const hasTitleTextSelection = !!(sel?.rangeCount
-                && !sel.getRangeAt(0).collapsed
-                && titleEl.contains(sel.getRangeAt(0).commonAncestorContainer));
-            if (document.activeElement !== titleEl) {
-                titleEl.focus();
-            }
-            if (!hasTitleTextSelection && document.activeElement === titleEl) {
-                const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
-                if (!range?.collapsed || !titleEl.contains(range.commonAncestorContainer)) {
-                    placeCaretAtEnd(titleEl);
-                }
-            }
         }
     };
 
@@ -661,19 +626,6 @@ export default class CalloutEnhancePlugin extends Plugin {
         }
 
         if (isPublishService()) return;
-
-        const titleEl = closestTitleFromTarget(e.target);
-        if (titleEl) {
-            if (e.key === "Enter") {
-                handleTitleKeydown(this, e);
-                return;
-            }
-            if (selectCalloutTitleText(e)) return;
-            if (this.isUndoRedoShortcut(e)) return;
-            if (preventTitleToolbarShortcut(e, this)) return;
-            guardTitleEvents(this, e);
-            return;
-        }
 
         if (e.key === "ArrowLeft") {
             this.handleBodyArrowLeft(e);
@@ -727,21 +679,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (isPublishService()) {
             this.listen(document, "click", this.handlePublishCalloutClickGuard, true);
         } else {
-            this.listen(document, "focusin", (e) => handleTitleFocusIn(this, e as FocusEvent), true);
-            this.listen(document, "focusout", (e) => handleTitleFocusOut(this, e as FocusEvent), true);
             this.listen(document, "keydown", this.handleGlobalKeydown, true);
-            this.listen(document, "keyup", (e) => preventTitleToolbarRender(e, this), true);
-            this.listen(document, "mouseup", (e) => preventTitleToolbarRender(e, this), true);
-            this.listen(document, "selectionchange", () => hideProtyleToolbarForTitle(document.activeElement, this), true);
-            this.listen(document, "beforeinput", (e) => guardTitleEvents(this, e), true);
-            this.listen(document, "paste", (e) => guardTitleEvents(this, e), true);
-            this.listen(document, "input", (e) => handleTitleInput(this, e as Event), true);
-            this.listen(document, "input", (e) => guardTitleEvents(this, e), true);
-            this.listen(document, "compositionstart", (e) => handleTitleCompositionStart(this, e as Event), true);
-            this.listen(document, "compositionstart", (e) => guardTitleEvents(this, e), true);
-            this.listen(document, "compositionupdate", (e) => guardTitleEvents(this, e), true);
-            this.listen(document, "compositionend", (e) => handleTitleCompositionEnd(this, e as Event), true);
-            this.listen(document, "compositionend", (e) => guardTitleEvents(this, e), true);
             this.listen(document, "pointerdown", this.handleGlobalPointerDown, true);
             this.listen(document, "mousedown", this.handleGlobalTitleMouseDown, true);
             this.listen(document.body, "click", this.handleGlobalClick, true);
@@ -790,10 +728,6 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.cleanupHandlers = [];
         this.observer?.disconnect();
         this.observer = null;
-        // 清除所有防抖 timer
-        this.titleEditDebounceTimers.forEach((timer) => clearTimeout(timer));
-        this.titleEditDebounceTimers.clear();
-        this.titleEditComposing.clear();
         hideCalloutTypeMenu(this);
         hideCompletionMenu(this);
         this.calloutTypeMenuElement?.remove();
