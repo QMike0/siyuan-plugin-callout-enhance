@@ -98,7 +98,23 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.cleanupHandlers.push(() => target.removeEventListener(type, handler, options as any));
     }
 
+    private isBazaarReadmeCallout(block: HTMLElement) {
+        return !!block.closest("#configBazaarReadme");
+    }
+
+    /** Marketplace README is static HTML. Never turn its titles into editing hosts. */
+    private lockBazaarCalloutReadOnly(block: HTMLElement) {
+        block.setAttribute("contenteditable", "false");
+        block.querySelectorAll<HTMLElement>(".callout-info, .callout-title, .callout-content").forEach((el) => {
+            el.setAttribute("contenteditable", "false");
+        });
+    }
+
     private initCallout(block: HTMLElement) {
+        if (this.isBazaarReadmeCallout(block)) {
+            this.lockBazaarCalloutReadOnly(block);
+            return;
+        }
         if (isCalloutSettingsPreview(block)) {
             block.dataset.enhanced = "true";
             return;
@@ -693,13 +709,13 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.observer = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
                 mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === 1) {
-                        if ((node as HTMLElement).classList.contains("callout")) {
-                            this.initCallout(node as HTMLElement);
-                        } else {
-                            (node as HTMLElement).querySelectorAll?.(".callout").forEach((item) => this.initCallout(item as HTMLElement));
-                        }
+                    if (node.nodeType !== 1) return;
+                    const el = node as HTMLElement;
+                    // 一次插入整段 callout HTML 时，内层 callout 只是子孙节点，不会单独出现在 addedNodes 里。
+                    if (el.classList.contains("callout")) {
+                        this.initCallout(el);
                     }
+                    el.querySelectorAll?.(".callout").forEach((item) => this.initCallout(item as HTMLElement));
                 });
             }
         });

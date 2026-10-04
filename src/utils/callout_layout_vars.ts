@@ -253,7 +253,19 @@ export function buildCalloutLayoutStylesheet(layout: CalloutLayoutSettings) {
         .filter(Boolean)
         .join(";");
     if (!declarations) return "";
-    return `.callout[data-type="NodeCallout"]{${declarations}}`;
+    // 集市没有折叠按钮，不沿用为箭头预留的标题右内边距。
+    const bazaarDeclarations = CALLOUT_LAYOUT_CSS_VARS
+        .filter((name) => name !== "--callout-title-padding-right")
+        .map((name) => {
+            const value = safeCssValue(resolved[name] || DEFAULT_CALLOUT_LAYOUT[name] || "");
+            return value ? `${name}:${value}` : "";
+        })
+        .filter(Boolean)
+        .join(";");
+    return [
+        `.callout[data-type="NodeCallout"]{${declarations}}`,
+        `#configBazaarReadme .item__readme .callout{${bazaarDeclarations}}`,
+    ].join("");
 }
 
 export function layoutFieldToInputValue(field: CalloutLayoutFieldDef, stored: string) {

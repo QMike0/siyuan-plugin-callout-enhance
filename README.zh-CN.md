@@ -2,10 +2,11 @@
 
 [English](https://github.com/QMike0/siyuan-plugin-callout-enhance/blob/main/README.md)
 
-> [!important]
+> [!IMPORTANT]
 >
 > 本插件除了思源笔记内置的五种callout类型，还支持自定义callout新类型。
-> 不过，需要注意在关闭本插件后，自定义类型的callout会变成无ICON的NOTE样式，除此之外不会存在自定义样式残留。介意的话慎用！
+>
+> 需要注意在关闭本插件后，自定义类型的callout会变成无ICON的“自定义样式”，这是符合预期的（思源笔记预留了callout块的“自定义样式”入口，供给插件/脚本自定义类型使用[*](https://ld246.com/article/1788232064131)）。除此之外不会存在自定义样式残留。
 
 ## 主要特性
 

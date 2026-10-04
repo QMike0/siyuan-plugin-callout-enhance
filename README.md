@@ -4,8 +4,9 @@
 
 > [!important]
 >
-> In addition to the five built-in callout types in SiYuan Note, this plugin also supports custom new callout types.
-> However, please note that after disabling this plugin, custom callout types will revert to the NOTE style without an icon. Apart from this, no custom styling will remain. Please use with caution if this is a concern for you.
+> Besides the five built-in callout types in SiYuan Note, this plugin also supports custom new callout types.
+>
+> Note that after this plugin is disabled, callouts of custom types will become "custom styles" without an ICON. This is expected behavior (SiYuan Note reserves a "custom styles" entry for callout blocks, intended for plugins/scripts to use for custom types[*](https://ld246.com/article/1788232064131)). Apart from this, there will be no residual custom styles.
 
 ## Key Features
 

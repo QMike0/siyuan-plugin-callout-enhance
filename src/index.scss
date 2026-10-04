@@ -2061,3 +2061,148 @@ body.body--mobile .b3-dialog__container:has(.callout-enhance-cleanup-progress),
         padding-right: 12px;
     }
 }
+
+/* 集市 README 是 Lute HTML（无 data-type="NodeCallout"）。只接管外观，不画折叠按钮，也不接收编辑器交互。 */
+#configBazaarReadme .item__readme .callout {
+    --callout-shell-padding-top: 10px;
+    --callout-shell-padding-right: 0px;
+    --callout-shell-padding-bottom: 4px;
+    --callout-shell-padding-left: 12px;
+    --callout-header-width-offset: 2px;
+    --callout-header-height: 28px;
+    --callout-header-y-adjust: -3px;
+    --callout-title-font-weight: bold;
+    --callout-title-font-size: 1em;
+    --callout-title-line-height: 1.625;
+    --callout-title-opacity: 1;
+    --callout-title-padding-right: 8px;
+    --callout-icon-size: 1em;
+    --callout-icon-left: 20px;
+    --callout-icon-title-gap: 2px;
+    --callout-icon-before-display: inline-block;
+    --callout-inline-icon-display: none;
+    --callout-left-accent-width: 0px;
+    --callout-body-padding-x: 10px;
+    --callout-body-padding-bottom: 12px;
+    --callout-body-gap-top: 4px;
+    --callout-header-background: var(--callout-surface-background);
+    --callout-body-background: var(--callout-surface-background);
+    --callout-border-radius: 6px;
+    --callout-border-width: 0px;
+    --callout-first-line-center: calc(var(--callout-title-font-size) * var(--callout-title-line-height) / 2);
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding-top: var(--callout-shell-padding-top);
+    padding-right: var(--callout-shell-padding-right);
+    padding-bottom: var(--callout-shell-padding-bottom);
+    padding-left: var(--callout-shell-padding-left);
+    border-style: solid;
+    border-width: var(--callout-border-width) !important;
+    border-color: var(--local-color, transparent) !important;
+    border-radius: var(--callout-border-radius) !important;
+    box-shadow: none !important;
+    outline: none !important;
+
+    .callout-icon {
+        display: var(--callout-inline-icon-display) !important;
+    }
+
+    &::before {
+        content: "";
+        position: absolute;
+        display: var(--callout-icon-before-display);
+        width: var(--callout-icon-size);
+        height: var(--callout-icon-size);
+        border-radius: 0 !important;
+        top: calc(var(--callout-shell-padding-top) + var(--callout-header-y-adjust) + var(--callout-first-line-center));
+        bottom: auto !important;
+        right: auto !important;
+        left: calc(var(--callout-icon-left) + var(--callout-header-width-offset));
+        transform: translateY(-50%);
+        background-color: currentColor;
+        margin: 0;
+        pointer-events: none;
+        cursor: default;
+        z-index: 1;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+    }
+
+    .callout-info {
+        display: flex;
+        align-items: center;
+        position: relative;
+        user-select: text;
+        padding-left: calc(var(--callout-icon-left) + var(--callout-header-width-offset) + var(--callout-icon-size) + var(--callout-icon-title-gap) - var(--callout-shell-padding-left));
+        min-height: var(--callout-header-height);
+        background: var(--callout-header-background);
+
+        .callout-title {
+            font-size: var(--callout-title-font-size);
+            font-weight: var(--callout-title-font-weight);
+            line-height: var(--callout-title-line-height);
+            opacity: var(--callout-title-opacity);
+            padding-right: var(--callout-title-padding-right);
+            width: 100%;
+            white-space: normal;
+            word-break: break-word;
+            display: block;
+            cursor: text;
+            user-select: text;
+            -webkit-user-modify: read-only;
+            transform: translateY(var(--callout-header-y-adjust));
+        }
+    }
+
+    > .callout-info ~ * {
+        margin-left: var(--callout-body-padding-x);
+        margin-right: var(--callout-body-padding-x);
+        margin-bottom: var(--callout-body-padding-bottom);
+        box-sizing: border-box;
+        min-width: 0;
+        max-width: calc(100% - (var(--callout-body-padding-x) * 2));
+    }
+
+    > .callout-info + * {
+        margin-top: var(--callout-body-gap-top);
+    }
+
+    &[data-subtype] {
+        --local-color: var(--callout-color-default);
+        --callout-surface-background: color-mix(in srgb, var(--local-color), var(--callout-bg-mix));
+        --callout-header-background-height: calc(var(--callout-shell-padding-top) + var(--callout-header-height) + var(--callout-shell-padding-bottom));
+        --callout-composite-background: linear-gradient(
+            to bottom,
+            var(--callout-header-background) 0,
+            var(--callout-header-background) var(--callout-header-background-height),
+            var(--callout-body-background) var(--callout-header-background-height),
+            var(--callout-body-background) 100%
+        );
+        --callout-accent-layer: linear-gradient(to bottom, var(--local-color), var(--local-color)) 0 0 / var(--callout-left-accent-width) 100% no-repeat;
+
+        background: var(--callout-accent-layer), var(--callout-composite-background) !important;
+
+        &,
+        > .callout-info > .callout-title {
+            color: color-mix(in srgb, var(--local-color), var(--callout-text-mix)) !important;
+        }
+
+        > .callout-info ~ *,
+        > .callout-info > :not(.callout-title),
+        > .callout-info > :not(.callout-title) * {
+            color: var(--b3-theme-on-background) !important;
+        }
+
+        &::before {
+            -webkit-mask-image: var(--callout-icon-mask-default);
+            mask-image: var(--callout-icon-mask-default);
+        }
+    }
+}

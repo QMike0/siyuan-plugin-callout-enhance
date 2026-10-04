@@ -1,3 +1,12 @@
+## v0.3.5 2026-10-04
+
+- 🇨🇳 本插件接管集市 README 中的 callout 外观（颜色、图标、标题与正文间距），不显示折叠按钮，也不提供类型菜单或标题编辑
+- 🇨🇳 修复新插入的 callout 里，内层 callout 没有被增强的问题
+- 🇨🇳 更正README.md，明确关闭插件后，自定义类型的 callout 会变成无 ICON 的「自定义样式」，而不是 NOTE 样式
+- 🇺🇸 The plugin now takes over the callout appearance in the marketplace README (color, icon, spacing between title and body), does not show the collapse button, and does not provide a type menu or title editing
+- 🇺🇸 Fix the issue where inner callouts were not enhanced in newly inserted callouts
+- 🇺🇸 Correct README.md to clarify that after the plugin is disabled, callouts of custom types will become "custom styles" without an ICON, rather than the NOTE style
+
 ## v0.3.4 2026-09-29
 
 - 🇨🇳 Callout 标题编辑改为思源原生行为：支持行级元素，Enter / Tab 离开标题，行级格式、粘贴与撤销由思源处理

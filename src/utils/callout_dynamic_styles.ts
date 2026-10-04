@@ -20,6 +20,23 @@ export type PreviewIconSource = "editor" | "draft";
 
 export const DYNAMIC_STYLE_ID = "callout-enhance-dynamic-styles";
 
+/** Editor blocks. Interactive rules stay on this selector only. */
+export const EDITOR_CALLOUT_SELECTOR = `.callout[data-type="NodeCallout"]`;
+
+/**
+ * Marketplace README HTML from Lute Tree2HTML: `.callout` + `data-subtype`,
+ * without `data-type="NodeCallout"`. Appearance only.
+ */
+export const BAZAAR_CALLOUT_SELECTOR = `#configBazaarReadme .item__readme .callout`;
+
+function appearanceSelectors(subtype?: string) {
+    const subtypeAttr = subtype ? `[data-subtype="${subtype}" i]` : "";
+    return [
+        `${EDITOR_CALLOUT_SELECTOR}${subtypeAttr}`,
+        `${BAZAAR_CALLOUT_SELECTOR}${subtypeAttr}`,
+    ];
+}
+
 /**
  * SiYuan PDF/HTML export collects `<style id="snippetCSS*">` from the editor window
  * (see siyuan app/protyle/export/index.ts getSnippetCSS). Mirror dynamic callout CSS here
@@ -133,9 +150,10 @@ export function buildCalloutTypeAppearanceStylesheet(
         const paint = resolveCalloutIconPaint(item.icon || item.label, item.label);
 
         for (const subtype of subtypes) {
-            const selector = `.callout[data-type="NodeCallout"][data-subtype="${escapeCssString(subtype)}" i]`;
-            rules.push(`${selector}{${colorDecl}}`);
-            rules.push(buildCalloutIconBeforeRule(selector, paint));
+            for (const selector of appearanceSelectors(escapeCssString(subtype))) {
+                rules.push(`${selector}{${colorDecl}}`);
+                rules.push(buildCalloutIconBeforeRule(selector, paint));
+            }
         }
     });
 
@@ -148,7 +166,7 @@ export function buildCalloutPaletteStylesheet(): string {
         ...BUILTIN_CALLOUT_PALETTE.map((entry) => `${entry.cssVar}:${entry.hex}`),
         `--callout-icon-mask-default:${safeCssValue(DEFAULT_CALLOUT_ICON_MASK)}`,
     ].join(";");
-    return `.callout[data-type="NodeCallout"]{${decls}}`;
+    return `${appearanceSelectors().join(",")}{${decls}}`;
 }
 
 /** Default built-in types only — per-subtype `--local-color` and icon masks. */
