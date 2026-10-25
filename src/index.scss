@@ -2106,6 +2106,10 @@ body.body--mobile .b3-dialog__container:has(.callout-enhance-cleanup-progress),
     box-shadow: none !important;
     outline: none !important;
 
+    & + .callout {
+        margin-top: 16px;
+    }
+
     .callout-icon {
         display: var(--callout-inline-icon-display) !important;
     }
