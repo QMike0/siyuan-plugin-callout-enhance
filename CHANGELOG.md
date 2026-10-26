@@ -1,3 +1,10 @@
+## v0.3.6 2026-10-26
+
+- 🇨🇳 限制数据库与表格的富文本单元格中触发类型菜单，以适配思源笔记对提示块在富文本单元格中的使用限制
+- 🇨🇳 修复集市README中相邻callout连在一起的问题
+- 🇺🇸 Restrict trigger-type menus in rich-text cells of databases and tables to accommodate SiYuan Notes' usage restrictions on callout blocks in rich-text cells
+- 🇺🇸 Fix the issue in the marketplace README where adjacent callouts are stuck together
+
 ## v0.3.5 2026-10-04
 
 - 🇨🇳 本插件接管集市 README 中的 callout 外观（颜色、图标、标题与正文间距），不显示折叠按钮，也不提供类型菜单或标题编辑
