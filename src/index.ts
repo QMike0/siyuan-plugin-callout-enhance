@@ -1,6 +1,6 @@
 import { Plugin, IOperation, showMessage } from "siyuan";
 import "./index.scss";
-import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, placeCaretAtEnd } from "./utils/dom";
+import { closestTitleFromTarget, focusNewBlockEditableStart, getCalloutFromEventTarget, getSelectionCallout, isInsideAVRichTextEditor, placeCaretAtEnd } from "./utils/dom";
 import { cleanCalloutOuterHTML, getCalloutBodyContainer, getCalloutBodyLineCount, hasCalloutBody, isCalloutSettingsPreview } from "./utils/callout";
 import { getParentBlockLikeSiyuan, shouldFocusCalloutTitleOnBodyArrowLeft } from "./utils/getBlock";
 import { createTransaction, getCurrentProtyle } from "./core/api";
@@ -419,7 +419,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (closestTitleFromTarget(e.target)) return;
 
         const currentCallout = getSelectionCallout();
-        if (!currentCallout) return;
+        if (!currentCallout || isInsideAVRichTextEditor(currentCallout)) return;
 
         const sel = window.getSelection();
         if (!sel || !sel.rangeCount) return;
@@ -533,7 +533,7 @@ export default class CalloutEnhancePlugin extends Plugin {
         if (closestTitleFromTarget(e.target)) return;
 
         const callout = getCalloutFromEventTarget(e.target) || getSelectionCallout();
-        if (!callout) return;
+        if (!callout || isInsideAVRichTextEditor(callout)) return;
         if (callout.dataset.deleting === "true") return;
         if (getCalloutBodyLineCount(callout) > 1) return;
         if (hasCalloutBody(callout)) return;
@@ -565,7 +565,7 @@ export default class CalloutEnhancePlugin extends Plugin {
     };
 
     private handleGlobalPointerDown = (e: PointerEvent) => {
-        if (isPublishService()) return;
+        if (isPublishService() || isInsideAVRichTextEditor(e.target)) return;
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
         if (!callout || isCalloutSettingsPreview(callout)) return;
         const pointerHit = this.readCalloutPointerHit(callout, e);
@@ -582,7 +582,7 @@ export default class CalloutEnhancePlugin extends Plugin {
      * 仅 stopPropagation，保留浏览器原生文本选区行为。
      */
     private handleGlobalTitleMouseDown = (e: MouseEvent) => {
-        if (isPublishService()) return;
+        if (isPublishService() || isInsideAVRichTextEditor(e.target)) return;
         if (e.button !== 0) return;
         const titleEl = closestTitleFromTarget(e.target);
         if (!titleEl) return;
@@ -599,7 +599,7 @@ export default class CalloutEnhancePlugin extends Plugin {
             hideCompletionMenu(this);
         }
 
-        if (isPublishService()) return;
+        if (isPublishService() || isInsideAVRichTextEditor(e.target)) return;
 
         const callout = (e.target as HTMLElement | null)?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
         if (!callout || isCalloutSettingsPreview(callout)) return;

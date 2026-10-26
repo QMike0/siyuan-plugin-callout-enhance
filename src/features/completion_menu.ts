@@ -5,7 +5,7 @@
  * keyboard navigation, and completion transform handling for quote blocks.
  */
 import { showMessage } from "siyuan";
-import { cloneEditorRange, getBlockquoteElement, restoreEditorRange } from "../utils/dom";
+import { cloneEditorRange, getBlockquoteElement, isInsideAVRichTextEditor, restoreEditorRange } from "../utils/dom";
 import { PluginWithGetEditor } from "../core/api";
 import { isPublishService } from "../core/cl_api";
 import { CalloutTypeItem, calloutMatchesFilter } from "../utils/callout_types";
@@ -242,6 +242,10 @@ export function handleCompletionInput(plugin: CompletionMenuPluginLike, e: Input
         return;
     }
     const focusText = focusNode as Text;
+    if (isInsideAVRichTextEditor(focusText)) {
+        hideCompletionMenu(plugin);
+        return;
+    }
     const quoteEl = getBlockquoteElement(focusText);
     if (!quoteEl) {
         hideCompletionMenu(plugin);

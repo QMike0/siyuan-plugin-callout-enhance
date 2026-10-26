@@ -66,6 +66,15 @@ export function getSelectionCallout() {
     return element?.closest?.('.callout[data-type="NodeCallout"]') as HTMLElement | null;
 }
 
+/** Database and table rich-text cells allow quotes, but both drop NodeCallout on save. */
+const RICH_TEXT_CELL_EDITOR_SELECTOR = ".av__richtext-editor, .table__cell-editor";
+
+export function isInsideAVRichTextEditor(target: EventTarget | Node | null) {
+    if (!(target instanceof Node)) return false;
+    const element = target.nodeType === Node.TEXT_NODE ? target.parentElement : target instanceof Element ? target : null;
+    return !!element?.closest?.(RICH_TEXT_CELL_EDITOR_SELECTOR);
+}
+
 export function getBlockquoteElement(node: Node | null) {
     if (!node) return null;
     let current: HTMLElement | null = node.nodeType === Node.TEXT_NODE ? node.parentElement : node as HTMLElement;
