@@ -2,8 +2,8 @@
   "name": "siyuan-plugin-callout-enhance",
   "author": "QMike0",
   "url": "https://github.com/QMike0/siyuan-plugin-callout-enhance",
-  "version": "0.3.6",
-  "minAppVersion": "3.8.2",
+  "version": "0.3.7",
+  "minAppVersion": "3.8.7",
   "backends": [
     "all"
   ],
@@ -11,6 +11,7 @@
     "all"
   ],
   "disabledInPublish": false,
+  "settingsWindow": true,
   "displayName": {
     "default": "Callout Enhance",
     "zh-CN": "Callout 增强"

@@ -14,6 +14,8 @@
 
 ### (1) Callout Appearance Optimization
 
+Callouts in marketplace descriptions (plugins, themes, etc.) also use this plugin's appearance. With SiYuan's "Open settings in a separate window" enabled, this requires **SiYuan 3.8.7 or later**; on older versions, use the in-app settings dialog. The separate settings window only applies appearance, without title editing, folding, or type menus.
+
 Default Appearance:
 
 ![callout_types](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_types.png)

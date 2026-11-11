@@ -14,6 +14,8 @@
 
 ### （1）Callout外观优化
 
+集市中插件、主题等介绍页的 Callout 同样使用本插件的外观。启用思源「在独立窗口中打开设置界面」时，此功能需要思源 **3.8.7 或更新版本**；旧版本请使用非独立窗口的设置界面。独立设置窗口仅加载外观，不启用标题编辑、折叠或类型菜单。
+
 默认外观：
 
 ![callout_types](https://cdn.jsdelivr.net/gh/QMike0/pic_bed@main/img/callout_types.png)

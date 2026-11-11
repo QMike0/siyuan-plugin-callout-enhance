@@ -4,6 +4,7 @@
   "description": "SiYuan plugin for enhancing callout title Enter and completion behavior.",
   "main": "index.js",
   "scripts": {
+    "test": "node --test build/settings-window.test.cjs",
     "lint": "eslint . --fix --cache",
     "predev": "node build/generate-callout-defaults.cjs",
     "dev": "webpack --mode development",

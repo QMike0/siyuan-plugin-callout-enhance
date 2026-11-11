@@ -67,6 +67,9 @@ export default class CalloutEnhancePlugin extends Plugin {
     };
 
     private cleanupHandlers: Array<() => void> = [];
+    // SiYuan 3.8.7+ loads an independent plugin instance in native settings windows.
+    private readonly settingsWindow = document.body.classList.contains("body--settings");
+    private unloaded = false;
     private calloutCleanupAbort: AbortController | null = null;
     private lastCalloutPointerHit: CachedCalloutPointerHit | null = null;
     settings: CalloutEnhanceSettings = createDefaultCalloutSettings();
@@ -149,12 +152,13 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     private updateDynamicCalloutStyles() {
+        if (this.unloaded) return;
         const css = buildCalloutDynamicStylesheet({
             settings: this.settings,
             layout: this.getEffectiveCalloutLayout(),
         });
         applyCalloutDynamicStylesheet(css, DYNAMIC_STYLE_ID);
-        syncCalloutExportStylesheet(css);
+        if (!this.settingsWindow) syncCalloutExportStylesheet(css);
     }
 
     /** Re-run after sprites/layout settle so `symbol:*` CSS snapshots match the active icon pack. */
@@ -163,7 +167,8 @@ export default class CalloutEnhancePlugin extends Plugin {
             this.updateDynamicCalloutStyles();
             return;
         }
-        requestAnimationFrame(() => this.updateDynamicCalloutStyles());
+        const frame = requestAnimationFrame(() => this.updateDynamicCalloutStyles());
+        this.cleanupHandlers.push(() => cancelAnimationFrame(frame));
     }
 
     getCalloutTypes() {
@@ -315,6 +320,7 @@ export default class CalloutEnhancePlugin extends Plugin {
 
     private async loadSettings() {
         const saved = (await this.loadData(STORAGE_NAME)) as Partial<CalloutEnhanceSettings> | null;
+        if (this.unloaded) return;
         const { settings, migrated, fromVersion } = prepareCalloutSettings(saved);
         this.settings = settings;
         this.resolvedCalloutTypes = getResolvedCalloutTypes(this.settings);
@@ -322,7 +328,8 @@ export default class CalloutEnhancePlugin extends Plugin {
         this.updateDynamicCalloutStyles();
         if (migrated) {
             debugLog(`[Settings] Migrated schema v${fromVersion} → v${SETTINGS_SCHEMA_VERSION}`);
-            await this.persistSettings();
+            // The appearance-only settings instance must not race the editor's migration write.
+            if (!this.settingsWindow) await this.persistSettings();
         }
     }
 
@@ -687,10 +694,15 @@ export default class CalloutEnhancePlugin extends Plugin {
         );
 
         await this.loadSettings();
+        if (this.unloaded) return;
         this.refreshDynamicCalloutStylesAfterPaint();
         this.data = { settings: this.settings };
         (window as any).__calloutEnhancePlugin = this;
         this.openSetting = this.openSetting.bind(this);
+
+        // Marketplace README is static HTML: CSS handles both existing and future callouts.
+        // Do not attach editor handlers or a body-wide MutationObserver in this window.
+        if (this.settingsWindow) return;
 
         if (isPublishService()) {
             this.listen(document, "click", this.handlePublishCalloutClickGuard, true);
@@ -723,7 +735,8 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     onLayoutReady() {
-        this.scanAllCallouts();
+        if (this.unloaded) return;
+        if (!this.settingsWindow) this.scanAllCallouts();
         this.updateDynamicCalloutStyles();
     }
 
@@ -736,6 +749,8 @@ export default class CalloutEnhancePlugin extends Plugin {
     }
 
     async onunload() {
+        // A settings window may close while loadData or a scheduled paint is still pending.
+        this.unloaded = true;
         // Invalidate pending fold continuations and remove inline clipping
         // before plugin styles/listeners are detached.
         settleAllCalloutFoldAnimations();
@@ -755,6 +770,9 @@ export default class CalloutEnhancePlugin extends Plugin {
         // Ensure no leftover live-icon DOM remains after disable (avoids huge orphan SVGs).
         removeAllCalloutLiveIconHosts();
         document.body.classList.remove(PUBLISH_BODY_CLASS);
+        if ((window as any).__calloutEnhancePlugin === this) {
+            delete (window as any).__calloutEnhancePlugin;
+        }
         delete (window as any)[STARTUP_FLAG];
     }
 }

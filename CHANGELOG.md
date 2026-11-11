@@ -1,3 +1,8 @@
+## v0.3.7 2026-11-11
+
+- 🇨🇳 修复本插件无法接管独立设置窗口中的集市 README 的 callout 外观的问题
+- 🇺🇸 Fix the issue where this plugin cannot take over the callout appearance of the Bazaar README in the standalone settings window
+
 ## v0.3.6 2026-10-26
 
 - 🇨🇳 限制数据库与表格的富文本单元格中触发类型菜单，以适配思源笔记对提示块在富文本单元格中的使用限制
